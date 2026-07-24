@@ -4,16 +4,32 @@ project(MixMind VERSION 1.0.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ── Fetch JUCE ────────────────────────────────────────────────────────────────
-# Include JUCE from the repository root
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../JUCE" JUCE)
+# ── Company / branding (change these before shipping) ───────────────────────
+set(MIXMIND_COMPANY         "MixMind Audio")
+set(MIXMIND_MANUFACTURER    MXMN)
+set(MIXMIND_PLUGIN_CODE     Mxmn)
 
-# ── Plugin target ─────────────────────────────────────────────────────────────
+# ── Fetch JUCE automatically (no manual git clone required) ─────────────────
+include(FetchContent)
+
+FetchContent_Declare(JUCE
+    GIT_REPOSITORY  https://github.com/juce-framework/JUCE.git
+    GIT_TAG         8.0.6
+    GIT_SHALLOW     TRUE
+)
+
+FetchContent_GetProperties(JUCE)
+if(NOT juce_POPULATED)
+    FetchContent_Populate(JUCE)
+    add_subdirectory(${juce_SOURCE_DIR} ${juce_BINARY_DIR})
+endif()
+
+# ── Plugin target ─────────────────────────────────────────────────────────
 juce_add_plugin(MixMind
     VERSION                     1.0.0
-    COMPANY_NAME                "YourStudio"
-    PLUGIN_MANUFACTURER_CODE    MXMN
-    PLUGIN_CODE                 Mxmn
+    COMPANY_NAME                "${MIXMIND_COMPANY}"
+    PLUGIN_MANUFACTURER_CODE    ${MIXMIND_MANUFACTURER}
+    PLUGIN_CODE                 ${MIXMIND_PLUGIN_CODE}
     FORMATS                     VST3 AU Standalone
     PRODUCT_NAME                "MixMind"
     IS_SYNTH                    FALSE
@@ -26,7 +42,7 @@ juce_add_plugin(MixMind
     COPY_PLUGIN_AFTER_BUILD     TRUE
 )
 
-# ── Source files ──────────────────────────────────────────────────────────────
+# ── Source files ──────────────────────────────────────────────────────────
 target_sources(MixMind PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginProcessor.h
@@ -34,16 +50,16 @@ target_sources(MixMind PRIVATE
     Source/PluginEditor.h
     Source/ApiClient.cpp
     Source/ApiClient.h
+    Source/AudioAnalyzer.cpp
+    Source/AudioAnalyzer.h
     Source/ChatComponent.cpp
     Source/ChatComponent.h
     Source/ContextPanel.cpp
     Source/ContextPanel.h
-    Source/AudioAnalyzer.cpp
-    Source/AudioAnalyzer.h
     Source/LookAndFeel.h
 )
 
-# ── JUCE modules & Definitions ────────────────────────────────────────────────
+# ── Compile definitions ───────────────────────────────────────────────────
 target_compile_definitions(MixMind PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
@@ -63,7 +79,8 @@ target_link_libraries(MixMind PRIVATE
     juce::juce_recommended_warning_flags
 )
 
-# Explicitly set include directories for JUCE modules
-target_include_directories(MixMind PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/../JUCE/modules"
-)
+# ── Signing & notarization is handled by build_pkg.sh ─────────────────────
+# Run ./build_pkg.sh after building to codesign, notarize, and package.
+# Set these environment variables before running:
+#   export MIXMIND_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+#   export MIXMIND_NOTARIZE=true
