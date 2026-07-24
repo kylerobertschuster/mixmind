@@ -1,14 +1,29 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <cstdlib>
  
 MixMindProcessor::MixMindProcessor()
     : AudioProcessor (BusesProperties()
                       .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
-    apiClient.setServerUrl  ("https://mixmind-proxy-production.up.railway.app");
-    apiClient.setLicenseKey ("MM-99579E0886654214");
-    apiClient.setMaxTokens  (1000);
+    // ── Server configuration ────────────────────────────────────────────────
+    // In production, override these via a config file or environment.
+    // The proxy server URL is read from MIXMIND_SERVER_URL env var if set,
+    // falling back to localhost for development.
+    const char* envUrl = std::getenv("MIXMIND_SERVER_URL");
+    if (envUrl && strlen(envUrl) > 0)
+        apiClient.setServerUrl(envUrl);
+    else
+        apiClient.setServerUrl("http://localhost:3000");
+
+    // License key is loaded from MIXMIND_LICENSE_KEY env var or left blank
+    // for the user to configure via the UI settings panel.
+    const char* envKey = std::getenv("MIXMIND_LICENSE_KEY");
+    if (envKey && strlen(envKey) > 0)
+        apiClient.setLicenseKey(envKey);
+
+    apiClient.setMaxTokens(1000);
 }
  
 void MixMindProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
