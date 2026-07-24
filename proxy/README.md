@@ -1,7 +1,7 @@
-# MixMind Proxy
+# JuicePipe Proxy
 
-Node.js backend for the MixMind VST3/AU plugin. Provides AI model routing,
-license management, and health monitoring.
+Node.js backend for MixMind by JuicePipe. Provides AI model routing,
+license management, rate limiting, and health monitoring.
 
 ## Quick Start
 
