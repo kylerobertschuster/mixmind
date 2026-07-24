@@ -25,7 +25,7 @@ PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${PROJECT_DIR}/build"
 PKG_ROOT="${PROJECT_DIR}/pkg_root"
 OUTPUT_PKG="${PROJECT_DIR}/MixMind-1.0.0.pkg"
-BUNDLE_ID="${MIXMIND_BUNDLE_ID:-com.mixmind.plugin}"
+BUNDLE_ID="${MIXMIND_BUNDLE_ID:-com.juicepipe.mixmind}"
 SIGN_IDENTITY="${MIXMIND_SIGN_IDENTITY:-}"
 DO_NOTARIZE="${MIXMIND_NOTARIZE:-false}"
 

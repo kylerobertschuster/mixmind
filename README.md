@@ -1,8 +1,8 @@
 # MixMind
 
-**AI-assisted mixing plugin. VST3 / AU / Standalone.**
+**AI-assisted mixing plugin by JuicePipe. VST3 / AU / Standalone.**
 
-MixMind is a utility audio plugin that analyzes your mix in real time and delivers context-aware recommendations through a conversational interface. It runs as a standard DAW plugin with no audio output -- it listens, processes, and advises.
+MixMind is a utility audio plugin that analyzes your mix in real time and delivers context-aware recommendations through a conversational interface. It runs as a standard DAW plugin with no audio output — it listens, processes, and advises.
 
 ---
 

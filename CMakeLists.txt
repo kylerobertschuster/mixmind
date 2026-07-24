@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ── Company / branding (change these before shipping) ───────────────────────
-set(MIXMIND_COMPANY         "MixMind Audio")
+set(MIXMIND_COMPANY         "JuicePipe")
 set(MIXMIND_MANUFACTURER    MXMN)
 set(MIXMIND_PLUGIN_CODE     Mxmn)
 
