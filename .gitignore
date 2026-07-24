@@ -1,0 +1,35 @@
+# Build artifacts
+Builds/
+build/
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.vst3
+*.component
+*.app
+
+# IDE
+.vscode/
+.idea/
+*.xcworkspace
+*.xcodeproj
+
+# Dependencies
+JUCE/
+node_modules/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+*.swp
+*.swo
+
+# Packaging
+*.pkg
+*.dmg
+*.zip
