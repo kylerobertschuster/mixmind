@@ -5,10 +5,12 @@
 #include "PluginProcessor.h"
 #include "ChatComponent.h"
 #include "ContextPanel.h"
+#include "PresetManager.h"
 #include "LookAndFeel.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  MixMindEditor  — 800 × 560 plugin window
+//  MixMindEditor  — pipe-device layout
+//  Straw sidebar (left) + Bowl/chat area (right)
 // ─────────────────────────────────────────────────────────────────────────────
 class MixMindEditor : public juce::AudioProcessorEditor,
                       private juce::Timer
@@ -24,30 +26,28 @@ private:
     MixMindProcessor& audioProcessor;
     MixMindLAF        laf;
 
-    // ── Layout ──────────────────────────────────────────────────────────────
-    static constexpr int kHeaderH    = 48;
-    static constexpr int kSidebarW   = 240;
-    static constexpr int kEditorW    = 860;
-    static constexpr int kEditorH    = 580;
+    static constexpr int kSidebarW = 240;
+    static constexpr int kEditorW  = 1024;
+    static constexpr int kEditorH  = 680;
 
-    // ── Header widgets ───────────────────────────────────────────────────────
-    juce::Label   titleLabel;
-    juce::Label   statusLabel;
-    juce::TextButton settingsButton { "LICENSE" };
+    // Header
+    juce::Label      titleLabel;
+    juce::Label      statusLabel;
+    juce::TextButton licenseButton { "LICENSE" };
 
-    // ── Panels ───────────────────────────────────────────────────────────────
-    ContextPanel  contextPanel;
+    // Panels
+    StrawPanel    strawPanel;
     ChatComponent chatComponent;
 
-    // ── Conversation history ─────────────────────────────────────────────────
+    // Conversation
     std::vector<ChatMessage> history;
     MessageBubble*           thinkingBubble { nullptr };
     bool                     waitingForReply { false };
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    // Helpers
     void handleUserMessage (const juce::String& text);
-    void setStatus (const juce::String& text, bool live = false);
-    void timerCallback() override; // pulses the status dot
+    void setStatus (const juce::String& text);
+    void timerCallback() override;
     void showLicenseDialog();
     void updateLicenseDisplay();
 

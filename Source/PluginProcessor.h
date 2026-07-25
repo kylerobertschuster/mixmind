@@ -45,10 +45,6 @@ public:
     ApiClient& getApiClient() { return apiClient; }
     LicenseManager& getLicenseManager() { return licenseManager; }
 
-    // Persist context across sessions via plugin state
-    juce::String savedGenre;
-    juce::String savedDaw;
-
     // Transport & DSP
     double currentBpm = 120.0;
     int timeSigNumerator = 4;

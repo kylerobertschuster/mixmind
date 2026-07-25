@@ -77,7 +77,7 @@ void MessageBubble::paint (juce::Graphics& g)
     {
         g.setColour (MM::surface);
         g.fillRect (bubble);
-        g.setColour (MM::border2);
+        g.setColour (MM::border);
         g.drawRect (bubble.toFloat(), 1.0f);
     }
 
@@ -242,7 +242,7 @@ ChatComponent::ChatComponent()
     // Viewport
     viewport.setViewedComponent (&chatList, false);
     viewport.setScrollBarsShown (true, false);
-    viewport.getVerticalScrollBar().setColour (juce::ScrollBar::thumbColourId, MM::border2);
+    viewport.getVerticalScrollBar().setColour (juce::ScrollBar::thumbColourId, MM::border);
     addAndMakeVisible (viewport);
 
     // Input

@@ -57,8 +57,11 @@ target_sources(MixMind PRIVATE
     Source/ContextPanel.cpp
     Source/ContextPanel.h
     Source/LookAndFeel.h
+    Source/LookAndFeel.cpp
     Source/LicenseManager.cpp
     Source/LicenseManager.h
+    Source/PresetManager.cpp
+    Source/PresetManager.h
 )
 
 # ── Compile definitions ───────────────────────────────────────────────────

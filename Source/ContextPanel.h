@@ -1,87 +1,58 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_gui_extra/juce_gui_extra.h>
-#include <juce_core/juce_core.h>
 #include "LookAndFeel.h"
+#include "PresetManager.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  SessionContext  — plain data struct passed to the system prompt builder
+//  StrawPanel  — the "straw" sidebar for track type, genre, focus, presets
 // ─────────────────────────────────────────────────────────────────────────────
-struct SessionContext
-{
-    juce::String genre;
-    juce::String daw;
-    juce::String level      { "beginner" };
-    juce::String problems;
-    juce::String keyBpm;
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  ChipButton  — a toggle-style chip button
-// ─────────────────────────────────────────────────────────────────────────────
-class ChipButton : public juce::ToggleButton
+class StrawPanel : public juce::Component
 {
 public:
-    explicit ChipButton (const juce::String& label) { setButtonText (label); setClickingTogglesState (true); }
-    const juce::String& getValue() const { return getButtonText(); }
-private:
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChipButton)
-};
+    std::function<void()>                 onQuickPrompt;
+    std::function<void(PresetManager::TrackType)> onTrackTypeChanged;
+    juce::String                          quickPromptText;
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  ContextPanel
-// ─────────────────────────────────────────────────────────────────────────────
-class ContextPanel : public juce::Component
-{
-public:
-    std::function<void()> onQuickPrompt;    // fires with quickPromptText set
-    juce::String          quickPromptText;
-
-    ContextPanel();
-    ~ContextPanel() override = default;
+    StrawPanel();
+    ~StrawPanel() override = default;
 
     void paint  (juce::Graphics&) override;
     void resized() override;
 
-    SessionContext getContext() const;
+    PresetManager& getPresetManager() { return presetManager; }
 
-    // Build the system prompt from current context
+    // Build system prompt incorporating preset context
     juce::String buildSystemPrompt() const;
 
 private:
-    // ── Widgets ────────────────────────────────────────────────────────────
+    PresetManager presetManager;
+
+    // Track type
+    juce::Label    trackLabel   { {}, "TRACK TYPE" };
+    juce::ComboBox trackBox;
+
+    // Genre (dynamically populated based on track type)
     juce::Label    genreLabel   { {}, "GENRE" };
     juce::ComboBox genreBox;
 
-    juce::Label    dawLabel     { {}, "DAW" };
-    juce::ComboBox dawBox;
+    // Focus
+    juce::Label    focusLabel   { {}, "FOCUS" };
+    juce::ComboBox focusBox;
 
-    juce::Label    levelLabel   { {}, "EXPERIENCE" };
-    juce::OwnedArray<ChipButton> levelChips;
-
-    juce::Label    problemLabel { {}, "PROBLEM AREAS" };
-    juce::OwnedArray<ChipButton> problemChips;
-
-    juce::Label    keyBpmLabel  { {}, "KEY / BPM" };
-    juce::TextEditor keyBpmBox;
-
+    // Quick prompts
     juce::Label    quickLabel   { {}, "QUICK PROMPTS" };
-    struct QuickPrompt { juce::String label; juce::String prompt; };
-    const std::vector<QuickPrompt> quickPrompts {
-        { "Kick tips",         "Give me 3 specific, actionable tips for my kick drum right now." },
-        { "Fix muddy mix",     "My mix sounds muddy in the low-mids. Diagnose and fix it step by step." },
-        { "Vocal placement",   "How do I get my vocals to sit properly in the mix for my genre?" },
-        { "Compression guide", "Give me a compression approach tailored to my genre and experience level." },
-        { "More energy",       "My track lacks energy and punch. Give me actionable steps to fix it." },
-        { "Master bus chain",  "Walk me through an ideal master bus chain for my genre." },
-        { "Reference tracks",  "How should I use reference tracks? What specifically should I compare?" },
-        { "EQ cheat sheet",    "Give me an EQ cheat sheet for the most common mix problems in my genre." },
-    };
     juce::OwnedArray<juce::TextButton> quickBtns;
 
-    // Layout helpers
-    void addSectionLabel (juce::Label& lbl);
-    static int chipRowHeight (int numChips, int panelWidth, int chipW = 70, int gap = 5);
+    // Template chain
+    juce::Label    chainLabel   { {}, "SIGNAL CHAIN" };
+    juce::Label    chainText;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ContextPanel)
+    // Helpers
+    void updateGenreBox();
+    void updateQuickPrompts();
+    void updateChain();
+    void addSectionLabel (juce::Label& lbl);
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StrawPanel)
 };
