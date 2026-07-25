@@ -40,16 +40,15 @@ npm install --production
 echo "[4/6] Setting up environment..."
 if [ ! -f "${JUICEPIPE_HOME}/proxy/.env" ]; then
     cat > "${JUICEPIPE_HOME}/proxy/.env" << 'EOF'
-# ⚠️  EDIT THESE BEFORE STARTING THE PROXY
-ANTHROPIC_API_KEY=your_anthropic_key_here
-GROQ_API_KEY=your_groq_key_here
+# ⚠️  EDIT THIS BEFORE STARTING THE PROXY
+DEEPSEEK_API_KEY=your_deepseek_key_here
 ADMIN_SECRET=change_this_to_a_random_secret
 PORT=3000
 EOF
     chown ${JUICEPIPE_USER}:${JUICEPIPE_USER} "${JUICEPIPE_HOME}/proxy/.env"
     chmod 600 "${JUICEPIPE_HOME}/proxy/.env"
     echo "  ⚠️  Run: nano ${JUICEPIPE_HOME}/proxy/.env"
-    echo "  ⚠️  Set your ANTHROPIC_API_KEY and ADMIN_SECRET"
+    echo "  ⚠️  Set your DEEPSEEK_API_KEY and ADMIN_SECRET"
 fi
 
 # ── 5. PM2 process manager ──────────────────────────────────────────
@@ -64,7 +63,7 @@ echo "[6/6] Setting up nginx..."
 cat > /etc/nginx/sites-available/juicepipe << NGINX
 server {
     listen 80;
-    server_name ${JUICEPIPE_DOMAIN};
+    server_name ${JUICEPIPE_DOMAIN} www.${JUICEPIPE_DOMAIN};
 
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -99,5 +98,5 @@ echo ""
 echo "  Generate a beta license:"
 echo "    curl -X POST https://${JUICEPIPE_DOMAIN}/admin/generate-license \\"
 echo "      -H \"x-admin-secret: YOUR_SECRET\" \\"
-echo "      -d '{\"tier\":\"premium\",\"count\":5}'"
+echo "      -d '{\"count\":10}'"
 echo "═══════════════════════════════════════════════════"

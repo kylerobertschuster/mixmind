@@ -24,7 +24,7 @@ DAW (Ableton / Logic / Pro Tools / Reaper)
     |
     |--- JuicePipe Proxy (Node.js)
             |
-            |-- POST /api/chat   Routes to Claude (Premium) or Groq (Standard)
+            |-- POST /api/chat   Routes to DeepSeek
             |-- POST /validate   License key validation
             |-- POST /admin/*    License generation / revocation
 ```
@@ -44,7 +44,7 @@ DAW (Ableton / Logic / Pro Tools / Reaper)
 - EWMA smoothing for stable readings
 
 ### AI Backend (JuicePipe Proxy)
-- Tiered model routing: Claude Sonnet (Premium) or Groq/Llama (Standard)
+- DeepSeek-powered mixing advice
 - License key management with JSON-based store
 - Per-IP rate limiting (60 req/min)
 - Request timeout handling (30s)
@@ -81,7 +81,7 @@ The built plugins will be in `build/MixMind_artefacts/Release/`.
 ```bash
 cd proxy
 cp env.example .env
-# Edit .env with your API keys
+# Edit .env with your DEEPSEEK_API_KEY
 npm install
 node server.js
 ```
@@ -150,7 +150,7 @@ curl -X POST http://localhost:3000/admin/generate-license \
 ## Project Status
 
 - DSP engine: production-ready
-- AI integration: production-ready (Claude + Groq)
+- AI integration: production-ready (DeepSeek)
 - Chat UI: complete with message bubbles, thinking indicators
 - DAW transport sync: BPM, time signature, playback state
 - Configuration: environment-based, no hardcoded credentials

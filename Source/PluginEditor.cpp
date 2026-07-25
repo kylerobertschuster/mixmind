@@ -25,6 +25,10 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     {
         handleUserMessage (contextPanel.quickPromptText);
     };
+    contextPanel.onLicenseKeyChanged = [this] (const juce::String& key)
+    {
+        audioProcessor.getApiClient().setLicenseKey (key);
+    };
     addAndMakeVisible (contextPanel);
 
     // ── Chat ──────────────────────────────────────────────────────────────────

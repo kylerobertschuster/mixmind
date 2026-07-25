@@ -15,7 +15,7 @@ MixMindProcessor::MixMindProcessor()
     if (envUrl && strlen(envUrl) > 0)
         apiClient.setServerUrl(envUrl);
     else
-        apiClient.setServerUrl("http://localhost:3000");
+        apiClient.setServerUrl("https://getjuicepipe.com");
 
     // License key is loaded from MIXMIND_LICENSE_KEY env var or left blank
     // for the user to configure via the UI settings panel.

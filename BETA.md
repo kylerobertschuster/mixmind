@@ -1,7 +1,7 @@
 # JuicePipe MixMind — Beta Program
 
 **What:** An AI mixing assistant that actually listens to your mix — real-time
-FFT analysis, LUFS tracking, spectral energy bands, and Claude-powered advice.
+FFT analysis, LUFS tracking, spectral energy bands, and DeepSeek-powered advice.
 All inside a VST3/AU plugin. No tab-switching. No typing out what you hear.
 
 **Requirements:** macOS 12+, Ableton Live or Logic Pro, and an internet
@@ -30,7 +30,7 @@ and lets you ask questions like:
 It sees your LUFS, spectral balance, BPM — and answers based on actual data,
 not guesses.
 
-I've got 10 free premium licenses (Claude-powered) to give away to beta
+I've got 10 free beta licenses to give away to beta
 testers. DM me or comment below and I'll send one.
 
 macOS only for now (VST3/AU). Windows version coming if there's interest.
@@ -60,16 +60,16 @@ No pressure — just curious. Thanks for trying it out.
 
 ## What to Track
 
-| User | License | Tier | Tried it? | Would pay? | Notes |
-|------|---------|------|-----------|------------|-------|
-| 1 | MM-... | Premium | | | |
-| 2 | MM-... | Premium | | | |
-| ... | ... | ... | ... | ... | ... |
+| User | License | Tried it? | Would pay? | Notes |
+|------|---------|-----------|------------|-------|
+| 1 | MM-... | | | |
+| 2 | MM-... | | | |
+| ... | ... | ... | ... | ... |
 
 Generate licenses:
 
 ```bash
-curl -X https://juicepipe.audio/admin/generate-license \
+curl -X POST https://juicepipe.audio/admin/generate-license \
   -H "x-admin-secret: YOUR_SECRET" \
-  -d '{"tier":"premium","count":10}'
+  -d '{"count":10}'
 ```

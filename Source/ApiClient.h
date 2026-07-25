@@ -56,7 +56,7 @@ public:
     static Result parseResponse (const juce::String& jsonText);
 
 private:
-    juce::String serverUrl     { "https://your-mixmind-server.com" }; // replace before shipping
+    juce::String serverUrl     { "https://getjuicepipe.com" };
     juce::String licenseKey;
     juce::String sessionContext;
     int          maxTokens     { 1000 };
