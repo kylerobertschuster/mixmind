@@ -2,6 +2,20 @@
 
 ContextPanel::ContextPanel()
 {
+    // ── License key (first thing user sees) ─────────────────────────────
+    licenseLabel.setFont (juce::Font ("Courier New", 11.0f, juce::Font::plain));
+    licenseLabel.setColour (juce::Label::textColourId, MM::text2);
+    addAndMakeVisible (licenseLabel);
+
+    licenseBox.setFont (juce::Font ("Courier New", 13.0f, juce::Font::plain));
+    licenseBox.setTextToShowWhenEmpty ("MM-XXXXXXXXXXXXXXXX", MM::text3);
+    licenseBox.onTextChange = [this]
+    {
+        licenseKey = licenseBox.getText();
+        if (onLicenseKeyChanged) onLicenseKeyChanged (licenseKey);
+    };
+    addAndMakeVisible (licenseBox);
+
     // ── Genre ────────────────────────────────────────────────────────────
     addSectionLabel (genreLabel);
     genreBox.addItem ("Hip-Hop / Trap",      1);
@@ -83,20 +97,6 @@ ContextPanel::ContextPanel()
         };
         addAndMakeVisible (btn);
     }
-
-    // ── License key ──────────────────────────────────────────────────────
-    licenseLabel.setFont (juce::Font ("Courier New", 11.0f, juce::Font::plain));
-    licenseLabel.setColour (juce::Label::textColourId, MM::text2);
-    addAndMakeVisible (licenseLabel);
-
-    licenseBox.setFont (juce::Font ("Courier New", 13.0f, juce::Font::plain));
-    licenseBox.setTextToShowWhenEmpty ("MM-XXXXXXXXXXXXXXXX", MM::text3);
-    licenseBox.onTextChange = [this]
-    {
-        licenseKey = licenseBox.getText();
-        if (onLicenseKeyChanged) onLicenseKeyChanged (licenseKey);
-    };
-    addAndMakeVisible (licenseBox);
 }
 
 void ContextPanel::paint (juce::Graphics& g)
@@ -144,6 +144,11 @@ void ContextPanel::resized()
         y = rowY + chipH + 12;
     };
 
+    // License key — first thing the user sees
+    placeLabel  (licenseLabel);
+    placeControl (licenseBox, 30);
+    y += 4;
+
     // Genre
     placeLabel  (genreLabel);
     placeControl (genreBox, 30);
@@ -175,11 +180,6 @@ void ContextPanel::resized()
         btn->setBounds (pad, y, innerW, 28);
         y += 32;
     }
-
-    // License key
-    y += 4;
-    placeLabel (licenseLabel);
-    placeControl (licenseBox, 30);
 }
 
 SessionContext ContextPanel::getContext() const
