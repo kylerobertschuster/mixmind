@@ -3,6 +3,7 @@
 #include <juce_core/juce_core.h>
 #include "ApiClient.h"
 #include "AudioAnalyzer.h"
+#include "LicenseManager.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  MixMindProcessor
@@ -42,6 +43,7 @@ public:
 
     // ── Public API for the editor ──────────────────────────────────────────
     ApiClient& getApiClient() { return apiClient; }
+    LicenseManager& getLicenseManager() { return licenseManager; }
 
     // Persist context across sessions via plugin state
     juce::String savedGenre;
@@ -57,6 +59,7 @@ public:
 
 private:
     ApiClient apiClient;
+    LicenseManager licenseManager;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixMindProcessor)
 };

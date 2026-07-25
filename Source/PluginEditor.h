@@ -33,6 +33,7 @@ private:
     // ── Header widgets ───────────────────────────────────────────────────────
     juce::Label   titleLabel;
     juce::Label   statusLabel;
+    juce::TextButton settingsButton { "LICENSE" };
 
     // ── Panels ───────────────────────────────────────────────────────────────
     ContextPanel  contextPanel;
@@ -47,6 +48,8 @@ private:
     void handleUserMessage (const juce::String& text);
     void setStatus (const juce::String& text, bool live = false);
     void timerCallback() override; // pulses the status dot
+    void showLicenseDialog();
+    void updateLicenseDisplay();
 
     juce::Colour statusColour { MM::text2 };
     int          dotPhase     { 0 };

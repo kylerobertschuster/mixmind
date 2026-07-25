@@ -8,20 +8,20 @@ MixMindProcessor::MixMindProcessor()
                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
     // ── Server configuration ────────────────────────────────────────────────
-    // In production, override these via a config file or environment.
-    // The proxy server URL is read from MIXMIND_SERVER_URL env var if set,
-    // falling back to localhost for development.
     const char* envUrl = std::getenv("MIXMIND_SERVER_URL");
     if (envUrl && strlen(envUrl) > 0)
         apiClient.setServerUrl(envUrl);
     else
         apiClient.setServerUrl("https://getjuicepipe.com");
 
-    // License key is loaded from MIXMIND_LICENSE_KEY env var or left blank
-    // for the user to configure via the UI settings panel.
+    // License key from env overrides local storage
     const char* envKey = std::getenv("MIXMIND_LICENSE_KEY");
     if (envKey && strlen(envKey) > 0)
-        apiClient.setLicenseKey(envKey);
+        licenseManager.setLicenseKey(envKey);
+
+    // Sync license key to API client
+    if (licenseManager.isLicensed())
+        apiClient.setLicenseKey (licenseManager.getLicenseKey());
 
     apiClient.setMaxTokens(1000);
 }

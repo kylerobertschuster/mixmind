@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "LicenseManager.h"
 
 MixMindEditor::MixMindEditor (MixMindProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
@@ -20,14 +21,17 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     statusLabel.setJustificationType (juce::Justification::right);
     addAndMakeVisible (statusLabel);
 
+    // License / settings button in the header
+    settingsButton.setColour (juce::TextButton::buttonColourId, MM::surface);
+    settingsButton.setColour (juce::TextButton::textColourOffId, MM::accent);
+    settingsButton.onClick = [this] { showLicenseDialog(); };
+    updateLicenseDisplay();
+    addAndMakeVisible (settingsButton);
+
     // ── Context panel ─────────────────────────────────────────────────────────
     contextPanel.onQuickPrompt = [this]
     {
         handleUserMessage (contextPanel.quickPromptText);
-    };
-    contextPanel.onLicenseKeyChanged = [this] (const juce::String& key)
-    {
-        audioProcessor.getApiClient().setLicenseKey (key);
     };
     addAndMakeVisible (contextPanel);
 
@@ -38,8 +42,13 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     };
     addAndMakeVisible (chatComponent);
 
+    startTimerHz (30);
 
-    startTimerHz (30); // Higher frequency for smoother UI pulses
+    // Show welcome dialog on first launch
+    if (!audioProcessor.getLicenseManager().hasShownWelcome())
+    {
+        juce::Timer::callAfterDelay (200, [this] { showLicenseDialog(); });
+    }
 }
 
 MixMindEditor::~MixMindEditor()
@@ -77,8 +86,8 @@ void MixMindEditor::paint (juce::Graphics& g)
     g.fillEllipse (rightX - 80, centerY - 4, 8, 8);
 
     // 2. Audio Listening Dot (Pulses when signal is > -60dB)
-    bool isListening = audioProcessor.audioAnalyzer.getAnalysisAsJson().contains ("-100") == false; 
-    float listenAlpha = isListening 
+    bool isListening = audioProcessor.audioAnalyzer.getAnalysisAsJson().contains ("-100") == false;
+    float listenAlpha = isListening
                         ? 0.3f + 0.7f * std::abs (std::sin ((float)dotPhase * 0.05f))
                         : 0.2f;
     g.setColour (isListening ? juce::Colours::cyan.withAlpha (listenAlpha) : MM::text3);
@@ -91,11 +100,103 @@ void MixMindEditor::resized()
     auto header = bounds.removeFromTop (kHeaderH);
 
     titleLabel.setBounds (header.withLeft (16).withWidth (380));
-    statusLabel.setBounds (header.withLeft (getWidth() - 200).withWidth (190));
+    settingsButton.setBounds (header.withLeft (getWidth() - 168).withWidth (90).withHeight (28).withY (10));
+    statusLabel.setBounds (header.withLeft (getWidth() - 260).withWidth (90));
 
     auto sidebar = bounds.removeFromLeft (kSidebarW);
     contextPanel.setBounds (sidebar);
     chatComponent.setBounds (bounds);
+}
+
+// ── License dialog ────────────────────────────────────────────────────────────
+void MixMindEditor::showLicenseDialog()
+{
+    auto& lm = audioProcessor.getLicenseManager();
+
+    juce::String message;
+
+    if (lm.isLicensed())
+    {
+        message = "✓ Licensed — unlimited prompts\n\n"
+                  "Your key: " + lm.getLicenseKey() + "\n\n"
+                  "Enter a new key to switch:";
+    }
+    else if (lm.getFreePromptsRemaining() > 0)
+    {
+        message = "Welcome to MixMind!\n\n"
+                  "You have " + juce::String (lm.getFreePromptsRemaining())
+                  + " free prompts remaining.\n\n"
+                  "Enter a license key for unlimited access:";
+    }
+    else
+    {
+        message = "You've used all 10 free prompts.\n\n"
+                  "Enter a license key to continue:";
+    }
+
+    juce::AlertWindow::showOkCancelBox (
+        juce::AlertWindow::QuestionIcon,
+        "MixMind License",
+        message,
+        "OK",
+        "Cancel",
+        this,
+        juce::ModalCallbackFunction::create (
+            [this, &lm = audioProcessor.getLicenseManager()] (int result)
+            {
+                if (result == 0) return; // Cancel
+                
+                // Prompt the user for a license key via another dialog
+                juce::AlertWindow w ("Enter License Key",
+                                     "Paste your license key below:",
+                                     juce::AlertWindow::QuestionIcon);
+                w.addTextEditor ("key", lm.getLicenseKey(), "License key (MM-...)");
+                w.addButton ("Activate", 1);
+                w.addButton ("Cancel", 0);
+
+                w.enterModalState (true,
+                    juce::ModalCallbackFunction::create (
+                        [this] (int keyResult)
+                        {
+                            if (keyResult == 1)
+                            {
+                                if (auto* aw = dynamic_cast<juce::AlertWindow*> (
+                                        juce::AlertWindow::getCurrentlyModalComponent (false)))
+                                {
+                                    auto key = aw->getTextEditorContents ("key").trim();
+                                    audioProcessor.getLicenseManager().setLicenseKey (key);
+                                    audioProcessor.getApiClient().setLicenseKey (key);
+                                    updateLicenseDisplay();
+                                }
+                            }
+                        }
+                    ),
+                    false
+                );
+            }
+        )
+    );
+
+    lm.markWelcomeShown();
+}
+
+void MixMindEditor::updateLicenseDisplay()
+{
+    auto& lm = audioProcessor.getLicenseManager();
+
+    if (lm.isLicensed())
+    {
+        settingsButton.setButtonText ("LICENSED ✓");
+        settingsButton.setColour (juce::TextButton::textColourOffId,
+                                   juce::Colours::limegreen);
+    }
+    else
+    {
+        auto remaining = lm.getFreePromptsRemaining();
+        settingsButton.setButtonText (juce::String (remaining) + " FREE");
+        settingsButton.setColour (juce::TextButton::textColourOffId,
+                                   remaining <= 3 ? juce::Colours::orange : MM::accent);
+    }
 }
 
 // ── Message handling ──────────────────────────────────────────────────────────
@@ -103,6 +204,15 @@ void MixMindEditor::handleUserMessage (const juce::String& text)
 {
     if (waitingForReply) return;
     if (text.trim().isEmpty()) return;
+
+    auto& lm = audioProcessor.getLicenseManager();
+
+    // Gate: check license / free prompts
+    if (!lm.canPrompt())
+    {
+        showLicenseDialog();
+        return;
+    }
 
     auto ctx = contextPanel.getContext();
 
@@ -124,7 +234,7 @@ void MixMindEditor::handleUserMessage (const juce::String& text)
     // Fire API request
     auto systemPrompt = contextPanel.buildSystemPrompt();
 
-    // Inject Audio Analysis & Transport data 
+    // Inject Audio Analysis & Transport data
     systemPrompt += "\n\n=== OBJECTIVE AUDIO DATA ===\n";
     systemPrompt += "BPM: " + juce::String (audioProcessor.currentBpm, 1) + "\n";
     systemPrompt += "Time Signature: " + juce::String (audioProcessor.timeSigNumerator) + "/" + juce::String (audioProcessor.timeSigDenominator) + "\n";
@@ -144,6 +254,10 @@ void MixMindEditor::handleUserMessage (const juce::String& text)
                 chatComponent.finalizeAI (thinkingBubble, result.text);
                 history.push_back ({ ChatMessage::Role::Assistant, result.text });
                 setStatus ("READY");
+
+                // Count this prompt toward the free limit (only if not licensed)
+                audioProcessor.getLicenseManager().recordPrompt();
+                updateLicenseDisplay();
             }
             else
             {

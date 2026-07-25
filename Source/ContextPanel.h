@@ -35,9 +35,7 @@ class ContextPanel : public juce::Component
 {
 public:
     std::function<void()> onQuickPrompt;    // fires with quickPromptText set
-    std::function<void(const juce::String&)> onLicenseKeyChanged;
     juce::String          quickPromptText;
-    juce::String          licenseKey;
 
     ContextPanel();
     ~ContextPanel() override = default;
@@ -68,10 +66,6 @@ private:
     juce::TextEditor keyBpmBox;
 
     juce::Label    quickLabel   { {}, "QUICK PROMPTS" };
-
-    juce::Label    licenseLabel { {}, "LICENSE KEY" };
-    juce::TextEditor licenseBox;
-
     struct QuickPrompt { juce::String label; juce::String prompt; };
     const std::vector<QuickPrompt> quickPrompts {
         { "Kick tips",         "Give me 3 specific, actionable tips for my kick drum right now." },
