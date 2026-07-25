@@ -3,273 +3,168 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MixMind by JuicePipe — AI Mixing Assistant</title>
+    <title>MixMind by JuicePipe</title>
     <style>
         :root {
-            --bg: #0d0d0d;
-            --surface: #1a1a1a;
-            --border: #2a2a2a;
-            --text: #e0e0e0;
-            --muted: #888;
-            --accent: #7c3aed;
-            --accent-glow: rgba(124, 58, 237, 0.3);
+            --bg: #0a0a0a;
+            --text: #ccc;
+            --muted: #666;
+            --accent: #a78bfa;
+            --border: #1a1a1a;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', 'Segoe UI', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 780px;
-            margin: 0 auto;
-            padding: 60px 24px 80px;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 56px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 80px 24px 40px;
         }
 
         .logo {
-            font-size: 42px;
+            font-size: 48px;
             font-weight: 700;
             letter-spacing: -0.5px;
-            margin-bottom: 8px;
-            background: linear-gradient(135deg, #a78bfa, #7c3aed);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .subtitle {
-            color: var(--muted);
-            font-size: 18px;
-        }
-
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 32px;
-            margin-bottom: 24px;
-        }
-
-        .card h2 {
-            font-size: 20px;
-            margin-bottom: 16px;
+            margin-bottom: 4px;
             color: #fff;
         }
 
-        .tag {
-            display: inline-block;
-            background: rgba(124, 58, 237, 0.15);
-            color: #a78bfa;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 500;
-            margin-right: 8px;
-            margin-bottom: 8px;
+        .flavor {
+            color: var(--muted);
+            font-size: 16px;
+            margin-bottom: 60px;
         }
 
-        .features {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin: 24px 0;
-        }
-
-        .feature {
+        .action {
             display: flex;
-            align-items: flex-start;
+            flex-direction: column;
+            align-items: center;
             gap: 10px;
-            font-size: 15px;
-        }
-
-        .feature .icon {
-            color: #a78bfa;
-            font-size: 18px;
-            flex-shrink: 0;
-            margin-top: 1px;
+            margin-bottom: 80px;
         }
 
         .download-btn {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            background: var(--accent);
-            color: #fff;
-            font-size: 17px;
+            gap: 8px;
+            background: #fff;
+            color: #000;
+            font-size: 15px;
             font-weight: 600;
-            padding: 14px 36px;
-            border-radius: 10px;
+            padding: 12px 32px;
+            border-radius: 8px;
             text-decoration: none;
-            transition: all 0.2s;
-            box-shadow: 0 0 30px var(--accent-glow);
+            transition: background 0.15s;
         }
 
         .download-btn:hover {
-            background: #8b5cf6;
-            box-shadow: 0 0 40px rgba(124, 58, 237, 0.5);
-            transform: translateY(-1px);
+            background: #e0e0e0;
         }
 
-        .download-meta {
-            margin-top: 12px;
-            font-size: 13px;
+        .version {
+            font-size: 12px;
             color: var(--muted);
         }
 
-        .steps {
-            list-style: none;
-            counter-reset: step;
-        }
-
-        .steps li {
-            counter-increment: step;
-            padding: 14px 0 14px 40px;
-            position: relative;
-            border-bottom: 1px solid var(--border);
-            font-size: 15px;
-        }
-
-        .steps li:last-child {
-            border-bottom: none;
-        }
-
-        .steps li::before {
-            content: counter(step);
-            position: absolute;
-            left: 0;
-            top: 14px;
-            width: 26px;
-            height: 26px;
-            background: var(--accent);
-            color: #fff;
-            border-radius: 50%;
-            font-size: 13px;
-            font-weight: 600;
+        .nav {
             display: flex;
-            align-items: center;
+            gap: 32px;
+            margin-bottom: 60px;
+        }
+
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.15s;
+        }
+
+        .nav a:hover {
+            color: var(--text);
+        }
+
+        .coming-soon {
+            margin-top: 40px;
+            padding: 24px 40px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .coming-soon h3 {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 16px;
+        }
+
+        .soon-items {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
             justify-content: center;
         }
 
-        .code {
-            background: #111;
+        .soon-item {
+            padding: 8px 16px;
             border: 1px solid var(--border);
             border-radius: 6px;
-            padding: 3px 8px;
-            font-family: 'SF Mono', 'Menlo', monospace;
             font-size: 13px;
+            color: var(--muted);
         }
 
         footer {
-            text-align: center;
+            margin-top: auto;
+            font-size: 12px;
             color: var(--muted);
-            font-size: 13px;
-            margin-top: 48px;
+            padding-top: 60px;
         }
 
-        @media (max-width: 600px) {
-            .features {
-                grid-template-columns: 1fr;
-            }
-            .container {
-                padding: 40px 16px 60px;
-            }
-            .logo {
-                font-size: 32px;
-            }
+        @media (max-width: 500px) {
+            body { padding: 60px 16px 40px; }
+            .logo { font-size: 32px; }
+            .nav { gap: 20px; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="logo">MixMind</div>
-            <div class="subtitle">by JuicePipe</div>
-        </header>
+    <div class="logo">JuicePipe</div>
+    <div class="flavor">MixMind &mdash; AI mixing assistant</div>
 
-        <div class="card" style="text-align: center;">
-            <h2 style="margin-bottom: 8px;">AI-Powered Mixing Advice, Inside Your DAW</h2>
-            <p style="color: var(--muted); margin-bottom: 28px;">
-                MixMind listens to your mix in real time and gives you context-aware advice —
-                no tab switching, no describing what you hear.
-            </p>
-            <a href="/downloads/MixMind-1.0.0.pkg" class="download-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Download for macOS
-            </a>
-            <p class="download-meta">
-                Version 1.0.0 &middot; VST3 &amp; AU &middot; macOS 12+
-            </p>
-        </div>
-
-        <div class="card">
-            <h2>What It Does</h2>
-            <div class="features">
-                <div class="feature">
-                    <span class="icon">🎛️</span>
-                    <span>Real-time FFT spectrum analysis on your master bus</span>
-                </div>
-                <div class="feature">
-                    <span class="icon">📊</span>
-                    <span>LUFS loudness, true peak, stereo width tracking</span>
-                </div>
-                <div class="feature">
-                    <span class="icon">💬</span>
-                    <span>Ask anything — "Is my low end muddy?" "What's eating the vocal?"</span>
-                </div>
-                <div class="feature">
-                    <span class="icon">🧠</span>
-                    <span>DeepSeek-powered answers based on your actual mix data</span>
-                </div>
-                <div class="feature">
-                    <span class="icon">⏱️</span>
-                    <span>BPM &amp; time signature sync from your DAW transport</span>
-                </div>
-                <div class="feature">
-                    <span class="icon">🔒</span>
-                    <span>No audio leaves your machine — only analysis data is sent</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>How to Install</h2>
-            <ol class="steps">
-                <li>Download and run the <span class="code">.pkg</span> installer</li>
-                <li>Open Ableton Live, Logic Pro, or any VST3/AU host</li>
-                <li>Load <strong>MixMind</strong> on your master bus</li>
-                <li>Enter your beta license key in the plugin settings</li>
-                <li>Press play and start asking questions</li>
-            </ol>
-        </div>
-
-        <div class="card">
-            <h2>Beta Program</h2>
-            <p style="color: var(--muted); margin-bottom: 12px;">
-                MixMind is currently in closed beta. Need a license key?
-                DM or comment for one — I've got a few left.
-            </p>
-            <div>
-                <span class="tag">macOS 12+</span>
-                <span class="tag">VST3</span>
-                <span class="tag">Audio Unit</span>
-                <span class="tag">Ableton Live</span>
-                <span class="tag">Logic Pro</span>
-            </div>
-        </div>
-
-        <footer>
-            Built by JuicePipe &middot; <a href="https://github.com/kylerobertschuster/mixmind" style="color: var(--muted);">GitHub</a>
-        </footer>
+    <div class="action">
+        <a href="/downloads/MixMind-1.1.0.pkg" class="download-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download
+        </a>
+        <div class="version">macOS 12+ &middot; VST3 &amp; AU &middot; Version 1.1.0</div>
     </div>
+
+    <nav class="nav">
+        <a href="#">About</a>
+        <a href="#">Contact</a>
+        <a href="#">Purchase</a>
+    </nav>
+
+    <div class="coming-soon">
+        <h3>Coming soon</h3>
+        <div class="soon-items">
+            <div class="soon-item">MasterMind</div>
+            <div class="soon-item">StemSplitter</div>
+            <div class="soon-item">JuiceRack</div>
+        </div>
+    </div>
+
+    <footer>JuicePipe &copy; 2026</footer>
 </body>
 </html>
