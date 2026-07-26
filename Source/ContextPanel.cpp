@@ -55,8 +55,8 @@ StrawPanel::StrawPanel()
 
     // ── Signal chain ──────────────────────────────────────────────────────
     addSectionLabel (chainLabel);
-    chainText.setFont (juce::Font ("Courier New", 11.0f, juce::Font::plain));
-    chainText.setColour (juce::Label::textColourId, MM::text2);
+    chainText.setFont (juce::Font (juce::FontOptions ("SF Pro Display", 10.0f, juce::Font::plain)));
+    chainText.setColour (juce::Label::textColourId, JP::textMuted);
     chainText.setJustificationType (juce::Justification::topLeft);
     updateChain();
     addAndMakeVisible (chainLabel);
@@ -65,16 +65,16 @@ StrawPanel::StrawPanel()
 
 void StrawPanel::paint (juce::Graphics& g)
 {
-    g.fillAll (MM::surface);
+    g.fillAll (JP::surface);
 
     // Glass highlight at top of straw
     g.setGradientFill (juce::ColourGradient (
-        MM::glass.withAlpha (0.15f), 0, 0,
-        MM::glass.withAlpha (0.0f), 0, 40, false));
+        JP::glass.withAlpha (0.15f), 0, 0,
+        JP::glass.withAlpha (0.0f), 0, 40, false));
     g.fillRect (0, 0, getWidth(), 40);
 
     // Right edge "glass" line — the straw tube
-    g.setColour (MM::glassBorder);
+    g.setColour (JP::glassEdge);
     g.drawLine ((float)getWidth() - 0.5f, 0, (float)getWidth() - 0.5f, (float)getHeight(), 0.5f);
 }
 
@@ -180,6 +180,6 @@ juce::String StrawPanel::buildSystemPrompt() const
 
 void StrawPanel::addSectionLabel (juce::Label& lbl)
 {
-    lbl.setFont (juce::Font ("Courier New", 10.0f, juce::Font::bold));
-    lbl.setColour (juce::Label::textColourId, MM::accentDim);
+    lbl.setFont (juce::Font (juce::FontOptions ("SF Pro Display", 9.0f, juce::Font::bold)));
+    lbl.setColour (juce::Label::textColourId, JP::accent().withAlpha(0.4f));
 }

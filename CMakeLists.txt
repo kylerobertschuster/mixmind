@@ -62,6 +62,8 @@ target_sources(MixMind PRIVATE
     Source/LicenseManager.h
     Source/PresetManager.cpp
     Source/PresetManager.h
+    Source/PipeVisualizer.cpp
+    Source/PipeVisualizer.h
 )
 
 # ── Compile definitions ───────────────────────────────────────────────────

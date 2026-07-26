@@ -53,7 +53,7 @@ void MessageBubble::paint (juce::Graphics& g)
 
     // ── Meta label ──────────────────────────────────────────────────────────
     g.setFont (metaFont);
-    g.setColour (isUser ? MM::accent.withAlpha (0.7f) : MM::text2);
+    g.setColour (isUser ? JP::accent().withAlpha (0.7f) : JP::textMuted);
     g.drawText (isUser ? "YOU" : "MIXMIND",
                 bounds.removeFromTop (20).reduced (4, 0),
                 isUser ? juce::Justification::right : juce::Justification::left);
@@ -68,16 +68,16 @@ void MessageBubble::paint (juce::Graphics& g)
     // Background + border
     if (isUser)
     {
-        g.setColour (MM::accentDim);
+        g.setColour (JP::accent().withAlpha(0.4f));
         g.fillRect (bubble);
-        g.setColour (MM::accent.withAlpha (0.2f));
+        g.setColour (JP::accent().withAlpha (0.2f));
         g.drawRect (bubble.toFloat(), 1.0f);
     }
     else
     {
-        g.setColour (MM::surface);
+        g.setColour (JP::surface);
         g.fillRect (bubble);
-        g.setColour (MM::border);
+        g.setColour (JP::border);
         g.drawRect (bubble.toFloat(), 1.0f);
     }
 
@@ -87,7 +87,7 @@ void MessageBubble::paint (juce::Graphics& g)
     if (thinking)
     {
         // Animated dots (paint-only approximation — actual animation needs a Timer)
-        g.setColour (MM::text2);
+        g.setColour (JP::textMuted);
         g.setFont (bodyFont);
         g.drawText ("Analyzing your session…", textArea, juce::Justification::centredLeft);
 
@@ -95,7 +95,7 @@ void MessageBubble::paint (juce::Graphics& g)
         for (int i = 0; i < 3; ++i)
         {
             float alpha = 0.3f + 0.7f * (float)((juce::Time::getMillisecondCounter() / 400 + i) % 3 == 0);
-            g.setColour (MM::accent.withAlpha (alpha));
+            g.setColour (JP::accent().withAlpha (alpha));
             g.fillEllipse ((float)(textArea.getRight() - 60 + i * 14), (float)textArea.getCentreY() - 3, 7, 7);
         }
     }
@@ -131,12 +131,12 @@ void MessageBubble::paint (juce::Graphics& g)
 
                 tipRect.setHeight (tipH);
 
-                g.setColour (MM::accentDim);
+                g.setColour (JP::accent().withAlpha(0.4f));
                 g.fillRect (tipRect);
-                g.setColour (MM::accent);
+                g.setColour (JP::accent().withAlpha(0.6f));
                 g.fillRect (tipRect.withWidth (2));
 
-                g.setColour (MM::text);
+                g.setColour (JP::text);
                 g.setFont (bodyFont);
                 g.drawFittedText (line, tipRect.reduced (10, 6), juce::Justification::topLeft, 20, 0.9f);
 
@@ -148,13 +148,13 @@ void MessageBubble::paint (juce::Graphics& g)
                 juce::AttributedString as;
                 as.append (line, bodyFont);
                 as.setWordWrap (juce::AttributedString::byWord);
-                as.setColour (isUser ? MM::text : MM::text);
+                as.setColour (isUser ? JP::text : JP::text);
 
                 juce::TextLayout tl;
                 tl.createLayout (as, (float)tw);
                 int lineH = (int)tl.getHeight() + 4;
 
-                g.setColour (MM::text);
+                g.setColour (JP::text);
                 g.setFont (bodyFont);
                 g.drawFittedText (line, { xL, yPos, tw, lineH + 8 },
                                   juce::Justification::topLeft, 20, 0.9f);
@@ -208,7 +208,7 @@ void ChatList::clear()
 
 void ChatList::paint (juce::Graphics& g)
 {
-    g.fillAll (MM::bg);
+    g.fillAll (JP::bg);
 }
 
 void ChatList::resized() { layout(); }
@@ -242,16 +242,16 @@ ChatComponent::ChatComponent()
     // Viewport
     viewport.setViewedComponent (&chatList, false);
     viewport.setScrollBarsShown (true, false);
-    viewport.getVerticalScrollBar().setColour (juce::ScrollBar::thumbColourId, MM::border);
+    viewport.getVerticalScrollBar().setColour (juce::ScrollBar::thumbColourId, JP::border);
     addAndMakeVisible (viewport);
 
     // Input
     inputBox.setMultiLine (true, true);
     inputBox.setReturnKeyStartsNewLine (false);
     inputBox.setScrollbarsShown (false);
-    inputBox.setFont (juce::Font ("Courier New", 14.0f, juce::Font::plain));
+    inputBox.setFont (juce::Font (juce::FontOptions ("SF Pro Display", 13.0f, juce::Font::plain)));
     inputBox.setTextToShowWhenEmpty ("Ask about your mix…",
-                                     MM::text3);
+                                     JP::textDim);
     inputBox.addListener (this);
     addAndMakeVisible (inputBox);
 
@@ -261,13 +261,13 @@ ChatComponent::ChatComponent()
 
 void ChatComponent::paint (juce::Graphics& g)
 {
-    g.fillAll (MM::bg);
+    g.fillAll (JP::bg);
 
     // Input bar background
     auto inputArea = getLocalBounds().removeFromBottom (60);
-    g.setColour (MM::surface);
+    g.setColour (JP::surface);
     g.fillRect (inputArea);
-    g.setColour (MM::border);
+    g.setColour (JP::border);
     g.drawLine (0, (float)inputArea.getY(), (float)getWidth(), (float)inputArea.getY(), 1.0f);
 }
 

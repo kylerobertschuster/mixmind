@@ -27,9 +27,9 @@ private:
     juce::String content;
     bool         thinking;
 
-    juce::Font   bodyFont  { juce::FontOptions ("Courier New", 13.0f, juce::Font::plain) };
-    juce::Font   metaFont  { juce::FontOptions ("Courier New", 11.0f, juce::Font::plain) };
-    juce::Font   boldFont  { juce::FontOptions ("Helvetica",   13.0f, juce::Font::bold)  };
+    juce::Font   bodyFont  { juce::FontOptions ("SF Pro Display", 13.0f, juce::Font::plain) };
+    juce::Font   metaFont  { juce::FontOptions ("SF Pro Display", 10.0f, juce::Font::plain) };
+    juce::Font   boldFont  { juce::FontOptions ("SF Pro Display", 13.0f, juce::Font::bold) };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MessageBubble)
 };

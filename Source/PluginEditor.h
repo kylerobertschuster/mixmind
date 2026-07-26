@@ -1,16 +1,16 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_extra/juce_gui_extra.h>
-#include <juce_core/juce_core.h>
 #include "PluginProcessor.h"
 #include "ChatComponent.h"
 #include "ContextPanel.h"
+#include "PipeVisualizer.h"
 #include "PresetManager.h"
 #include "LookAndFeel.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  MixMindEditor  — pipe-device layout
-//  Straw sidebar (left) + Bowl/chat area (right)
+//  MixMindEditor  — surgical telemetry layout
+//  Pipe visualizer (left) + Chat (center) + Presets panel (right)
 // ─────────────────────────────────────────────────────────────────────────────
 class MixMindEditor : public juce::AudioProcessorEditor,
                       private juce::Timer
@@ -24,11 +24,7 @@ public:
 
 private:
     MixMindProcessor& audioProcessor;
-    MixMindLAF        laf;
-
-    static constexpr int kSidebarW = 240;
-    static constexpr int kEditorW  = 1024;
-    static constexpr int kEditorH  = 680;
+    JuicePipeLAF      laf;
 
     // Header
     juce::Label      titleLabel;
@@ -36,8 +32,9 @@ private:
     juce::TextButton licenseButton { "LICENSE" };
 
     // Panels
-    StrawPanel    strawPanel;
-    ChatComponent chatComponent;
+    PipeVisualizer pipeVis;         // left — the glass telemetry channel
+    ChatComponent  chatComponent;   // center — the bowl
+    StrawPanel     strawPanel;      // right — presets & controls
 
     // Conversation
     std::vector<ChatMessage> history;
@@ -51,8 +48,7 @@ private:
     void showLicenseDialog();
     void updateLicenseDisplay();
 
-    juce::Colour statusColour { MM::text2 };
-    int          dotPhase     { 0 };
+    int  dotPhase { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixMindEditor)
 };
