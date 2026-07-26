@@ -74,7 +74,7 @@ void StrawPanel::paint (juce::Graphics& g)
     g.fillRect (0, 0, getWidth(), 40);
 
     // Right edge "glass" line — the straw tube
-    g.setColour (JP::glassEdge);
+    g.setColour (JP::glass);
     g.drawLine ((float)getWidth() - 0.5f, 0, (float)getWidth() - 0.5f, (float)getHeight(), 0.5f);
 }
 

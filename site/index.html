@@ -6,18 +6,16 @@
     <title>JuicePipe — MixMind</title>
     <style>
         :root {
-            --bg: #0f1012;
-            --text: #d0d0d0;
-            --muted: #5a5d66;
-            --accent: #a855f7;
-            --border: #1e1f23;
+            --pink: #f0c4d4;
+            --black: #080809;
+            --border: rgba(0,0,0,0.08);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg);
-            color: var(--text);
+            font-family: 'Helvetica Neue', -apple-system, sans-serif;
+            background: var(--pink);
+            color: var(--black);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -28,115 +26,73 @@
         }
 
         .brand {
-            font-size: 11px;
-            font-weight: 500;
-            letter-spacing: 4px;
-            color: var(--muted);
-            text-transform: uppercase;
-            margin-bottom: 24px;
+            font-size: 11px; font-weight: 500; letter-spacing: 4px;
+            color: rgba(0,0,0,0.4); text-transform: uppercase; margin-bottom: 24px;
         }
-
-        .product-container {
-            position: relative;
-            display: inline-block;
-            margin-bottom: 24px;
-        }
-
+        .product-container { position: relative; display: inline-block; margin-bottom: 24px; }
         .product {
-            font-size: 42px;
-            font-weight: 600;
-            color: #fff;
-            letter-spacing: -1px;
-            cursor: default;
-            transition: color 0.3s;
+            font-size: 42px; font-weight: 600; color: var(--black); letter-spacing: -1px;
+            cursor: default; transition: opacity 0.3s;
         }
-
-        .product:hover { color: var(--accent); }
+        .product:hover { opacity: 0.65; }
 
         .features-dropdown {
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            margin-top: 12px;
-            padding: 20px 28px;
-            background: #141518;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            opacity: 0;
-            pointer-events: none;
+            position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+            margin-top: 12px; padding: 20px 28px; background: var(--pink);
+            border: 1px solid var(--border); border-radius: 8px;
+            opacity: 0; pointer-events: none;
             transition: opacity 0.25s, transform 0.25s;
             transform: translateX(-50%) translateY(4px);
-            white-space: nowrap;
-            z-index: 10;
+            white-space: nowrap; z-index: 10;
         }
-
         .product-container:hover .features-dropdown {
-            opacity: 1;
-            pointer-events: auto;
-            transform: translateX(-50%) translateY(0);
+            opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0);
         }
-
         .features-dropdown ul { list-style: none; text-align: left; }
         .features-dropdown li {
-            font-size: 13px; color: var(--text); padding: 5px 0;
+            font-size: 13px; color: var(--black); padding: 5px 0;
             display: flex; align-items: center; gap: 10px;
         }
         .features-dropdown li::before {
             content: ""; width: 5px; height: 5px; border-radius: 50%;
-            background: var(--accent); flex-shrink: 0;
+            background: var(--black); flex-shrink: 0;
         }
 
         .tagline {
-            font-size: 14px; color: var(--muted); max-width: 380px;
+            font-size: 14px; color: rgba(0,0,0,0.5); max-width: 380px;
             line-height: 1.5; margin-bottom: 40px;
         }
-
         .download {
             display: inline-flex; align-items: center; gap: 8px;
-            background: #fff; color: #000; font-size: 14px; font-weight: 600;
+            background: var(--black); color: var(--pink); font-size: 14px; font-weight: 600;
             padding: 11px 28px; border-radius: 6px; text-decoration: none;
-            margin-bottom: 8px; transition: background 0.15s;
+            margin-bottom: 8px; transition: opacity 0.15s;
         }
-        .download:hover { background: #e0e0e0; }
-
-        .version { font-size: 11px; color: var(--muted); margin-bottom: 56px; }
+        .download:hover { opacity: 0.85; }
+        .version { font-size: 11px; color: rgba(0,0,0,0.4); margin-bottom: 56px; }
 
         .bottom-nav { display: flex; gap: 28px; font-size: 12px; position: relative; }
         .bottom-nav a {
-            color: var(--muted); text-decoration: none; cursor: pointer;
+            color: rgba(0,0,0,0.4); text-decoration: none; cursor: pointer;
             transition: color 0.15s;
         }
-        .bottom-nav a:hover { color: var(--text); }
-        .bottom-nav a.active { color: var(--accent); }
+        .bottom-nav a:hover { color: var(--black); }
+        .bottom-nav a.active { color: var(--black); }
 
         .panel {
-            position: absolute;
-            bottom: 36px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 360px;
-            max-width: 90vw;
-            padding: 22px 26px;
-            background: #141518;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            font-size: 12px;
-            line-height: 1.6;
-            color: var(--muted);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.25s;
-            text-align: left;
+            position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
+            width: 360px; max-width: 90vw; padding: 22px 26px;
+            background: var(--pink); border: 1px solid var(--border);
+            border-radius: 8px; font-size: 12px; line-height: 1.6;
+            color: rgba(0,0,0,0.6); opacity: 0; pointer-events: none;
+            transition: opacity 0.25s; text-align: left;
         }
         .panel.visible { opacity: 1; pointer-events: auto; }
-        .panel a { color: var(--accent); text-decoration: none; }
-        .panel a:hover { text-decoration: underline; }
-        .panel strong { color: var(--text); font-weight: 500; }
+        .panel a { color: var(--black); text-decoration: underline; }
+        .panel strong { color: var(--black); font-weight: 600; }
 
         footer {
-            position: fixed; bottom: 24px; text-align: center;
-            font-size: 11px; color: var(--muted);
+            position: fixed; bottom: 24px; font-size: 11px; color: rgba(0,0,0,0.3);
         }
     </style>
 </head>
@@ -154,7 +110,7 @@
                 <li>4-mode analyzer canvas with hotkeys</li>
                 <li>Interactive EQ click-to-shape</li>
                 <li>10 track-type presets with focus modes</li>
-                <li>DAW-adaptive fonts &amp; accent colors</li>
+                <li>DAW-adaptive fonts &amp; colors</li>
             </ul>
         </div>
     </div>
@@ -164,7 +120,7 @@
         A second set of expert ears inside your DAW.
     </div>
 
-    <a href="/downloads/MixMind-3.1.0.pkg" class="download">
+    <a href="/downloads/MixMind-3.1.1.pkg" class="download">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
@@ -172,7 +128,7 @@
         </svg>
         Download for macOS
     </a>
-    <div class="version">VST3 &amp; AU &middot; macOS 12+ &middot; Version 3.1.0</div>
+    <div class="version">VST3 &amp; AU &middot; macOS 12+ &middot; Version 3.1.1</div>
 
     <nav class="bottom-nav" id="nav">
         <a data-panel="about">About</a>
@@ -182,28 +138,19 @@
 
     <div class="panel" id="panel-about">
         <strong>JuicePipe</strong> builds precision audio tools for producers and
-        mixing engineers. Our first plugin, <strong>MixMind</strong>, combines
-        lock-free C++ DSP with real-time AI telemetry to give you surgical mix
-        feedback when your ears are tired and your deadline is now.<br><br>
-        Built by an independent developer obsessive about audio quality, fast UIs,
-        and tools that feel like lab equipment — not toys.
+        mixing engineers. <strong>MixMind</strong> combines lock-free C++ DSP with
+        real-time AI telemetry for surgical mix feedback when your ears are tired
+        and your deadline is now.
     </div>
-
     <div class="panel" id="panel-contact">
-        <strong>GitHub</strong><br>
-        <a href="https://github.com/kylerobertschuster" target="_blank">github.com/kylerobertschuster</a><br><br>
-        <strong>Email</strong><br>
-        <a href="mailto:kylerobertschuster@gmail.com">kylerobertschuster@gmail.com</a><br><br>
-        <strong>Reddit</strong><br>
-        <a href="https://reddit.com/u/getjuicepipe" target="_blank">u/getjuicepipe</a>
+        <strong>GitHub</strong><br><a href="https://github.com/kylerobertschuster" target="_blank">github.com/kylerobertschuster</a><br><br>
+        <strong>Email</strong><br><a href="mailto:kylerobertschuster@gmail.com">kylerobertschuster@gmail.com</a><br><br>
+        <strong>Reddit</strong><br><a href="https://reddit.com/u/getjuicepipe" target="_blank">u/getjuicepipe</a>
     </div>
-
     <div class="panel" id="panel-purchase">
-        <strong>Cash App</strong><br>
-        <a href="https://cash.app/$getjuicepipe" target="_blank">$getjuicepipe</a><br><br>
-        After purchase, email your receipt to
-        <a href="mailto:kylerobertschuster@gmail.com">kylerobertschuster@gmail.com</a>
-        and you'll receive your license key within 24 hours.
+        <strong>Cash App</strong><br><a href="https://cash.app/$getjuicepipe" target="_blank">$getjuicepipe</a><br><br>
+        Email your receipt to <a href="mailto:kylerobertschuster@gmail.com">kylerobertschuster@gmail.com</a>
+        for your license key within 24 hours.
     </div>
 
     <footer>JuicePipe &copy; 2026</footer>
@@ -211,34 +158,20 @@
     <script>
         const nav = document.getElementById('nav');
         const panels = document.querySelectorAll('.panel');
-        let activePanel = null;
-
-        nav.addEventListener('click', (e) => {
-            const a = e.target.closest('a');
-            if (!a) return;
-            const name = a.dataset.panel;
-            const panel = document.getElementById('panel-' + name);
-
-            if (activePanel === panel) {
-                panel.classList.remove('visible');
-                a.classList.remove('active');
-                activePanel = null;
-                return;
-            }
-
-            panels.forEach(p => p.classList.remove('visible'));
-            nav.querySelectorAll('a').forEach(l => l.classList.remove('active'));
-
-            panel.classList.add('visible');
-            a.classList.add('active');
-            activePanel = panel;
+        let active = null;
+        nav.addEventListener('click', e => {
+            const a = e.target.closest('a'); if (!a) return;
+            const p = document.getElementById('panel-' + a.dataset.panel);
+            if (active === p) { p.classList.remove('visible'); a.classList.remove('active'); active = null; return; }
+            panels.forEach(x => x.classList.remove('visible'));
+            nav.querySelectorAll('a').forEach(x => x.classList.remove('active'));
+            p.classList.add('visible'); a.classList.add('active'); active = p;
         });
-
-        document.addEventListener('click', (e) => {
+        document.addEventListener('click', e => {
             if (!e.target.closest('.bottom-nav') && !e.target.closest('.panel')) {
-                panels.forEach(p => p.classList.remove('visible'));
-                nav.querySelectorAll('a').forEach(l => l.classList.remove('active'));
-                activePanel = null;
+                panels.forEach(x => x.classList.remove('visible'));
+                nav.querySelectorAll('a').forEach(x => x.classList.remove('active'));
+                active = null;
             }
         });
     </script>

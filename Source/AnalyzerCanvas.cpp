@@ -2,7 +2,6 @@
 
 AnalyzerCanvas::AnalyzerCanvas()
 {
-    accent = HostTheme::getColors().accent;
     startTimerHz (60);
 }
 
@@ -347,8 +346,9 @@ void AnalyzerCanvas::drawSpectrumMode (juce::Graphics& g)
 {
     float w = plotRight - plotLeft;
     float h = plotBottom - plotTop;
+    auto pink = JP::accent();
 
-    // Glow fill under curve
+    // Gradient fill under curve
     juce::Path fillPath;
     fillPath.startNewSubPath (plotLeft, plotBottom);
     for (int i = 0; i < kNumBins; ++i)
@@ -361,33 +361,53 @@ void AnalyzerCanvas::drawSpectrumMode (juce::Graphics& g)
     fillPath.closeSubPath();
 
     g.setGradientFill (juce::ColourGradient (
-        accent.withAlpha (0.18f), 0, plotBottom,
-        accent.withAlpha (0.02f), 0, plotTop, false));
+        pink.withAlpha (0.22f), 0, plotTop,
+        pink.withAlpha (0.01f), 0, plotBottom, false));
     g.fillPath (fillPath);
 
-    // Curve stroke
-    juce::Path curvePath;
-    curvePath.startNewSubPath (plotLeft, plotBottom - h * fftSmooth[0]);
+    // Spectrum curve — thick with glow
+    juce::Path curve;
+    curve.startNewSubPath (plotLeft, plotBottom - h * fftSmooth[0]);
     for (int i = 1; i < kNumBins; ++i)
     {
         float x = plotLeft + w * (float)i / (float)(kNumBins - 1);
         float y = plotBottom - h * fftSmooth[i];
-        curvePath.lineTo (x, y);
+        curve.lineTo (x, y);
     }
-    g.setColour (accent.withAlpha (0.9f));
-    g.strokePath (curvePath, juce::PathStrokeType (1.5f));
+    g.setColour (pink.withAlpha (0.22f));
+    g.strokePath (curve, juce::PathStrokeType (3.0f));
+    g.setColour (pink.withAlpha (0.85f));
+    g.strokePath (curve, juce::PathStrokeType (1.2f));
 
-    // Frequency labels on x-axis
+    // Peak hold trail (lighter, half-opacity)
+    static float peakHold[kNumBins] = { 0 };
+    for (int i = 0; i < kNumBins; ++i)
+    {
+        if (fftSmooth[i] > peakHold[i]) peakHold[i] = fftSmooth[i];
+        else peakHold[i] = peakHold[i] * 0.998f + fftSmooth[i] * 0.002f;
+    }
+    juce::Path peakPath;
+    peakPath.startNewSubPath (plotLeft, plotBottom - h * peakHold[0]);
+    for (int i = 1; i < kNumBins; ++i)
+    {
+        float x = plotLeft + w * (float)i / (float)(kNumBins - 1);
+        float y = plotBottom - h * peakHold[i];
+        peakPath.lineTo (x, y);
+    }
+    g.setColour (pink.withAlpha (0.18f));
+    g.strokePath (peakPath, juce::PathStrokeType (0.8f));
+
+    // Freq labels
     auto fonts = HostTheme::getFonts();
     g.setFont (juce::FontOptions (fonts.mono, 7.0f, juce::Font::plain));
     g.setColour (JP::textDim);
-    float freqs[] = { 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000 };
+    float freqs[] = { 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000 };
     for (float hz : freqs)
     {
         float t = std::log10 (hz / 20.0f) / std::log10 (1000.0f);
         float x = plotLeft + w * t;
-        juce::String label = hz >= 1000 ? juce::String (hz / 1000.0f, 0) + "k" : juce::String ((int)hz);
-        g.drawText (label, juce::Rectangle<float> (x - 15, plotBottom + 2, 30, 12),
+        juce::String label = hz >= 1000 ? juce::String (hz/1000,0)+"k" : juce::String ((int)hz);
+        g.drawText (label, juce::Rectangle<float> (x-15, plotBottom+2, 30, 12),
                     juce::Justification::centred, false);
     }
 }
@@ -519,7 +539,7 @@ void AnalyzerCanvas::drawDynamicsMode (juce::Graphics& g)
                 juce::Justification::centred, false);
     float crNorm = juce::jlimit (0.0f, 1.0f, crest / 18.0f);
     float crH = barH * crNorm;
-    g.setColour (JP::accentMixMind.withAlpha (0.3f));
+    g.setColour (JP::accent().withAlpha (0.3f));
     g.fillRoundedRectangle (crX, plotBottom - 28 - crH, barW, crH, 3.0f);
     g.setFont (juce::FontOptions (fonts.mono, 10.0f, juce::Font::bold));
     g.setColour (JP::text);
