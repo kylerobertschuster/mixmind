@@ -93,6 +93,17 @@ void AnalyzerCanvas::paint (juce::Graphics& g)
     drawEQPoints (g);
     drawCrosshair (g);
     drawModeSelector (g);
+
+    // No-signal indicator
+    if (lufs < -50.0f)
+    {
+        auto fonts = HostTheme::getFonts();
+        g.setFont (juce::FontOptions (fonts.ui, 11.0f, juce::Font::plain));
+        g.setColour (JP::textDim.withAlpha (0.4f));
+        g.drawText ("No signal — press play in your DAW",
+                    juce::Rectangle<float> (plotLeft, plotTop, plotRight - plotLeft, plotBottom - plotTop),
+                    juce::Justification::centred, false);
+    }
 }
 
 // ── Mode selector bar ────────────────────────────────────────────────────────

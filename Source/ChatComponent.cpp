@@ -249,7 +249,7 @@ ChatComponent::ChatComponent()
     inputBox.setMultiLine (true, true);
     inputBox.setReturnKeyStartsNewLine (false);
     inputBox.setScrollbarsShown (false);
-    inputBox.setFont (juce::Font (juce::FontOptions ("SF Pro Display", 13.0f, juce::Font::plain)));
+    inputBox.setFont (juce::Font (juce::FontOptions ("Helvetica Neue", 13.0f, juce::Font::plain)));
     inputBox.setTextToShowWhenEmpty ("Ask about your mix…",
                                      JP::textDim);
     inputBox.addListener (this);

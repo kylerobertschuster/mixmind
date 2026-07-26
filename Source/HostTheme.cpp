@@ -22,36 +22,37 @@ Host detect()
 
 FontSet getFonts()
 {
+    // All fonts must be available on macOS by default — no third-party installs needed
     switch (detect())
     {
         case Host::AbletonLive:
-            return { "SF Pro Display", "SF Mono", "SF Pro Display" };
+            return { "Helvetica Neue", "Menlo", "Helvetica Neue" };
 
         case Host::LogicPro:
         case Host::GarageBand:
-            return { "SF Pro Display", "SF Mono", "SF Pro Display" };
+            return { "Helvetica Neue", "Menlo", "Helvetica Neue" };
 
         case Host::ProTools:
             return { "Helvetica Neue", "Menlo", "Helvetica Neue" };
 
         case Host::Reaper:
-            return { "Inter", "JetBrains Mono", "Inter" };
+            return { "Helvetica Neue", "Menlo", "Helvetica Neue" };
 
         case Host::FLStudio:
-            return { "Inter", "JetBrains Mono", "Inter" };
+            return { "Helvetica Neue", "Menlo", "Helvetica Neue" };
 
         case Host::StudioOne:
-            return { "Inter", "JetBrains Mono", "Inter" };
+            return { "Helvetica Neue", "Menlo", "Helvetica Neue" };
 
         case Host::Bitwig:
-            return { "SF Pro Display", "SF Mono", "SF Pro Display" };
+            return { "Helvetica Neue", "Menlo", "Helvetica Neue" };
 
         case Host::Cubase:
-            return { "Inter", "JetBrains Mono", "Inter" };
+            return { "Helvetica Neue", "Menlo", "Helvetica Neue" };
 
         case Host::Unknown:
         default:
-            return { "SF Pro Display", "SF Mono", "SF Pro Display" };
+            return { "Helvetica Neue", "Menlo", "Helvetica Neue" };
     }
 }
 

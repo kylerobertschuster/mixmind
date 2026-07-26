@@ -112,7 +112,7 @@ void PipeVisualizer::drawPipeChannel (juce::Graphics& g)
     g.drawLine (bx, by + bh * 2.0f, bx + bw, by + bh * 2.0f, 0.5f);
 
     // Band labels inside
-    g.setFont (juce::FontOptions ("SF Pro Display", 7.0f, juce::Font::bold));
+    g.setFont (juce::FontOptions ("Helvetica Neue", 7.0f, juce::Font::bold));
     g.setColour (JP::textDim);
     g.drawText ("LOW",  juce::Rectangle<float> (bx, by, bw, 9.0f),
                 juce::Justification::centred, false);
@@ -129,25 +129,25 @@ void PipeVisualizer::drawReadouts (juce::Graphics& g)
     float x = rightEdge + 4.0f; // readouts to the right of the pipe
     float y = pipeY + 4.0f;
 
-    g.setFont (juce::FontOptions ("SF Pro Display", 8.5f, juce::Font::bold));
+    g.setFont (juce::FontOptions ("Helvetica Neue", 8.5f, juce::Font::bold));
     g.setColour (JP::textMuted);
 
     // LUFS is the key readout — large and prominent
-    g.setFont (juce::FontOptions ("SF Mono", 10.0f, juce::Font::bold));
+    g.setFont (juce::FontOptions ("Menlo", 10.0f, juce::Font::bold));
     juce::String lufsText = juce::String (aLufs, 1) + " LUFS";
     g.setColour (aLufs > -14.0f ? JP::warning :
                  aLufs > -20.0f ? JP::accent() : JP::textMuted);
     g.drawSingleLineText (lufsText, 4, (int)pipeY + 10);
 
     // Stereo width
-    g.setFont (juce::FontOptions ("SF Mono", 7.5f, juce::Font::plain));
+    g.setFont (juce::FontOptions ("Menlo", 7.5f, juce::Font::plain));
     g.setColour (JP::textDim);
     juce::String swText = juce::String ((int)(aStereo * 100)) + "% W";
     g.drawSingleLineText (swText, 4, (int)pipeY + 24);
 
     if (advancedMode)
     {
-        g.setFont (juce::FontOptions ("SF Mono", 7.5f, juce::Font::plain));
+        g.setFont (juce::FontOptions ("Menlo", 7.5f, juce::Font::plain));
 
         // True peak
         juce::String tpText = juce::String (aPeak, 1) + " dBTP";

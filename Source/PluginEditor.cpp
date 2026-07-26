@@ -43,8 +43,8 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
 
     startTimerHz (60);
 
-    if (!audioProcessor.getLicenseManager().hasShownWelcome())
-        juce::Timer::callAfterDelay (400, [this] { showLicenseDialog(); });
+    if (!audioProcessor.getLicenseManager().isLicensed())
+        juce::Timer::callAfterDelay (500, [this] { showLicenseDialog(); });
 }
 
 MixMindEditor::~MixMindEditor()
@@ -96,7 +96,7 @@ void MixMindEditor::resized()
     // Header
     auto header = b.removeFromTop (JP::headerH);
     titleLabel.setBounds   (header.withLeft (14).withWidth (300));
-    licenseButton.setBounds(header.withLeft (getWidth() - 140).withWidth (90).withHeight (24).withY (8));
+    licenseButton.setBounds(header.withLeft (getWidth() - 190).withWidth (150).withHeight (26).withY (7));
     statusLabel.setBounds  (header.withLeft (getWidth() - 240).withWidth (90));
 
     // Right: presets panel
@@ -160,8 +160,9 @@ void MixMindEditor::updateLicenseDisplay()
     else
     {
         auto r = lm.getFreePromptsRemaining();
-        licenseButton.setButtonText (juce::String (r) + " FREE");
-        licenseButton.setColour (juce::TextButton::textColourOffId, r <= 3 ? JP::warning : acc);
+        licenseButton.setButtonText (juce::String (r) + " FREE  → ACTIVATE");
+        licenseButton.setColour (juce::TextButton::textColourOffId, r <= 3 ? JP::warning : JP::warning);
+        licenseButton.setColour (juce::TextButton::buttonColourId, JP::warning.withAlpha (0.1f));
     }
 }
 
