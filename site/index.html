@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JuicePipe — Real-Time Audio Telemetry &amp; AI Mix Intelligence</title>
+    <title>JuicePipe — MixMind</title>
     <style>
         :root {
             --bg: #0f1012;
-            --surface: #16171b;
-            --border: #25272d;
             --text: #d0d0d0;
-            --muted: #6b6f7a;
+            --muted: #5a5d66;
             --accent: #a855f7;
+            --border: #1e1f23;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
             font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg);
@@ -22,132 +22,165 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 80px 24px 60px;
+            justify-content: center;
+            padding: 60px 24px;
+            text-align: center;
         }
+
         .brand {
-            font-size: 18px;
+            font-size: 11px;
             font-weight: 500;
-            letter-spacing: 3px;
+            letter-spacing: 4px;
             color: var(--muted);
             text-transform: uppercase;
-            margin-bottom: 8px;
+            margin-bottom: 24px;
         }
+
+        .product-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 48px;
+        }
+
         .product {
-            font-size: 36px;
+            font-size: 42px;
             font-weight: 600;
             color: #fff;
-            letter-spacing: -0.5px;
-            margin-bottom: 6px;
+            letter-spacing: -1px;
+            cursor: default;
+            transition: color 0.3s;
         }
+
+        .product:hover {
+            color: var(--accent);
+        }
+
+        .features-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 12px;
+            padding: 20px 28px;
+            background: #141518;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s, transform 0.25s;
+            transform: translateX(-50%) translateY(4px);
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        .product-container:hover .features-dropdown {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .features-dropdown ul {
+            list-style: none;
+            text-align: left;
+        }
+
+        .features-dropdown li {
+            font-size: 13px;
+            color: var(--text);
+            padding: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .features-dropdown li::before {
+            content: "";
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--accent);
+            flex-shrink: 0;
+        }
+
         .tagline {
-            color: var(--muted);
             font-size: 14px;
-            margin-bottom: 48px;
-            max-width: 440px;
-            text-align: center;
+            color: var(--muted);
+            max-width: 380px;
             line-height: 1.5;
+            margin-bottom: 40px;
         }
+
         .download {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             background: #fff;
             color: #000;
             font-size: 14px;
             font-weight: 600;
-            padding: 12px 28px;
+            padding: 11px 28px;
             border-radius: 6px;
             text-decoration: none;
-            margin-bottom: 10px;
-            transition: opacity 0.15s;
+            margin-bottom: 8px;
+            transition: background 0.15s;
         }
-        .download:hover { opacity: 0.85; }
+
+        .download:hover { background: #e0e0e0; }
+
         .version {
             font-size: 11px;
             color: var(--muted);
             margin-bottom: 64px;
         }
-        .nav {
+
+        .bottom-nav {
             display: flex;
-            gap: 28px;
-            margin-bottom: 56px;
+            gap: 32px;
+            font-size: 12px;
         }
-        .nav a {
+
+        .bottom-nav a {
             color: var(--muted);
             text-decoration: none;
-            font-size: 13px;
             transition: color 0.15s;
         }
-        .nav a:hover { color: var(--text); }
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1px;
-            background: var(--border);
-            border-radius: 6px;
-            overflow: hidden;
-            max-width: 720px;
-            width: 100%;
-            margin-bottom: 48px;
-        }
-        .feat {
-            background: var(--surface);
-            padding: 24px;
-        }
-        .feat h3 {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--accent);
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .feat p {
-            font-size: 12px;
-            color: var(--muted);
-            line-height: 1.5;
-        }
-        .coming {
-            text-align: center;
-            margin-top: 32px;
-        }
-        .coming h3 {
-            font-size: 11px;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 16px;
-        }
-        .soon {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        .soon span {
-            padding: 6px 14px;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            font-size: 12px;
-            color: var(--muted);
-        }
+
+        .bottom-nav a:hover { color: var(--text); }
+
         footer {
-            margin-top: auto;
+            position: fixed;
+            bottom: 24px;
+            text-align: center;
             font-size: 11px;
             color: var(--muted);
-            padding-top: 48px;
         }
     </style>
 </head>
 <body>
     <div class="brand">JuicePipe</div>
-    <div class="product">MixMind</div>
+
+    <div class="product-container">
+        <span class="product">MixMind</span>
+        <div class="features-dropdown">
+            <ul>
+                <li>Real-time FFT spectral telemetry</li>
+                <li>Goniometer phase &amp; stereo scope</li>
+                <li>LUFS, True Peak, Crest Factor metering</li>
+                <li>AI-powered surgical diagnostics</li>
+                <li>4-mode analyzer canvas with hotkeys</li>
+                <li>Interactive EQ click-to-shape</li>
+                <li>10 track-type presets with focus modes</li>
+                <li>DAW-adaptive fonts &amp; accent colors</li>
+            </ul>
+        </div>
+    </div>
+
     <div class="tagline">
         Real-time audio telemetry &amp; AI mix intelligence.
         A second set of expert ears inside your DAW.
     </div>
 
-    <a href="/downloads/MixMind-2.1.0.pkg" class="download">
+    <a href="/downloads/MixMind-3.1.0.pkg" class="download">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
@@ -155,42 +188,13 @@
         </svg>
         Download for macOS
     </a>
-    <div class="version">VST3 &amp; AU &middot; macOS 12+ &middot; Version 2.1.0</div>
+    <div class="version">VST3 &amp; AU &middot; macOS 12+ &middot; Version 3.1.0</div>
 
-    <nav class="nav">
+    <nav class="bottom-nav">
         <a href="#">About</a>
         <a href="#">Contact</a>
         <a href="#">Purchase</a>
     </nav>
-
-    <div class="features">
-        <div class="feat">
-            <h3>Spectral Telemetry</h3>
-            <p>Real-time FFT analysis with glass-encased pipe visualizer. Bass, mid, high energy bands with exact dB readouts.</p>
-        </div>
-        <div class="feat">
-            <h3>AI Diagnostics</h3>
-            <p>DeepSeek-powered mixing intelligence with contextual advice tailored to your track type, genre, and focus.</p>
-        </div>
-        <div class="feat">
-            <h3>Surgical Precision</h3>
-            <p>LUFS integrated loudness, true peak, crest factor, and stereo width metrics at 60fps.</p>
-        </div>
-        <div class="feat">
-            <h3>Zero Latency</h3>
-            <p>Lock-free C++ DSP engine. Runs hundreds of instances without CPU spikes. Invisible performance.</p>
-        </div>
-    </div>
-
-    <div class="coming">
-        <h3>Coming Soon</h3>
-        <div class="soon">
-            <span>Crisp &mdash; Exciter</span>
-            <span>Punch &mdash; Dynamics</span>
-            <span>FFT Scope</span>
-            <span>Goniometer</span>
-        </div>
-    </div>
 
     <footer>JuicePipe &copy; 2026</footer>
 </body>
