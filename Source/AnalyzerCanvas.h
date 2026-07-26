@@ -40,9 +40,21 @@ public:
     void setMode (AnalyzerMode mode);
     AnalyzerMode getMode() const { return currentMode; }
 
-    // Mouse interaction for crosshair
+    // Mouse interaction for crosshair + EQ click-to-shape
     void mouseMove (const juce::MouseEvent&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseDrag (const juce::MouseEvent&) override;
+    void mouseUp   (const juce::MouseEvent&) override;
     void mouseExit (const juce::MouseEvent&) override;
+
+    // Keyboard: mode hotkeys 1-4
+    bool keyPressed (const juce::KeyPress& key) override;
+
+    // EQ state from interactive shaping (sent with telemetry)
+    juce::String getEQStateJson() const;
+
+    // Callback when user adds/removes EQ points
+    std::function<void()> onEQChanged;
 
 private:
     void timerCallback() override;
@@ -55,6 +67,7 @@ private:
     void drawModeSelector (juce::Graphics& g);
     void drawGrid (juce::Graphics& g, int numHoriz, int numVert);
     void drawCrosshair (juce::Graphics& g);
+    void drawEQPoints  (juce::Graphics& g);
 
     // ── Data ────────────────────────────────────────────────────────────────
     AnalyzerMode currentMode { AnalyzerMode::Spectrum };
@@ -81,6 +94,17 @@ private:
     // Mouse crosshair
     juce::Point<float> mousePos    { -1, -1 };
     bool               mouseInView { false };
+    bool               dragging   { false };
+
+    // Interactive EQ points (user clicks spectrum to add shaping)
+    struct EQPoint
+    {
+        float freqHz;
+        float gainDb;
+        float q     { 1.0f };
+        bool  active { true };
+    };
+    std::vector<EQPoint> eqPoints;
 
     // AI overlay
     AIAnalysis currentAnalysis;

@@ -90,6 +90,7 @@ void AnalyzerCanvas::paint (juce::Graphics& g)
         case AnalyzerMode::AICoPilot: drawAICoPilotMode (g); break;
     }
 
+    drawEQPoints (g);
     drawCrosshair (g);
     drawModeSelector (g);
 }
@@ -193,6 +194,139 @@ void AnalyzerCanvas::mouseMove (const juce::MouseEvent& e)
 void AnalyzerCanvas::mouseExit (const juce::MouseEvent&)
 {
     mouseInView = false;
+    dragging = false;
+}
+
+// ── EQ click-to-shape ─────────────────────────────────────────────────────
+void AnalyzerCanvas::mouseDown (const juce::MouseEvent& e)
+{
+    if (currentMode != AnalyzerMode::Spectrum && currentMode != AnalyzerMode::AICoPilot)
+        return;
+
+    auto pos = e.position;
+    if (pos.x < plotLeft || pos.x > plotRight || pos.y < plotTop || pos.y > plotBottom)
+        return;
+
+    // Convert mouse position to frequency and gain
+    float t = (pos.x - plotLeft) / (plotRight - plotLeft);
+    float hz = 20.0f * std::pow (1000.0f, juce::jlimit (0.0f, 1.0f, t));
+    float db = (1.0f - (pos.y - plotTop) / (plotBottom - plotTop)) * 24.0f - 12.0f;
+
+    // Check if clicking near an existing point to drag it
+    for (auto& pt : eqPoints)
+    {
+        float ptT = std::log10 (pt.freqHz / 20.0f) / std::log10 (1000.0f);
+        float ptX = plotLeft + (plotRight - plotLeft) * ptT;
+        float ptY = plotBottom - (plotBottom - plotTop) * ((pt.gainDb + 12.0f) / 24.0f);
+        if (std::abs (pos.x - ptX) < 12.0f && std::abs (pos.y - ptY) < 12.0f)
+        {
+            dragging = true;
+            return;
+        }
+    }
+
+    // Add new EQ point
+    EQPoint pt;
+    pt.freqHz = hz;
+    pt.gainDb = db;
+    eqPoints.push_back (pt);
+    if (onEQChanged) onEQChanged();
+    repaint();
+}
+
+void AnalyzerCanvas::mouseDrag (const juce::MouseEvent& e)
+{
+    if (!dragging) return;
+    auto pos = e.position;
+
+    // Update the nearest EQ point
+    for (auto& pt : eqPoints)
+    {
+        float ptT = std::log10 (pt.freqHz / 20.0f) / std::log10 (1000.0f);
+        float ptX = plotLeft + (plotRight - plotLeft) * ptT;
+        float ptY = plotBottom - (plotBottom - plotTop) * ((pt.gainDb + 12.0f) / 24.0f);
+        if (std::abs (pos.x - ptX) < 16.0f && std::abs (pos.y - ptY) < 16.0f)
+        {
+            float t = juce::jlimit (0.0f, 1.0f, (pos.x - plotLeft) / (plotRight - plotLeft));
+            pt.freqHz = 20.0f * std::pow (1000.0f, t);
+            pt.gainDb = juce::jlimit (-12.0f, 12.0f,
+                (1.0f - (pos.y - plotTop) / (plotBottom - plotTop)) * 24.0f - 12.0f);
+            if (onEQChanged) onEQChanged();
+            repaint();
+            return;
+        }
+    }
+}
+
+void AnalyzerCanvas::mouseUp (const juce::MouseEvent&)
+{
+    dragging = false;
+}
+
+// ── Hotkeys: 1-4 switch modes ──────────────────────────────────────────────
+bool AnalyzerCanvas::keyPressed (const juce::KeyPress& key)
+{
+    if (key == juce::KeyPress ('1')) { setMode (AnalyzerMode::Spectrum);  return true; }
+    if (key == juce::KeyPress ('2')) { setMode (AnalyzerMode::Stereo);    return true; }
+    if (key == juce::KeyPress ('3')) { setMode (AnalyzerMode::Dynamics);  return true; }
+    if (key == juce::KeyPress ('4')) { setMode (AnalyzerMode::AICoPilot); return true; }
+    return false;
+}
+
+// ── Serialize EQ state ─────────────────────────────────────────────────────
+juce::String AnalyzerCanvas::getEQStateJson() const
+{
+    juce::String json = "[";
+    bool first = true;
+    for (auto& pt : eqPoints)
+    {
+        if (!pt.active) continue;
+        if (!first) json << ",";
+        first = false;
+        json << "{\"freq_hz\":" << (int)pt.freqHz
+             << ",\"gain_db\":"  << juce::String (pt.gainDb, 1)
+             << ",\"q\":"       << juce::String (pt.q, 1) << "}";
+    }
+    json << "]";
+    return json;
+}
+
+// ── Draw interactive EQ points on spectrum ─────────────────────────────────
+void AnalyzerCanvas::drawEQPoints (juce::Graphics& g)
+{
+    if (currentMode != AnalyzerMode::Spectrum && currentMode != AnalyzerMode::AICoPilot)
+        return;
+
+    for (auto& pt : eqPoints)
+    {
+        if (!pt.active) continue;
+        float t = std::log10 (pt.freqHz / 20.0f) / std::log10 (1000.0f);
+        float x = plotLeft + (plotRight - plotLeft) * juce::jlimit (0.0f, 1.0f, t);
+        float y = plotBottom - (plotBottom - plotTop) * ((pt.gainDb + 12.0f) / 24.0f);
+
+        // Glow circle
+        g.setColour (accent.withAlpha (0.25f));
+        g.fillEllipse (x - 10, y - 10, 20, 20);
+
+        // Solid dot
+        g.setColour (accent);
+        g.fillEllipse (x - 5, y - 5, 10, 10);
+
+        // Frequency label
+        auto fonts = HostTheme::getFonts();
+        g.setFont (juce::FontOptions (fonts.mono, 8.0f, juce::Font::bold));
+        juce::String label = pt.freqHz >= 1000
+            ? juce::String (pt.freqHz / 1000.0f, 1) + "k"
+            : juce::String ((int)pt.freqHz) + "Hz";
+        g.setColour (JP::text);
+        g.drawText (label, juce::Rectangle<float> (x - 20, y + 8, 40, 12),
+                    juce::Justification::centred, false);
+
+        // Gain label
+        juce::String gainLabel = (pt.gainDb >= 0 ? "+" : "") + juce::String (pt.gainDb, 1) + "dB";
+        g.drawText (gainLabel, juce::Rectangle<float> (x - 20, y - 20, 40, 12),
+                    juce::Justification::centred, false);
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

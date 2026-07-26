@@ -187,6 +187,15 @@ void MixMindEditor::handleUserMessage (const juce::String& text)
     auto systemPrompt = strawPanel.buildSystemPrompt();
     systemPrompt += "\n\n=== LIVE TELEMETRY ===\n";
     systemPrompt += audioProcessor.audioAnalyzer.getAnalysisAsJson() + "\n\n";
+
+    // Include user's interactive EQ state
+    juce::String eqState = analyzer.getEQStateJson();
+    if (eqState != "[]")
+    {
+        systemPrompt += "EQ STATE (user has placed these interactive EQ points): " + eqState + "\n";
+        systemPrompt += "Consider these EQ points in your analysis. The user may want you to refine them.\n\n";
+    }
+
     systemPrompt +=
         "You are JuicePipe Core, an expert C++ DSP audio analyzer.\n"
         "Cross-reference: if phase_correlation < 0 and highs are strong → phase cancellation.\n"
