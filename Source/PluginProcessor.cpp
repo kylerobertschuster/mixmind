@@ -20,7 +20,7 @@ MixMindProcessor::MixMindProcessor()
     if (licenseManager.isLicensed())
         apiClient.setLicenseKey (licenseManager.getLicenseKey());
 
-    apiClient.setMaxTokens(1000);
+    apiClient.setMaxTokens(2500);
 }
  
 void MixMindProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)

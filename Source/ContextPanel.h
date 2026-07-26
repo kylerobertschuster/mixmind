@@ -33,24 +33,18 @@ private:
     juce::ComboBox trackBox;
 
     // Genre (dynamically populated based on track type)
-    juce::Label    genreLabel   { {}, "GENRE" };
-    juce::ComboBox genreBox;
 
     // Focus
     juce::Label    focusLabel   { {}, "FOCUS" };
     juce::ComboBox focusBox;
 
     // Quick prompts
-    juce::Label    quickLabel   { {}, "QUICK PROMPTS" };
-    juce::OwnedArray<juce::TextButton> quickBtns;
 
     // Template chain
     juce::Label    chainLabel   { {}, "SIGNAL CHAIN" };
     juce::Label    chainText;
 
     // Helpers
-    void updateGenreBox();
-    void updateQuickPrompts();
     void updateChain();
     void addSectionLabel (juce::Label& lbl);
 

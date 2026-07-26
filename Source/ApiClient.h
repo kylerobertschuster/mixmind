@@ -59,7 +59,7 @@ private:
     juce::String serverUrl     { "https://getjuicepipe.com" };
     juce::String licenseKey;
     juce::String sessionContext;
-    int          maxTokens     { 1000 };
+    int          maxTokens     { 2500 };
 
     juce::ThreadPool threadPool { 1 };
 

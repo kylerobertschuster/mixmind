@@ -12,26 +12,12 @@ StrawPanel::StrawPanel()
         auto idx = trackBox.getSelectedItemIndex();
         auto type = static_cast<PresetManager::TrackType> (idx);
         presetManager.setTrackType (type);
-        updateGenreBox();
-        updateQuickPrompts();
         updateChain();
         if (onTrackTypeChanged) onTrackTypeChanged (type);
     };
     addAndMakeVisible (trackLabel);
     addAndMakeVisible (trackBox);
 
-    // ── Genre ─────────────────────────────────────────────────────────────
-    addSectionLabel (genreLabel);
-    updateGenreBox();
-    genreBox.setSelectedId (1, juce::dontSendNotification);
-    genreBox.onChange = [this]
-    {
-        presetManager.setGenre (genreBox.getText());
-        updateQuickPrompts();
-        updateChain();
-    };
-    addAndMakeVisible (genreLabel);
-    addAndMakeVisible (genreBox);
 
     // ── Focus ─────────────────────────────────────────────────────────────
     addSectionLabel (focusLabel);
@@ -48,10 +34,6 @@ StrawPanel::StrawPanel()
     addAndMakeVisible (focusLabel);
     addAndMakeVisible (focusBox);
 
-    // ── Quick prompts ─────────────────────────────────────────────────────
-    addSectionLabel (quickLabel);
-    updateQuickPrompts();
-    addAndMakeVisible (quickLabel);
 
     // ── Signal chain ──────────────────────────────────────────────────────
     addSectionLabel (chainLabel);
@@ -101,23 +83,11 @@ void StrawPanel::resized()
     placeLabel_  (trackLabel);
     placeControl (trackBox, 30);
 
-    // Genre
-    placeLabel_  (genreLabel);
-    placeControl (genreBox, 30);
-
     // Focus
     placeLabel_  (focusLabel);
     placeControl (focusBox, 30);
 
     y += 6;
-
-    // Quick prompts
-    placeLabel_ (quickLabel);
-    for (auto* btn : quickBtns)
-    {
-        btn->setBounds (pad, y, innerW, 26);
-        y += 30;
-    }
 
     y += 6;
 
@@ -128,34 +98,6 @@ void StrawPanel::resized()
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-void StrawPanel::updateGenreBox()
-{
-    genreBox.clear();
-    for (auto& name : PresetManager::getGenresForTrackType (presetManager.getTrackType()))
-        genreBox.addItem (name, genreBox.getNumItems() + 1);
-    genreBox.setSelectedId (1, juce::dontSendNotification);
-    presetManager.setGenre (genreBox.getText());
-}
-
-void StrawPanel::updateQuickPrompts()
-{
-    quickBtns.clear();
-    auto prompts = presetManager.getQuickPrompts();
-
-    for (const auto& prompt : prompts)
-    {
-        auto* btn = quickBtns.add (new juce::TextButton (prompt));
-        auto text = prompt;
-        btn->onClick = [this, text]
-        {
-            quickPromptText = text;
-            if (onQuickPrompt) onQuickPrompt();
-        };
-        addAndMakeVisible (btn);
-    }
-    resized();
-}
 
 void StrawPanel::updateChain()
 {
