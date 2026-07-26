@@ -153,7 +153,7 @@
             <a href="#mixmind" class="menu-item" onclick="showPlugin('mixmind')">
                 <span class="menu-dot available"></span> MixMind
             </a>
-            <div class="menu-section">Coming Soon</div>
+            <div class="menu-section" onclick="showPlugin('soon')" style="cursor:pointer;">Coming Soon</div>
             <a class="menu-item soon-item" onclick="showPlugin('reflex')">
                 <span class="menu-dot soon"></span> Reflex
             </a>
@@ -255,6 +255,8 @@
         cards.forEach(function(c){ c.classList.add('hidden'); });
         if (name === 'all') {
             cards.forEach(function(c){ c.classList.remove('hidden'); });
+        } else if (name === 'soon') {
+            cards.forEach(function(c){ if (c.classList.contains('card-soon')) c.classList.remove('hidden'); });
         } else {
             var target = document.getElementById('card-' + name);
             if (target) target.classList.remove('hidden');
