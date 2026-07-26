@@ -131,6 +131,7 @@
         .card-soon .card-preview {
             font-size: 13px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.3;
         }
+        .card.hidden { display: none; }
 
         @media (max-width: 768px) {
             .card { flex-direction: column; }
@@ -149,17 +150,17 @@
         </button>
         <div class="menu-content">
             <div class="menu-section">Available</div>
-            <a href="#mixmind" class="menu-item">
+            <a href="#mixmind" class="menu-item" onclick="showPlugin('mixmind')">
                 <span class="menu-dot available"></span> MixMind
             </a>
             <div class="menu-section">Coming Soon</div>
-            <a class="menu-item">
+            <a class="menu-item soon-item" onclick="showPlugin('reflex')">
                 <span class="menu-dot soon"></span> Reflex
             </a>
-            <a class="menu-item">
+            <a class="menu-item soon-item" onclick="showPlugin('neat')">
                 <span class="menu-dot soon"></span> Neat Neat Neat
             </a>
-            <a class="menu-item">
+            <a class="menu-item soon-item" onclick="showPlugin('3fx')">
                 <span class="menu-dot soon"></span> 3FX
             </a>
         </div>
@@ -168,13 +169,13 @@
     <!-- Main -->
     <div class="main">
         <div class="container">
-            <div class="brand">
+            <div class="brand" onclick="showPlugin('all')">
                 <span>J</span><span>u</span><span>i</span><span>c</span><span>e</span><span>P</span><span>i</span><span>p</span><span>e</span>
             </div>
 
             <div class="plugins" id="mixmind">
                 <!-- MixMind -->
-                <div class="card card-mixmind">
+                <div class="card card-mixmind" id="card-mixmind">
                     <div class="card-info">
                         <h2>MixMind</h2>
                         <p>AI-powered mixing assistant. Real-time FFT, goniometer, LUFS metering, surgical diagnostics. A second set of expert ears in your DAW.</p>
@@ -202,7 +203,7 @@
                 </div>
 
                 <!-- Reflex — Coming Soon -->
-                <div class="card card-soon card-reflex">
+                <div class="card card-soon card-reflex" id="card-reflex">
                     <div class="card-info">
                         <span class="soon-badge">Coming Soon</span>
                         <h2>Reflex</h2>
@@ -212,7 +213,7 @@
                 </div>
 
                 <!-- Neat Neat Neat — Coming Soon -->
-                <div class="card card-soon card-neat">
+                <div class="card card-soon card-neat" id="card-neat">
                     <div class="card-info">
                         <span class="soon-badge">Coming Soon</span>
                         <h2>Neat Neat Neat</h2>
@@ -222,7 +223,7 @@
                 </div>
 
                 <!-- 3FX — Coming Soon -->
-                <div class="card card-soon card-3fx">
+                <div class="card card-soon card-3fx" id="card-3fx">
                     <div class="card-info">
                         <span class="soon-badge">Coming Soon</span>
                         <h2>3FX</h2>
@@ -249,6 +250,16 @@
     </div>
 
     <script>
+    function showPlugin(name) {
+        var cards = document.querySelectorAll('.card');
+        cards.forEach(function(c){ c.classList.add('hidden'); });
+        if (name === 'all') {
+            cards.forEach(function(c){ c.classList.remove('hidden'); });
+        } else {
+            var target = document.getElementById('card-' + name);
+            if (target) target.classList.remove('hidden');
+        }
+    }
     function buyNow(){document.getElementById('buyModal').style.display='flex';}
     function closeBuy(){document.getElementById('buyModal').style.display='none';}
     async function processPurchase(){
