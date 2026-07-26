@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import OpenAI from "openai";
 import express from "express";
 import { randomUUID } from "crypto";
@@ -271,6 +272,20 @@ app.post("/api/chat", async (req, res) => {
             error: "An unexpected error occurred. Please try again.",
         });
     }
+});
+
+// ── Purchase: auto-generate license key ──────────────────────────────────────
+app.post("/purchase", (req, res) => {
+    const { email } = req.body;
+    if (!email || !email.includes("@")) {
+        return res.status(400).json({ error: "Valid email required" });
+    }
+    const licenses = loadLicenses();
+    const key = "MM-" + randomUUID().toUpperCase().replace(/-/g, "").substring(0, 16);
+    licenses[key] = { active: true, createdAt: new Date().toISOString(), email };
+    saveLicenses(licenses);
+    console.log("Purchase: " + email + " -> " + key);
+    res.json({ license_key: key, email });
 });
 
 // ── 404 catch-all ────────────────────────────────────────────────────────────
