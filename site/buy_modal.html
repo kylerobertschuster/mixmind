@@ -1,0 +1,25 @@
+    <div id="buyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;align-items:center;justify-content:center;">
+        <div style="background:#141416;border-radius:10px;padding:36px;max-width:380px;width:90%;text-align:center;">
+            <h3 style="color:#f0c4d4;font-size:20px;margin-bottom:8px;">Get MixMind</h3>
+            <p style="color:rgba(255,255,255,0.5);font-size:13px;margin-bottom:20px;">$9/month or $79 lifetime — instant license key delivery</p>
+            <input id="buyEmail" type="email" placeholder="you@email.com" style="width:100%;padding:12px;background:#080809;border:1px solid rgba(240,196,212,0.15);border-radius:6px;color:#f0c4d4;font-size:14px;margin-bottom:12px;outline:none;">
+            <div style="display:flex;gap:10px;">
+                <button onclick="processPurchase()" style="flex:1;padding:12px;background:#f0c4d4;color:#080809;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Get License Key</button>
+                <button onclick="closeBuy()" style="flex:1;padding:12px;background:transparent;color:rgba(255,255,255,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:14px;cursor:pointer;">Cancel</button>
+            </div>
+            <div id="buyResult" style="margin-top:16px;display:none;"></div>
+        </div>
+    </div>
+    <script>
+    function buyNow(){document.getElementById('buyModal').style.display='flex';}
+    function closeBuy(){document.getElementById('buyModal').style.display='none';}
+    async function processPurchase(){
+        var e=document.getElementById('buyEmail').value;
+        if(!e.includes('@')){alert('Enter a valid email');return;}
+        var r=await fetch('https://getjuicepipe.com/purchase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e})});
+        var d=await r.json();
+        var el=document.getElementById('buyResult');
+        el.style.display='block';
+        el.innerHTML='<strong style="color:#f0c4d4;font-size:16px;">'+d.license_key+'</strong><br><span style="font-size:11px;color:rgba(255,255,255,0.4);">Copy this key and paste it into the plugin.</span>';
+    }
+    </script>
