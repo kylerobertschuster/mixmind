@@ -117,30 +117,33 @@ void MixMindEditor::showLicenseDialog()
 {
     auto& lm = audioProcessor.getLicenseManager();
 
-    juce::String title = "MixMind License";
     juce::String msg;
-    if (lm.isLicensed())
-        msg = "Licensed. Enter a new key:";
+    if (lm.isLicensed()) msg = "Licensed. Enter a new key:";
     else if (lm.getFreePromptsRemaining() > 0)
         msg = juce::String (lm.getFreePromptsRemaining()) + " free prompts. Paste key:";
-    else
-        msg = "All free prompts used. Paste key:";
+    else msg = "All free prompts used. Paste key:";
 
-    juce::AlertWindow w (title, msg, juce::AlertWindow::QuestionIcon, this);
-    w.addTextEditor ("key", lm.getLicenseKey(), 300, 24);
-    w.addButton ("Activate", 1, juce::KeyPress::returnKey);
-    w.addButton ("Cancel", 0, juce::KeyPress::escapeKey);
+    auto* w = new juce::AlertWindow ("MixMind License", msg,
+                                      juce::AlertWindow::QuestionIcon, this);
+    w->addTextEditor ("key", lm.getLicenseKey(), "MM-XXXXXXXXXXXXXXXX");
+    w->addButton ("Activate", 1);
+    w->addButton ("Cancel", 0);
 
-    if (w.runModalLoop() == 1)
-    {
-        auto key = w.getTextEditorContents ("key").trim();
-        if (key.isNotEmpty())
+    w->enterModalState (true,
+        juce::ModalCallbackFunction::create ([this, w] (int result)
         {
-            lm.setLicenseKey (key);
-            audioProcessor.getApiClient().setLicenseKey (key);
-            updateLicenseDisplay();
-        }
-    }
+            if (result == 1)
+            {
+                auto key = w->getTextEditorContents ("key").trim();
+                if (key.isNotEmpty())
+                {
+                    audioProcessor.getLicenseManager().setLicenseKey (key);
+                    audioProcessor.getApiClient().setLicenseKey (key);
+                    updateLicenseDisplay();
+                }
+            }
+            delete w;
+        }));
 
     lm.markWelcomeShown();
 }
