@@ -25,13 +25,35 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     setStatus ("READY");
     addAndMakeVisible (statusLabel);
 
-    // Big black license button on pink background
+    // License button
     licenseButton.setButtonText ("ENTER LICENSE KEY");
     licenseButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
     licenseButton.setColour (juce::TextButton::textColourOffId, JP::text);
     licenseButton.onClick = [this] { showLicenseDialog(); };
     addAndMakeVisible (licenseButton);
     updateLicenseDisplay();
+
+    // Apply EQ button — visible when AI returns EQ suggestions
+    applyEQButton.setButtonText ("APPLY EQ");
+    applyEQButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
+    applyEQButton.setColour (juce::TextButton::textColourOffId, JP::text);
+    applyEQButton.onClick = [this]
+    {
+        if (audioProcessor.isEQActive())
+        {
+            audioProcessor.clearEQ();
+            applyEQButton.setButtonText ("APPLY EQ");
+            setStatus ("EQ OFF");
+        }
+        else if (!lastEQSuggestions.empty())
+        {
+            audioProcessor.applyEQ (lastEQSuggestions);
+            applyEQButton.setButtonText ("EQ ON — CLICK TO BYPASS");
+            setStatus ("EQ ACTIVE");
+        }
+    };
+    applyEQButton.setVisible (false);
+    addAndMakeVisible (applyEQButton);
 
     // ── Analyzer canvas — center, multi-mode telemetry ───────────────────
     addAndMakeVisible (analyzer);
@@ -99,7 +121,8 @@ void MixMindEditor::resized()
     // Header
     auto header = b.removeFromTop (JP::headerH);
     titleLabel.setBounds   (header.withLeft (14).withWidth (300));
-    licenseButton.setBounds(header.withLeft (getWidth() - 220).withWidth (180).withHeight (28).withY (6));
+    applyEQButton.setBounds (header.withLeft (getWidth() - 360).withWidth (130).withHeight (28).withY (6));
+    licenseButton.setBounds (header.withLeft (getWidth() - 220).withWidth (180).withHeight (28).withY (6));
     statusLabel.setBounds  (header.withLeft (getWidth() - 240).withWidth (90));
 
     // Right: presets panel
@@ -226,9 +249,16 @@ void MixMindEditor::handleUserMessage (const juce::String& text)
                 {
                     display = analysis.toDisplayText();
                     if (display.isEmpty()) display = result.text;
-
-                    // Push overlays to the analyzer canvas
                     analyzer.setAIAnalysis (analysis);
+
+                    // Show Apply EQ button if suggestions exist
+                    if (!analysis.eqSuggestions.empty())
+                    {
+                        lastEQSuggestions = analysis.eqSuggestions;
+                        applyEQButton.setVisible (true);
+                        applyEQButton.setButtonText ("APPLY EQ");
+                        resized();
+                    }
                 }
                 else
                 {

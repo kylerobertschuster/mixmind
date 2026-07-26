@@ -31,6 +31,7 @@ private:
     juce::Label      titleLabel;
     juce::Label      statusLabel;
     juce::TextButton licenseButton { "LICENSE" };
+    juce::TextButton applyEQButton { "APPLY EQ" };
 
     // Panels
     AnalyzerCanvas analyzer;       // center — multi-mode telemetry display
@@ -41,6 +42,7 @@ private:
     std::vector<ChatMessage> history;
     MessageBubble*           thinkingBubble { nullptr };
     bool                     waitingForReply { false };
+    std::vector<EQSuggestion> lastEQSuggestions;
 
     // Helpers
     void handleUserMessage (const juce::String& text);
