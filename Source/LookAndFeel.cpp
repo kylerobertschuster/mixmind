@@ -2,32 +2,34 @@
 
 JuicePipeLAF::JuicePipeLAF()
 {
+    auto accent = HostTheme::getColors().accent;
+
     setColour (juce::ResizableWindow::backgroundColourId, JP::bg);
     setColour (juce::TextEditor::backgroundColourId, JP::surface);
     setColour (juce::TextEditor::textColourId, JP::text);
     setColour (juce::TextEditor::outlineColourId, JP::border);
-    setColour (juce::TextEditor::focusedOutlineColourId, JP::accent());
+    setColour (juce::TextEditor::focusedOutlineColourId, accent);
     setColour (juce::ComboBox::backgroundColourId, JP::surface);
     setColour (juce::ComboBox::textColourId, JP::text);
     setColour (juce::ComboBox::outlineColourId, JP::border);
     setColour (juce::ComboBox::arrowColourId, JP::textMuted);
     setColour (juce::PopupMenu::backgroundColourId, JP::surfaceRaised);
     setColour (juce::PopupMenu::textColourId, JP::text);
-    setColour (juce::PopupMenu::highlightedBackgroundColourId, JP::accentBg());
-    setColour (juce::PopupMenu::highlightedTextColourId, JP::accent());
+    setColour (juce::PopupMenu::highlightedBackgroundColourId, accent.withAlpha (0.12f));
+    setColour (juce::PopupMenu::highlightedTextColourId, accent);
     setColour (juce::ScrollBar::thumbColourId, JP::border);
     setColour (juce::ScrollBar::trackColourId, JP::bg);
     setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
     setColour (juce::TextButton::textColourOffId, JP::text);
-    setColour (juce::TextButton::textColourOnId, JP::accent());
-    setColour (juce::CaretComponent::caretColourId, JP::accent());
+    setColour (juce::TextButton::textColourOnId, accent);
+    setColour (juce::CaretComponent::caretColourId, accent);
 }
 
 juce::Typeface::Ptr JuicePipeLAF::getTypefaceForFont (const juce::Font&)
 {
-    // Use system SF Pro on macOS, fallback to sans-serif
+    auto fonts = HostTheme::getFonts();
     return juce::Typeface::createSystemTypefaceFor (
-        juce::FontOptions ("SF Pro Display", 13.0f, juce::Font::plain));
+        juce::FontOptions (fonts.ui, 13.0f, juce::Font::plain));
 }
 
 void JuicePipeLAF::drawButtonBackground (juce::Graphics& g, juce::Button& btn,
@@ -35,22 +37,24 @@ void JuicePipeLAF::drawButtonBackground (juce::Graphics& g, juce::Button& btn,
 {
     auto bounds = btn.getLocalBounds().toFloat().reduced (0.5f);
     auto corner = 4.0f;
+    auto accent = HostTheme::getColors().accent;
 
     juce::Colour fill = JP::surface;
-    if (isDown)       fill = JP::accentBg();
+    if (isDown)       fill = accent.withAlpha (0.15f);
     else if (isOver)  fill = JP::surfaceRaised;
 
     g.setColour (fill);
     g.fillRoundedRectangle (bounds, corner);
 
-    g.setColour (isOver ? JP::accent().withAlpha (0.3f) : JP::border);
+    g.setColour (isOver ? accent.withAlpha (0.3f) : JP::border);
     g.drawRoundedRectangle (bounds, corner, 1.0f);
 }
 
 void JuicePipeLAF::drawButtonText (juce::Graphics& g, juce::TextButton& btn,
                                     bool isOver, bool)
 {
-    g.setColour (isOver ? JP::accent() : btn.findColour (juce::TextButton::textColourOffId));
+    g.setColour (isOver ? HostTheme::getColors().accent
+                        : btn.findColour (juce::TextButton::textColourOffId));
     g.setFont (getTextButtonFont (btn, btn.getHeight()));
     g.drawText (btn.getButtonText(), btn.getLocalBounds(), juce::Justification::centred, false);
 }
@@ -80,17 +84,20 @@ void JuicePipeLAF::drawPopupMenuItem (juce::Graphics& g, const juce::Rectangle<i
                                        const juce::String& text, const juce::String&,
                                        const juce::Image*, const juce::Colour*)
 {
+    auto accent = HostTheme::getColors().accent;
+    auto fonts = HostTheme::getFonts();
+
     if (isHighlighted)
     {
-        g.setColour (JP::accentBg());
+        g.setColour (accent.withAlpha (0.12f));
         g.fillRect (area);
-        g.setColour (JP::accent());
+        g.setColour (accent);
     }
     else
     {
         g.setColour (JP::text);
     }
-    g.setFont (juce::FontOptions ("SF Pro Display", 12.0f, juce::Font::plain));
+    g.setFont (juce::FontOptions (fonts.ui, 12.0f, juce::Font::plain));
     g.drawText (text, area.reduced (10, 0), juce::Justification::left, false);
 }
 
@@ -102,6 +109,7 @@ void JuicePipeLAF::drawTextEditorOutline (juce::Graphics& g, int w, int h, juce:
 
 juce::Font JuicePipeLAF::getTextButtonFont (juce::TextButton&, int h)
 {
-    return juce::Font (juce::FontOptions ("SF Pro Display",
+    auto fonts = HostTheme::getFonts();
+    return juce::Font (juce::FontOptions (fonts.ui,
                       juce::jmin (11.0f, h * 0.45f), juce::Font::plain));
 }

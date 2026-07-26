@@ -1,5 +1,6 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "HostTheme.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  JuicePipe — Surgical Telemetry Palette

@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "LicenseManager.h"
+#include "HostTheme.h"
 
 MixMindEditor::MixMindEditor (MixMindProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
@@ -10,12 +11,15 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     setResizeLimits (900, 500, 1600, 1000);
 
     // ── Header ───────────────────────────────────────────────────────────────
+    auto fonts = HostTheme::getFonts();
+    auto hostAccent = HostTheme::getColors().accent;
+
     titleLabel.setText ("JuicePipe  \xe2\x80\x94  MixMind", juce::dontSendNotification);
-    titleLabel.setFont (juce::FontOptions ("SF Pro Display", 12.0f, juce::Font::bold));
+    titleLabel.setFont (juce::FontOptions (fonts.heading, 12.0f, juce::Font::bold));
     titleLabel.setColour (juce::Label::textColourId, JP::text.withAlpha (0.6f));
     addAndMakeVisible (titleLabel);
 
-    statusLabel.setFont (juce::FontOptions ("SF Pro Display", 10.0f, juce::Font::plain));
+    statusLabel.setFont (juce::FontOptions (fonts.ui, 10.0f, juce::Font::plain));
     statusLabel.setColour (juce::Label::textColourId, JP::textMuted);
     statusLabel.setJustificationType (juce::Justification::right);
     setStatus ("READY");
@@ -91,7 +95,7 @@ void MixMindEditor::paint (juce::Graphics& g)
     // Thinking / API pulse
     float a = waitingForReply
         ? 0.3f + 0.7f * std::abs (std::sin ((float)dotPhase * 0.08f)) : 0.4f;
-    g.setColour (waitingForReply ? JP::accent().withAlpha (a) : JP::textDim);
+    g.setColour (waitingForReply ? HostTheme::getColors().accent.withAlpha (a) : JP::textDim);
     g.fillEllipse (dotX, dotY - 3.0f, 6.0f, 6.0f);
 
     // Audio signal presence

@@ -64,6 +64,8 @@ target_sources(MixMind PRIVATE
     Source/PresetManager.h
     Source/PipeVisualizer.cpp
     Source/PipeVisualizer.h
+    Source/HostTheme.cpp
+    Source/HostTheme.h
 )
 
 # ── Compile definitions ───────────────────────────────────────────────────
