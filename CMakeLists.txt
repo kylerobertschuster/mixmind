@@ -66,6 +66,9 @@ target_sources(MixMind PRIVATE
     Source/PipeVisualizer.h
     Source/HostTheme.cpp
     Source/HostTheme.h
+    Source/AIAnalysis.cpp
+    Source/AIAnalysis.h
+    Source/TelemetryData.h
 )
 
 # ── Compile definitions ───────────────────────────────────────────────────

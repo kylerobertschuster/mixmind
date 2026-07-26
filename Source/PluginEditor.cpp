@@ -1,6 +1,7 @@
 #include "PluginEditor.h"
 #include "LicenseManager.h"
 #include "HostTheme.h"
+#include "AIAnalysis.h"
 
 MixMindEditor::MixMindEditor (MixMindProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
@@ -214,11 +215,30 @@ void MixMindEditor::handleUserMessage (const juce::String& text)
 
     auto systemPrompt = strawPanel.buildSystemPrompt();
     systemPrompt += "\n\n=== LIVE TELEMETRY ===\n";
-    systemPrompt += "BPM: " + juce::String (audioProcessor.currentBpm, 1) + "\n";
-    systemPrompt += "Time: " + juce::String (audioProcessor.timeSigNumerator)
-                    + "/" + juce::String (audioProcessor.timeSigDenominator) + "\n";
-    systemPrompt += "Playing: " + juce::String (audioProcessor.isPlaying ? "Yes" : "No") + "\n";
-    systemPrompt += "Spectral: " + audioProcessor.audioAnalyzer.getAnalysisAsJson() + "\n";
+    systemPrompt += audioProcessor.audioAnalyzer.getAnalysisAsJson() + "\n\n";
+    systemPrompt +=
+        "You are JuicePipe Core, an expert C++ DSP audio analyzer and mixing assistant.\n"
+        "You receive structured telemetry (FFT spectral energy, Goniometer phase, Metering) "
+        "and return surgical mix corrections.\n\n"
+        "CRITICAL RULES:\n"
+        "1. Cross-reference telemetry: if phase_correlation < 0 in high frequencies, check for phase \n"
+        "   cancellation. If crest_factor < 6dB and true_peak_db > 0dB, detect over-compression.\n"
+        "   If sub_bass_energy is high but sub_bass_correlation < 0.85, warn about low-end instability.\n"
+        "2. Be specific: cite exact Hz ranges and dB values from the telemetry.\n"
+        "3. Suggest EQ moves with precise freq_hz, recommended_gain_db, recommended_q, filter_type, channel.\n"
+        "4. Identify frequency zones for visual overlay with freq_start_hz, freq_end_hz, label.\n"
+        "5. If phase_correlation < 0.2, provide specific phase_warning advice.\n"
+        "6. If mid/side imbalance detected, give routing_advice.\n\n"
+        "RESPOND in valid JSON matching this schema:\n"
+        "{\n"
+        "  \"summary\": \"Short 1-sentence diagnostic.\",\n"
+        "  \"status_severity\": \"info|warning|critical\",\n"
+        "  \"eq_suggestions\": [{\"freq_hz\": 250, \"recommended_gain_db\": -2.0, \"recommended_q\": 1.2, \"filter_type\": \"Bell\", \"channel\": \"Mid\", \"reason\": \"...\"}],\n"
+        "  \"visual_overlay_targets\": [{\"freq_start_hz\": 200, \"freq_end_hz\": 300, \"label\": \"Mud Build-Up\", \"color_hex\": \"#FF5555\"}],\n"
+        "  \"phase_warning\": \"optional phase advice or null\",\n"
+        "  \"routing_advice\": \"optional routing advice or null\"\n"
+        "}\n"
+        "Output the JSON payload ONLY. No markdown, no conversational text.";
 
     audioProcessor.getApiClient().send (systemPrompt, history,
         [this] (ApiClient::Result result)
@@ -228,8 +248,24 @@ void MixMindEditor::handleUserMessage (const juce::String& text)
 
             if (result.success)
             {
-                chatComponent.finalizeAI (thinkingBubble, result.text);
-                history.push_back ({ ChatMessage::Role::Assistant, result.text });
+                // Try to parse as structured AI analysis first
+                auto analysis = AIAnalysis::fromJson (result.text);
+                juce::String displayText;
+
+                if (analysis.valid && analysis.statusSeverity.isNotEmpty())
+                {
+                    displayText = analysis.toDisplayText();
+                    // If display text is empty, fall back to raw
+                    if (displayText.isEmpty())
+                        displayText = result.text;
+                }
+                else
+                {
+                    displayText = result.text;
+                }
+
+                chatComponent.finalizeAI (thinkingBubble, displayText);
+                history.push_back ({ ChatMessage::Role::Assistant, displayText });
                 setStatus ("READY");
                 audioProcessor.getLicenseManager().recordPrompt();
                 updateLicenseDisplay();
