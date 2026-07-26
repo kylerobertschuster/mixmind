@@ -3,14 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JuicePipe — MixMind</title>
+    <title>JuicePipe</title>
     <style>
         :root { --black: #080809; }
-        @keyframes rainbow {
-            0%   { color: #ff6b6b; } 14% { color: #ffa94d; } 28% { color: #ffd43b; }
-            42%  { color: #69db7c; } 57% { color: #4dabf7; } 71% { color: #748ffc; }
-            85%  { color: #da77f2; } 100%{ color: #ff6b6b; }
-        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
@@ -18,252 +13,232 @@
             background: var(--black);
             color: #fff;
             min-height: 100vh;
-            padding: 60px 24px 80px;
+            display: flex;
         }
 
-        .container { max-width: 960px; margin: 0 auto; }
-
-        header {
-            text-align: center;
-            margin-bottom: 72px;
-        }
-
-        .brand {
-            font-size: 48px;
-            font-weight: 700;
-            letter-spacing: -1px;
-            animation: rainbow 6s linear infinite;
-            margin-bottom: 8px;
-        }
-
-        .tagline {
-            font-size: 14px;
-            color: rgba(255,255,255,0.45);
-            max-width: 440px;
-            margin: 0 auto;
-            line-height: 1.5;
-        }
-
-        .plugins {
+        /* ── Sidebar Menu ── */
+        .sidebar {
+            width: 48px;
+            background: #0c0c0e;
+            border-right: 1px solid rgba(255,255,255,0.06);
             display: flex;
             flex-direction: column;
-            gap: 24px;
-        }
-
-        .card {
-            display: flex;
-            border-radius: 10px;
-            overflow: hidden;
-            min-height: 320px;
-        }
-
-        .card-info {
-            width: 320px;
-            flex-shrink: 0;
-            padding: 40px 36px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .card-info h2 {
-            font-size: 32px;
-            font-weight: 700;
-            margin-bottom: 12px;
-            letter-spacing: -0.5px;
-        }
-
-        .card-info p {
-            font-size: 14px;
-            line-height: 1.6;
-            opacity: 0.8;
-            margin-bottom: 24px;
-        }
-
-        .card-info .btn {
-            display: inline-flex;
             align-items: center;
-            gap: 8px;
-            background: var(--black);
-            color: #f0c4d4;
-            font-size: 13px;
-            font-weight: 600;
-            padding: 10px 24px;
-            border-radius: 6px;
-            text-decoration: none;
-            align-self: flex-start;
-            transition: opacity 0.15s;
+            padding-top: 20px;
+            flex-shrink: 0;
+            transition: width 0.2s;
+            overflow: hidden;
+            z-index: 10;
+        }
+        .sidebar.open { width: 240px; align-items: flex-start; padding-left: 20px; }
+
+        .menu-toggle {
+            width: 28px; height: 20px;
+            display: flex; flex-direction: column; justify-content: space-between;
+            cursor: pointer; padding: 0; background: none; border: none;
+            margin-bottom: 32px; flex-shrink: 0;
+        }
+        .menu-toggle span {
+            display: block; height: 2px; background: rgba(255,255,255,0.5);
+            transition: 0.2s;
+        }
+        .sidebar.open .menu-toggle span:nth-child(1) { transform: rotate(45deg) translate(5px,5px); }
+        .sidebar.open .menu-toggle span:nth-child(2) { opacity: 0; }
+        .sidebar.open .menu-toggle span:nth-child(3) { transform: rotate(-45deg) translate(5px,-5px); }
+
+        .menu-content {
+            opacity: 0; transition: opacity 0.15s;
+            width: 200px;
+        }
+        .sidebar.open .menu-content { opacity: 1; }
+
+        .menu-section {
+            font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+            color: rgba(255,255,255,0.25); margin-bottom: 12px; margin-top: 28px;
+        }
+        .menu-item {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 13px; color: rgba(255,255,255,0.6);
+            padding: 6px 0; text-decoration: none; transition: color 0.15s;
+        }
+        .menu-item:hover { color: #f0c4d4; }
+        .menu-dot {
+            width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+        }
+        .menu-dot.available { background: #f0c4d4; }
+        .menu-dot.soon { background: rgba(255,255,255,0.2); }
+
+        /* ── Main Content ── */
+        .main {
+            flex: 1;
+            padding: 60px 24px 80px;
+            min-width: 0;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; }
+
+        /* Rainbow JuicePipe */
+        .brand {
+            font-size: 52px; font-weight: 700; letter-spacing: -1px;
+            margin-bottom: 48px; text-align: center;
+        }
+        .brand span:nth-child(1){color:#ff6b6b}.brand span:nth-child(2){color:#ffa94d}
+        .brand span:nth-child(3){color:#ffd43b}.brand span:nth-child(4){color:#69db7c}
+        .brand span:nth-child(5){color:#4dabf7}.brand span:nth-child(6){color:#748ffc}
+        .brand span:nth-child(7){color:#da77f2}.brand span:nth-child(8){color:#f783ac}
+        .brand span:nth-child(9){color:#ff6b6b}
+
+        /* Plugin Cards */
+        .plugins { display: flex; flex-direction: column; gap: 20px; }
+        .card {
+            display: flex; border-radius: 8px; overflow: hidden; min-height: 280px;
+        }
+        .card-info {
+            width: 300px; flex-shrink: 0; padding: 36px 32px;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .card-info h2 { font-size: 28px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.5px; }
+        .card-info p { font-size: 13px; line-height: 1.6; opacity: 0.75; margin-bottom: 20px; }
+        .card-info .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: var(--black); color: #f0c4d4; font-size: 13px; font-weight: 600;
+            padding: 10px 22px; border-radius: 6px; text-decoration: none;
+            align-self: flex-start; transition: opacity 0.15s;
         }
         .card-info .btn:hover { opacity: 0.8; }
-
         .card-preview {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 32px;
-            position: relative;
-            overflow: hidden;
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            padding: 24px; position: relative; overflow: hidden;
         }
 
-        .card-preview img {
-            max-width: 100%;
-            max-height: 100%;
-            border-radius: 6px;
-            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
-        }
+        .card-mixmind .card-info { background: #f0c4d4; color: var(--black); }
+        .card-mixmind .card-preview { background: #e8b8ca; }
+        .card-mixmind .btn { background: var(--black); color: #f0c4d4; }
 
-        /* MixMind card — powder pink */
-        .card-mixmind .card-info {
-            background: #f0c4d4;
-            color: var(--black);
-        }
-        .card-mixmind .card-preview {
-            background: #e8b8ca;
-        }
-        .card-mixmind .btn {
-            background: var(--black);
-            color: #f0c4d4;
-        }
+        .card-reflex .card-info { background: #a78bfa; color: #1a1030; }
+        .card-reflex .card-preview { background: #9575e0; }
+        .card-neat .card-info { background: #f59e0b; color: #2a1a00; }
+        .card-neat .card-preview { background: #e08c00; }
+        .card-3fx .card-info { background: #22d3ee; color: #0a2a30; }
+        .card-3fx .card-preview { background: #1cb8d4; }
 
-        /* Coming soon cards */
-        .card-soon {
-            opacity: 0.6;
-            cursor: default;
-        }
-        .card-soon .card-info h2 {
-            font-size: 24px;
-        }
-        .card-soon .card-preview {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
         .soon-badge {
-            display: inline-block;
-            font-size: 10px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            padding: 3px 10px;
-            border: 1px solid rgba(0,0,0,0.2);
-            border-radius: 3px;
-            margin-bottom: 16px;
+            display: inline-block; font-size: 9px; letter-spacing: 2px;
+            text-transform: uppercase; padding: 3px 8px;
+            border: 1px solid rgba(0,0,0,0.2); border-radius: 3px; margin-bottom: 14px;
         }
-
-        .card-crisp .card-info { background: #22d3ee; color: #0a2a30; }
-        .card-crisp .card-preview { background: #1cb8d4; }
-        .card-punch .card-info { background: #f59e0b; color: #2a1a00; }
-        .card-punch .card-preview { background: #e08c00; }
-
-        footer {
-            text-align: center;
-            margin-top: 72px;
-            padding-top: 48px;
-            border-top: 1px solid rgba(255,255,255,0.06);
-            display: flex;
-            justify-content: center;
-            gap: 28px;
+        .card-soon { opacity: 0.5; }
+        .card-soon .card-preview {
+            font-size: 13px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.3;
         }
-        footer a {
-            font-size: 12px;
-            color: rgba(255,255,255,0.3);
-            text-decoration: none;
-            transition: color 0.15s;
-        }
-        footer a:hover { color: rgba(255,255,255,0.6); }
-
-        .copy { text-align: center; font-size: 11px; color: rgba(255,255,255,0.2); margin-top: 24px; }
 
         @media (max-width: 768px) {
             .card { flex-direction: column; }
-            .card-info { width: 100%; padding: 32px 24px; }
-            .card-preview { min-height: 240px; }
+            .card-info { width: 100%; padding: 28px 22px; }
+            .card-preview { min-height: 180px; }
+            .brand { font-size: 36px; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="brand">JuicePipe</div>
-            <div class="tagline">
-                Precision audio tools for producers and mixing engineers.
-                Lock-free C++ DSP meets real-time AI telemetry.
-            </div>
-        </header>
 
-        <div class="plugins">
-            <!-- MixMind -->
-            <div class="card card-mixmind">
-                <div class="card-info">
-                    <h2>MixMind</h2>
-                    <p>
-                        AI-powered mixing assistant with real-time FFT spectral
-                        telemetry, goniometer, LUFS metering, and surgical
-                        diagnostics. A second set of expert ears in your DAW.
-                    </p>
-                    <a href="/downloads/MixMind-3.2.0.pkg" class="btn btn-black">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                            <polyline points="7 10 12 15 17 10"/>
-                            <line x1="12" y1="15" x2="12" y2="3"/>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">
+            <span></span><span></span><span></span>
+        </button>
+        <div class="menu-content">
+            <div class="menu-section">Available</div>
+            <a href="#mixmind" class="menu-item">
+                <span class="menu-dot available"></span> MixMind
+            </a>
+            <div class="menu-section">Coming Soon</div>
+            <a class="menu-item">
+                <span class="menu-dot soon"></span> Reflex
+            </a>
+            <a class="menu-item">
+                <span class="menu-dot soon"></span> Neat Neat Neat
+            </a>
+            <a class="menu-item">
+                <span class="menu-dot soon"></span> 3FX
+            </a>
+        </div>
+    </div>
+
+    <!-- Main -->
+    <div class="main">
+        <div class="container">
+            <div class="brand">
+                <span>J</span><span>u</span><span>i</span><span>c</span><span>e</span><span>P</span><span>i</span><span>p</span><span>e</span>
+            </div>
+
+            <div class="plugins" id="mixmind">
+                <!-- MixMind -->
+                <div class="card card-mixmind">
+                    <div class="card-info">
+                        <h2>MixMind</h2>
+                        <p>AI-powered mixing assistant. Real-time FFT, goniometer, LUFS metering, surgical diagnostics. A second set of expert ears in your DAW.</p>
+                        <a href="/downloads/MixMind-3.2.2.pkg" class="btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Free Trial
+                        </a>
+                        <a href="#" onclick="buyNow()" style="margin-top:8px;font-size:12px;color:rgba(0,0,0,0.5);text-decoration:underline;cursor:pointer;">Buy $9/mo or $79</a>
+                    </div>
+                    <div class="card-preview">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" style="background:#e8b8ca;border-radius:6px;width:320px;">
+                            <rect fill="#141416" width="400" height="200" rx="6" opacity="0.3"/>
+                            <rect fill="#0e0e10" y="0" width="400" height="28" opacity="0.4"/>
+                            <text fill="#080809" font-family="sans-serif" font-size="9" x="14" y="19" opacity="0.6">JuicePipe — MixMind</text>
+                            <path d="M20,160 L50,100 L90,130 L130,80 L170,110 L210,60 L250,95 L290,70 L330,85 L370,50" stroke="#080809" stroke-width="1.2" fill="none" opacity="0.5"/>
+                            <rect fill="#080809" opacity="0.06" x="170" y="28" width="40" height="140"/>
+                            <text fill="#080809" font-size="5" x="172" y="36" opacity="0.3">AI</text>
+                            <rect fill="#0e0e10" y="172" width="400" height="28" opacity="0.3"/>
                         </svg>
-                        Free Trial (10 prompts)
-                    </a>
-                    <a href="#" class="btn btn-buy" onclick="buyNow()" style="margin-top:10px;background:#080809;color:#f0c4d4;font-size:13px;font-weight:600;padding:10px 24px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;">
-                        Buy — $9/mo or $79 once
-                    </a>
+                    </div>
                 </div>
-                <div class="card-preview">
-                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 240'%3E%3Crect fill='%23141416' width='400' height='240' rx='6'/%3E%3Crect fill='%230e0e10' y='0' width='400' height='32'/%3E%3Ctext fill='%23f0c4d4' font-family='sans-serif' font-size='10' x='14' y='21'%3EJuicePipe — MixMind%3C/text%3E%3Crect fill='%23080809' y='32' width='400' height='170'/%3E%3Cpath d='M20,170 L60,100 L100,140 L140,80 L180,120 L220,60 L260,100 L300,70 L340,90 L380,50' stroke='%23f0c4d4' stroke-width='1.2' fill='none' opacity='0.9'/%3E%3Cpath d='M20,170 L60,100 L100,140 L140,80 L180,120 L220,60 L260,100 L300,70 L340,90 L380,50 L380,170 Z' fill='%23f0c4d4' opacity='0.08'/%3E%3Crect fill='%23f0c4d4' opacity='0.04' x='180' y='32' width='50' height='170'/%3E%3Ctext fill='%23f0c4d4' font-size='6' x='182' y='42' opacity='0.4'%3EAI%3C/text%3E%3Crect fill='%230e0e10' y='202' width='400' height='38'/%3E%3Ctext fill='%23f0c4d4' font-size='9' x='14' y='224' opacity='0.5'%3EAsk about your mix…%3C/text%3E%3C/svg%3E" alt="MixMind UI Preview" style="width:320px;height:192px;background:#e8b8ca;border-radius:6px;" />
-                </div>
-            </div>
 
-            <!-- Crisp — Coming Soon -->
-            <div class="card card-soon card-crisp">
-                <div class="card-info">
-                    <span class="soon-badge">Coming Soon</span>
-                    <h2>Crisp</h2>
-                    <p>
-                        High-end exciter and saturation suite with real-time
-                        harmonic analysis and surgical transient enhancement.
-                    </p>
+                <!-- Reflex — Coming Soon -->
+                <div class="card card-soon card-reflex">
+                    <div class="card-info">
+                        <span class="soon-badge">Coming Soon</span>
+                        <h2>Reflex</h2>
+                        <p>Resonator with sequenced delay. Notes shift after each hit — sequence note changes, then saturate with delay and reverb. Tuned feedback engine.</p>
+                    </div>
+                    <div class="card-preview">Preview Soon</div>
                 </div>
-                <div class="card-preview" style="color: rgba(10,42,48,0.3);">
-                    Preview Soon
-                </div>
-            </div>
 
-            <!-- Punch — Coming Soon -->
-            <div class="card card-soon card-punch">
-                <div class="card-info">
-                    <span class="soon-badge">Coming Soon</span>
-                    <h2>Punch</h2>
-                    <p>
-                        Dynamics processor with AI-driven transient shaping,
-                        parallel compression, and multi-band envelope control.
-                    </p>
+                <!-- Neat Neat Neat — Coming Soon -->
+                <div class="card card-soon card-neat">
+                    <div class="card-info">
+                        <span class="soon-badge">Coming Soon</span>
+                        <h2>Neat Neat Neat</h2>
+                        <p>Beat repeater ×3. Three independent repeat engines stacked in series. Glitch, stutter, and rhythmic chaos with surgical control.</p>
+                    </div>
+                    <div class="card-preview">Preview Soon</div>
                 </div>
-                <div class="card-preview" style="color: rgba(42,26,0,0.3);">
-                    Preview Soon
+
+                <!-- 3FX — Coming Soon -->
+                <div class="card card-soon card-3fx">
+                    <div class="card-info">
+                        <span class="soon-badge">Coming Soon</span>
+                        <h2>3FX</h2>
+                        <p>Three simultaneous effects: phase, flange, and delay — all at once. Where most tools limit you to two, 3FX lets you stack all three in any order.</p>
+                    </div>
+                    <div class="card-preview">Preview Soon</div>
                 </div>
             </div>
         </div>
-
-        <footer>
-            <a href="https://github.com/kylerobertschuster" target="_blank">GitHub</a>
-            <a href="mailto:kylerobertschuster@gmail.com">Email</a>
-            <a href="https://reddit.com/u/getjuicepipe" target="_blank">Reddit</a>
-            <a href="https://cash.app/$getjuicepipe" target="_blank">Cash App</a>
-        </footer>
-        <div class="copy">JuicePipe &copy; 2026</div>
     </div>
+
+    <!-- Buy Modal -->
     <div id="buyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;align-items:center;justify-content:center;">
         <div style="background:#141416;border-radius:10px;padding:36px;max-width:380px;width:90%;text-align:center;">
             <h3 style="color:#f0c4d4;font-size:20px;margin-bottom:8px;">Get MixMind</h3>
-            <p style="color:rgba(255,255,255,0.5);font-size:13px;margin-bottom:20px;">$9/month or $79 lifetime — instant license key delivery</p>
+            <p style="color:rgba(255,255,255,0.5);font-size:13px;margin-bottom:20px;">$9/month or $79 lifetime — instant license delivery</p>
             <input id="buyEmail" type="email" placeholder="you@email.com" style="width:100%;padding:12px;background:#080809;border:1px solid rgba(240,196,212,0.15);border-radius:6px;color:#f0c4d4;font-size:14px;margin-bottom:12px;outline:none;">
             <div style="display:flex;gap:10px;">
                 <button onclick="processPurchase()" style="flex:1;padding:12px;background:#f0c4d4;color:#080809;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Get License Key</button>
@@ -272,6 +247,7 @@
             <div id="buyResult" style="margin-top:16px;display:none;"></div>
         </div>
     </div>
+
     <script>
     function buyNow(){document.getElementById('buyModal').style.display='flex';}
     function closeBuy(){document.getElementById('buyModal').style.display='none';}
@@ -282,7 +258,7 @@
         var d=await r.json();
         var el=document.getElementById('buyResult');
         el.style.display='block';
-        el.innerHTML='<strong style="color:#f0c4d4;font-size:16px;">'+d.license_key+'</strong><br><span style="font-size:11px;color:rgba(255,255,255,0.4);">Copy this key and paste it into the plugin.</span>';
+        el.innerHTML='<strong style="color:#f0c4d4;font-size:16px;">'+d.license_key+'</strong><br><span style="font-size:11px;color:rgba(255,255,255,0.4);">Copy this key and paste into the plugin.</span>';
     }
     </script>
 </body>
