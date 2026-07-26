@@ -39,7 +39,7 @@
         .product-container {
             position: relative;
             display: inline-block;
-            margin-bottom: 48px;
+            margin-bottom: 24px;
         }
 
         .product {
@@ -51,9 +51,7 @@
             transition: color 0.3s;
         }
 
-        .product:hover {
-            color: var(--accent);
-        }
+        .product:hover { color: var(--accent); }
 
         .features-dropdown {
             position: absolute;
@@ -79,80 +77,66 @@
             transform: translateX(-50%) translateY(0);
         }
 
-        .features-dropdown ul {
-            list-style: none;
-            text-align: left;
-        }
-
+        .features-dropdown ul { list-style: none; text-align: left; }
         .features-dropdown li {
-            font-size: 13px;
-            color: var(--text);
-            padding: 5px 0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            font-size: 13px; color: var(--text); padding: 5px 0;
+            display: flex; align-items: center; gap: 10px;
         }
-
         .features-dropdown li::before {
-            content: "";
-            width: 5px;
-            height: 5px;
-            border-radius: 50%;
-            background: var(--accent);
-            flex-shrink: 0;
+            content: ""; width: 5px; height: 5px; border-radius: 50%;
+            background: var(--accent); flex-shrink: 0;
         }
 
         .tagline {
-            font-size: 14px;
-            color: var(--muted);
-            max-width: 380px;
-            line-height: 1.5;
-            margin-bottom: 40px;
+            font-size: 14px; color: var(--muted); max-width: 380px;
+            line-height: 1.5; margin-bottom: 40px;
         }
 
         .download {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #fff;
-            color: #000;
-            font-size: 14px;
-            font-weight: 600;
-            padding: 11px 28px;
-            border-radius: 6px;
-            text-decoration: none;
-            margin-bottom: 8px;
-            transition: background 0.15s;
+            display: inline-flex; align-items: center; gap: 8px;
+            background: #fff; color: #000; font-size: 14px; font-weight: 600;
+            padding: 11px 28px; border-radius: 6px; text-decoration: none;
+            margin-bottom: 8px; transition: background 0.15s;
         }
-
         .download:hover { background: #e0e0e0; }
 
-        .version {
-            font-size: 11px;
-            color: var(--muted);
-            margin-bottom: 64px;
-        }
+        .version { font-size: 11px; color: var(--muted); margin-bottom: 56px; }
 
-        .bottom-nav {
-            display: flex;
-            gap: 32px;
-            font-size: 12px;
-        }
-
+        .bottom-nav { display: flex; gap: 28px; font-size: 12px; position: relative; }
         .bottom-nav a {
-            color: var(--muted);
-            text-decoration: none;
+            color: var(--muted); text-decoration: none; cursor: pointer;
             transition: color 0.15s;
         }
-
         .bottom-nav a:hover { color: var(--text); }
+        .bottom-nav a.active { color: var(--accent); }
+
+        .panel {
+            position: absolute;
+            bottom: 36px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 360px;
+            max-width: 90vw;
+            padding: 22px 26px;
+            background: #141518;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--muted);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s;
+            text-align: left;
+        }
+        .panel.visible { opacity: 1; pointer-events: auto; }
+        .panel a { color: var(--accent); text-decoration: none; }
+        .panel a:hover { text-decoration: underline; }
+        .panel strong { color: var(--text); font-weight: 500; }
 
         footer {
-            position: fixed;
-            bottom: 24px;
-            text-align: center;
-            font-size: 11px;
-            color: var(--muted);
+            position: fixed; bottom: 24px; text-align: center;
+            font-size: 11px; color: var(--muted);
         }
     </style>
 </head>
@@ -176,7 +160,7 @@
     </div>
 
     <div class="tagline">
-        Real-time audio telemetry &amp; AI mix intelligence.
+        Real-time audio telemetry &amp; AI mix intelligence.<br>
         A second set of expert ears inside your DAW.
     </div>
 
@@ -190,12 +174,73 @@
     </a>
     <div class="version">VST3 &amp; AU &middot; macOS 12+ &middot; Version 3.1.0</div>
 
-    <nav class="bottom-nav">
-        <a href="#">About</a>
-        <a href="#">Contact</a>
-        <a href="#">Purchase</a>
+    <nav class="bottom-nav" id="nav">
+        <a data-panel="about">About</a>
+        <a data-panel="contact">Contact</a>
+        <a data-panel="purchase">Purchase</a>
     </nav>
 
+    <div class="panel" id="panel-about">
+        <strong>JuicePipe</strong> builds precision audio tools for producers and
+        mixing engineers. Our first plugin, <strong>MixMind</strong>, combines
+        lock-free C++ DSP with real-time AI telemetry to give you surgical mix
+        feedback when your ears are tired and your deadline is now.<br><br>
+        Built by an independent developer obsessive about audio quality, fast UIs,
+        and tools that feel like lab equipment — not toys.
+    </div>
+
+    <div class="panel" id="panel-contact">
+        <strong>GitHub</strong><br>
+        <a href="https://github.com/kylerobertschuster" target="_blank">github.com/kylerobertschuster</a><br><br>
+        <strong>Email</strong><br>
+        <a href="mailto:kylerobertschuster@gmail.com">kylerobertschuster@gmail.com</a><br><br>
+        <strong>Reddit</strong><br>
+        <a href="https://reddit.com/u/getjuicepipe" target="_blank">u/getjuicepipe</a>
+    </div>
+
+    <div class="panel" id="panel-purchase">
+        <strong>Cash App</strong><br>
+        <a href="https://cash.app/$getjuicepipe" target="_blank">$getjuicepipe</a><br><br>
+        After purchase, email your receipt to
+        <a href="mailto:kylerobertschuster@gmail.com">kylerobertschuster@gmail.com</a>
+        and you'll receive your license key within 24 hours.
+    </div>
+
     <footer>JuicePipe &copy; 2026</footer>
+
+    <script>
+        const nav = document.getElementById('nav');
+        const panels = document.querySelectorAll('.panel');
+        let activePanel = null;
+
+        nav.addEventListener('click', (e) => {
+            const a = e.target.closest('a');
+            if (!a) return;
+            const name = a.dataset.panel;
+            const panel = document.getElementById('panel-' + name);
+
+            if (activePanel === panel) {
+                panel.classList.remove('visible');
+                a.classList.remove('active');
+                activePanel = null;
+                return;
+            }
+
+            panels.forEach(p => p.classList.remove('visible'));
+            nav.querySelectorAll('a').forEach(l => l.classList.remove('active'));
+
+            panel.classList.add('visible');
+            a.classList.add('active');
+            activePanel = panel;
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.bottom-nav') && !e.target.closest('.panel')) {
+                panels.forEach(p => p.classList.remove('visible'));
+                nav.querySelectorAll('a').forEach(l => l.classList.remove('active'));
+                activePanel = null;
+            }
+        });
+    </script>
 </body>
 </html>
