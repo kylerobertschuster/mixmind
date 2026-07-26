@@ -116,38 +116,32 @@ void MixMindEditor::resized()
 void MixMindEditor::showLicenseDialog()
 {
     auto& lm = audioProcessor.getLicenseManager();
+
+    juce::String title = "MixMind License";
     juce::String msg;
     if (lm.isLicensed())
-        msg = "Licensed. Key: " + lm.getLicenseKey() + "\n\nEnter new key:";
+        msg = "Licensed. Enter a new key:";
     else if (lm.getFreePromptsRemaining() > 0)
-        msg = juce::String (lm.getFreePromptsRemaining()) + " free prompts remaining.\n\nEnter license key:";
+        msg = juce::String (lm.getFreePromptsRemaining()) + " free prompts. Paste key:";
     else
-        msg = "All free prompts used. Enter license key to continue:";
+        msg = "All free prompts used. Paste key:";
 
-    juce::AlertWindow::showOkCancelBox (
-        juce::AlertWindow::QuestionIcon, "MixMind License", msg, "OK", "Cancel", this,
-        juce::ModalCallbackFunction::create ([this] (int r)
+    juce::AlertWindow w (title, msg, juce::AlertWindow::QuestionIcon, this);
+    w.addTextEditor ("key", lm.getLicenseKey(), 300, 24);
+    w.addButton ("Activate", 1, juce::KeyPress::returnKey);
+    w.addButton ("Cancel", 0, juce::KeyPress::escapeKey);
+
+    if (w.runModalLoop() == 1)
+    {
+        auto key = w.getTextEditorContents ("key").trim();
+        if (key.isNotEmpty())
         {
-            if (r == 0) return;
-            juce::AlertWindow w ("Enter License Key", "Paste key:",
-                                 juce::AlertWindow::QuestionIcon);
-            w.addTextEditor ("key", audioProcessor.getLicenseManager().getLicenseKey(), "MM-...");
-            w.addButton ("Activate", 1);
-            w.addButton ("Cancel", 0);
-            w.enterModalState (true,
-                juce::ModalCallbackFunction::create ([this] (int kr)
-                {
-                    if (kr == 1)
-                        if (auto* aw = dynamic_cast<juce::AlertWindow*> (
-                                juce::AlertWindow::getCurrentlyModalComponent (false)))
-                        {
-                            auto key = aw->getTextEditorContents ("key").trim();
-                            audioProcessor.getLicenseManager().setLicenseKey (key);
-                            audioProcessor.getApiClient().setLicenseKey (key);
-                            updateLicenseDisplay();
-                        }
-                }), false);
-        }));
+            lm.setLicenseKey (key);
+            audioProcessor.getApiClient().setLicenseKey (key);
+            updateLicenseDisplay();
+        }
+    }
+
     lm.markWelcomeShown();
 }
 
