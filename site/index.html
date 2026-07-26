@@ -5,175 +5,257 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JuicePipe — MixMind</title>
     <style>
-        :root {
-            --pink: #f0c4d4;
-            --black: #080809;
-            --border: rgba(0,0,0,0.08);
+        :root { --black: #080809; }
+        @keyframes rainbow {
+            0%   { color: #ff6b6b; } 14% { color: #ffa94d; } 28% { color: #ffd43b; }
+            42%  { color: #69db7c; } 57% { color: #4dabf7; } 71% { color: #748ffc; }
+            85%  { color: #da77f2; } 100%{ color: #ff6b6b; }
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Helvetica Neue', -apple-system, sans-serif;
-            background: var(--pink);
-            color: var(--black);
+            background: var(--black);
+            color: #fff;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 60px 24px;
+            padding: 60px 24px 80px;
+        }
+
+        .container { max-width: 960px; margin: 0 auto; }
+
+        header {
             text-align: center;
+            margin-bottom: 72px;
         }
 
         .brand {
-            font-size: 11px; font-weight: 500; letter-spacing: 4px;
-            color: rgba(0,0,0,0.4); text-transform: uppercase; margin-bottom: 24px;
-        }
-        .product-container { position: relative; display: inline-block; margin-bottom: 24px; }
-        .product {
-            font-size: 42px; font-weight: 600; color: var(--black); letter-spacing: -1px;
-            cursor: default; transition: opacity 0.3s;
-        }
-        .product:hover { opacity: 0.65; }
-
-        .features-dropdown {
-            position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
-            margin-top: 12px; padding: 20px 28px; background: var(--pink);
-            border: 1px solid var(--border); border-radius: 8px;
-            opacity: 0; pointer-events: none;
-            transition: opacity 0.25s, transform 0.25s;
-            transform: translateX(-50%) translateY(4px);
-            white-space: nowrap; z-index: 10;
-        }
-        .product-container:hover .features-dropdown {
-            opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0);
-        }
-        .features-dropdown ul { list-style: none; text-align: left; }
-        .features-dropdown li {
-            font-size: 13px; color: var(--black); padding: 5px 0;
-            display: flex; align-items: center; gap: 10px;
-        }
-        .features-dropdown li::before {
-            content: ""; width: 5px; height: 5px; border-radius: 50%;
-            background: var(--black); flex-shrink: 0;
+            font-size: 48px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            animation: rainbow 6s linear infinite;
+            margin-bottom: 8px;
         }
 
         .tagline {
-            font-size: 14px; color: rgba(0,0,0,0.5); max-width: 380px;
-            line-height: 1.5; margin-bottom: 40px;
+            font-size: 14px;
+            color: rgba(255,255,255,0.45);
+            max-width: 440px;
+            margin: 0 auto;
+            line-height: 1.5;
         }
-        .download {
-            display: inline-flex; align-items: center; gap: 8px;
-            background: var(--black); color: var(--pink); font-size: 14px; font-weight: 600;
-            padding: 11px 28px; border-radius: 6px; text-decoration: none;
-            margin-bottom: 8px; transition: opacity 0.15s;
-        }
-        .download:hover { opacity: 0.85; }
-        .version { font-size: 11px; color: rgba(0,0,0,0.4); margin-bottom: 56px; }
 
-        .bottom-nav { display: flex; gap: 28px; font-size: 12px; position: relative; }
-        .bottom-nav a {
-            color: rgba(0,0,0,0.4); text-decoration: none; cursor: pointer;
-            transition: color 0.15s;
+        .plugins {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
         }
-        .bottom-nav a:hover { color: var(--black); }
-        .bottom-nav a.active { color: var(--black); }
 
-        .panel {
-            position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
-            width: 360px; max-width: 90vw; padding: 22px 26px;
-            background: var(--pink); border: 1px solid var(--border);
-            border-radius: 8px; font-size: 12px; line-height: 1.6;
-            color: rgba(0,0,0,0.6); opacity: 0; pointer-events: none;
-            transition: opacity 0.25s; text-align: left;
+        .card {
+            display: flex;
+            border-radius: 10px;
+            overflow: hidden;
+            min-height: 320px;
         }
-        .panel.visible { opacity: 1; pointer-events: auto; }
-        .panel a { color: var(--black); text-decoration: underline; }
-        .panel strong { color: var(--black); font-weight: 600; }
+
+        .card-info {
+            width: 320px;
+            flex-shrink: 0;
+            padding: 40px 36px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .card-info h2 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .card-info p {
+            font-size: 14px;
+            line-height: 1.6;
+            opacity: 0.8;
+            margin-bottom: 24px;
+        }
+
+        .card-info .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--black);
+            color: #f0c4d4;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 10px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            align-self: flex-start;
+            transition: opacity 0.15s;
+        }
+        .card-info .btn:hover { opacity: 0.8; }
+
+        .card-preview {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 6px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+        }
+
+        /* MixMind card — powder pink */
+        .card-mixmind .card-info {
+            background: #f0c4d4;
+            color: var(--black);
+        }
+        .card-mixmind .card-preview {
+            background: #e8b8ca;
+        }
+        .card-mixmind .btn {
+            background: var(--black);
+            color: #f0c4d4;
+        }
+
+        /* Coming soon cards */
+        .card-soon {
+            opacity: 0.6;
+            cursor: default;
+        }
+        .card-soon .card-info h2 {
+            font-size: 24px;
+        }
+        .card-soon .card-preview {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .soon-badge {
+            display: inline-block;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border: 1px solid rgba(0,0,0,0.2);
+            border-radius: 3px;
+            margin-bottom: 16px;
+        }
+
+        .card-crisp .card-info { background: #22d3ee; color: #0a2a30; }
+        .card-crisp .card-preview { background: #1cb8d4; }
+        .card-punch .card-info { background: #f59e0b; color: #2a1a00; }
+        .card-punch .card-preview { background: #e08c00; }
 
         footer {
-            position: fixed; bottom: 24px; font-size: 11px; color: rgba(0,0,0,0.3);
+            text-align: center;
+            margin-top: 72px;
+            padding-top: 48px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            display: flex;
+            justify-content: center;
+            gap: 28px;
+        }
+        footer a {
+            font-size: 12px;
+            color: rgba(255,255,255,0.3);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        footer a:hover { color: rgba(255,255,255,0.6); }
+
+        .copy { text-align: center; font-size: 11px; color: rgba(255,255,255,0.2); margin-top: 24px; }
+
+        @media (max-width: 768px) {
+            .card { flex-direction: column; }
+            .card-info { width: 100%; padding: 32px 24px; }
+            .card-preview { min-height: 240px; }
         }
     </style>
 </head>
 <body>
-    <div class="brand">JuicePipe</div>
+    <div class="container">
+        <header>
+            <div class="brand">JuicePipe</div>
+            <div class="tagline">
+                Precision audio tools for producers and mixing engineers.
+                Lock-free C++ DSP meets real-time AI telemetry.
+            </div>
+        </header>
 
-    <div class="product-container">
-        <span class="product">MixMind</span>
-        <div class="features-dropdown">
-            <ul>
-                <li>Real-time FFT spectral telemetry</li>
-                <li>Goniometer phase &amp; stereo scope</li>
-                <li>LUFS, True Peak, Crest Factor metering</li>
-                <li>AI-powered surgical diagnostics</li>
-                <li>4-mode analyzer canvas with hotkeys</li>
-                <li>Interactive EQ click-to-shape</li>
-                <li>10 track-type presets with focus modes</li>
-                <li>DAW-adaptive fonts &amp; colors</li>
-            </ul>
+        <div class="plugins">
+            <!-- MixMind -->
+            <div class="card card-mixmind">
+                <div class="card-info">
+                    <h2>MixMind</h2>
+                    <p>
+                        AI-powered mixing assistant with real-time FFT spectral
+                        telemetry, goniometer, LUFS metering, and surgical
+                        diagnostics. A second set of expert ears in your DAW.
+                    </p>
+                    <a href="/downloads/MixMind-3.2.0.pkg" class="btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download
+                    </a>
+                </div>
+                <div class="card-preview">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 240'%3E%3Crect fill='%23141416' width='400' height='240' rx='6'/%3E%3Crect fill='%230e0e10' y='0' width='400' height='32'/%3E%3Ctext fill='%23f0c4d4' font-family='sans-serif' font-size='10' x='14' y='21'%3EJuicePipe — MixMind%3C/text%3E%3Crect fill='%23080809' y='32' width='400' height='170'/%3E%3Cpath d='M20,170 L60,100 L100,140 L140,80 L180,120 L220,60 L260,100 L300,70 L340,90 L380,50' stroke='%23f0c4d4' stroke-width='1.2' fill='none' opacity='0.9'/%3E%3Cpath d='M20,170 L60,100 L100,140 L140,80 L180,120 L220,60 L260,100 L300,70 L340,90 L380,50 L380,170 Z' fill='%23f0c4d4' opacity='0.08'/%3E%3Crect fill='%23f0c4d4' opacity='0.04' x='180' y='32' width='50' height='170'/%3E%3Ctext fill='%23f0c4d4' font-size='6' x='182' y='42' opacity='0.4'%3EAI%3C/text%3E%3Crect fill='%230e0e10' y='202' width='400' height='38'/%3E%3Ctext fill='%23f0c4d4' font-size='9' x='14' y='224' opacity='0.5'%3EAsk about your mix…%3C/text%3E%3C/svg%3E" alt="MixMind UI Preview" style="width:320px;height:192px;background:#e8b8ca;border-radius:6px;" />
+                </div>
+            </div>
+
+            <!-- Crisp — Coming Soon -->
+            <div class="card card-soon card-crisp">
+                <div class="card-info">
+                    <span class="soon-badge">Coming Soon</span>
+                    <h2>Crisp</h2>
+                    <p>
+                        High-end exciter and saturation suite with real-time
+                        harmonic analysis and surgical transient enhancement.
+                    </p>
+                </div>
+                <div class="card-preview" style="color: rgba(10,42,48,0.3);">
+                    Preview Soon
+                </div>
+            </div>
+
+            <!-- Punch — Coming Soon -->
+            <div class="card card-soon card-punch">
+                <div class="card-info">
+                    <span class="soon-badge">Coming Soon</span>
+                    <h2>Punch</h2>
+                    <p>
+                        Dynamics processor with AI-driven transient shaping,
+                        parallel compression, and multi-band envelope control.
+                    </p>
+                </div>
+                <div class="card-preview" style="color: rgba(42,26,0,0.3);">
+                    Preview Soon
+                </div>
+            </div>
         </div>
+
+        <footer>
+            <a href="https://github.com/kylerobertschuster" target="_blank">GitHub</a>
+            <a href="mailto:kylerobertschuster@gmail.com">Email</a>
+            <a href="https://reddit.com/u/getjuicepipe" target="_blank">Reddit</a>
+            <a href="https://cash.app/$getjuicepipe" target="_blank">Cash App</a>
+        </footer>
+        <div class="copy">JuicePipe &copy; 2026</div>
     </div>
-
-    <div class="tagline">
-        Real-time audio telemetry &amp; AI mix intelligence.<br>
-        A second set of expert ears inside your DAW.
-    </div>
-
-    <a href="/downloads/MixMind-3.1.1.pkg" class="download">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        Download for macOS
-    </a>
-    <div class="version">VST3 &amp; AU &middot; macOS 12+ &middot; Version 3.1.1</div>
-
-    <nav class="bottom-nav" id="nav">
-        <a data-panel="about">About</a>
-        <a data-panel="contact">Contact</a>
-        <a data-panel="purchase">Purchase</a>
-    </nav>
-
-    <div class="panel" id="panel-about">
-        <strong>JuicePipe</strong> builds precision audio tools for producers and
-        mixing engineers. <strong>MixMind</strong> combines lock-free C++ DSP with
-        real-time AI telemetry for surgical mix feedback when your ears are tired
-        and your deadline is now.
-    </div>
-    <div class="panel" id="panel-contact">
-        <strong>GitHub</strong><br><a href="https://github.com/kylerobertschuster" target="_blank">github.com/kylerobertschuster</a><br><br>
-        <strong>Email</strong><br><a href="mailto:kylerobertschuster@gmail.com">kylerobertschuster@gmail.com</a><br><br>
-        <strong>Reddit</strong><br><a href="https://reddit.com/u/getjuicepipe" target="_blank">u/getjuicepipe</a>
-    </div>
-    <div class="panel" id="panel-purchase">
-        <strong>Cash App</strong><br><a href="https://cash.app/$getjuicepipe" target="_blank">$getjuicepipe</a><br><br>
-        Email your receipt to <a href="mailto:kylerobertschuster@gmail.com">kylerobertschuster@gmail.com</a>
-        for your license key within 24 hours.
-    </div>
-
-    <footer>JuicePipe &copy; 2026</footer>
-
-    <script>
-        const nav = document.getElementById('nav');
-        const panels = document.querySelectorAll('.panel');
-        let active = null;
-        nav.addEventListener('click', e => {
-            const a = e.target.closest('a'); if (!a) return;
-            const p = document.getElementById('panel-' + a.dataset.panel);
-            if (active === p) { p.classList.remove('visible'); a.classList.remove('active'); active = null; return; }
-            panels.forEach(x => x.classList.remove('visible'));
-            nav.querySelectorAll('a').forEach(x => x.classList.remove('active'));
-            p.classList.add('visible'); a.classList.add('active'); active = p;
-        });
-        document.addEventListener('click', e => {
-            if (!e.target.closest('.bottom-nav') && !e.target.closest('.panel')) {
-                panels.forEach(x => x.classList.remove('visible'));
-                nav.querySelectorAll('a').forEach(x => x.classList.remove('active'));
-                active = null;
-            }
-        });
-    </script>
 </body>
 </html>
