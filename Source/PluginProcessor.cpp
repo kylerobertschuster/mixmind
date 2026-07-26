@@ -73,52 +73,53 @@ void MixMindProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
 
 void MixMindProcessor::applyEQ (const std::vector<EQSuggestion>& suggestions)
 {
-    // Reset all filters
-    for (size_t i = 0; i < 8; ++i)
-        *eqChain.get<0>() = *Coefficients::makeAllPass (currentSampleRate, 1000.0f);
+    auto chain = &eqChain;
+    chain->reset();
 
-    eqChain.setBypassed<0> (true);
-    eqChain.setBypassed<1> (true);
-    eqChain.setBypassed<2> (true);
-    eqChain.setBypassed<3> (true);
-    eqChain.setBypassed<4> (true);
-    eqChain.setBypassed<5> (true);
-    eqChain.setBypassed<6> (true);
-    eqChain.setBypassed<7> (true);
+    // Bypass all
+    auto setBypass = [&](int idx, bool b) {
+        switch(idx) {
+            case 0: chain->setBypassed<0>(b); break; case 1: chain->setBypassed<1>(b); break;
+            case 2: chain->setBypassed<2>(b); break; case 3: chain->setBypassed<3>(b); break;
+            case 4: chain->setBypassed<4>(b); break; case 5: chain->setBypassed<5>(b); break;
+            case 6: chain->setBypassed<6>(b); break; case 7: chain->setBypassed<7>(b); break;
+        }
+    };
 
-    // Apply up to 8 EQ bands
+    for (int i = 0; i < 8; ++i) setBypass(i, true);
+
     for (size_t i = 0; i < suggestions.size() && i < 8; ++i)
     {
         auto& s = suggestions[i];
-        float freq = s.freqHz;
-        float gain = s.gainDb;
-        float q    = s.q;
+        auto coeffs = Coefficients::makePeakFilter (currentSampleRate, s.freqHz, s.q,
+                                                      juce::Decibels::decibelsToGain (s.gainDb));
 
-        juce::dsp::IIR::Coefficients<float>::Ptr coeffs;
-
-        if (s.filterType == "Bell" || s.filterType == "Peak")
-            coeffs = Coefficients::makePeakFilter (currentSampleRate, freq, q, juce::Decibels::decibelsToGain (gain));
-        else if (s.filterType == "LowShelf")
-            coeffs = Coefficients::makeLowShelf (currentSampleRate, freq, q, juce::Decibels::decibelsToGain (gain));
+        if (s.filterType == "LowShelf")
+            coeffs = Coefficients::makeLowShelf (currentSampleRate, s.freqHz, s.q,
+                                                  juce::Decibels::decibelsToGain (s.gainDb));
         else if (s.filterType == "HighShelf")
-            coeffs = Coefficients::makeHighShelf (currentSampleRate, freq, q, juce::Decibels::decibelsToGain (gain));
+            coeffs = Coefficients::makeHighShelf (currentSampleRate, s.freqHz, s.q,
+                                                   juce::Decibels::decibelsToGain (s.gainDb));
         else if (s.filterType == "HighPass" || s.filterType == "HP")
-            coeffs = Coefficients::makeHighPass (currentSampleRate, freq, q);
+            coeffs = Coefficients::makeHighPass (currentSampleRate, s.freqHz, s.q);
         else if (s.filterType == "LowPass" || s.filterType == "LP")
-            coeffs = Coefficients::makeLowPass (currentSampleRate, freq, q);
-        else
-            coeffs = Coefficients::makePeakFilter (currentSampleRate, freq, q, juce::Decibels::decibelsToGain (gain));
+            coeffs = Coefficients::makeLowPass (currentSampleRate, s.freqHz, s.q);
 
-        switch (i) {
-            case 0: *eqChain.get<0>() = *coeffs; eqChain.setBypassed<0> (false); break;
-            case 1: *eqChain.get<1>() = *coeffs; eqChain.setBypassed<1> (false); break;
-            case 2: *eqChain.get<2>() = *coeffs; eqChain.setBypassed<2> (false); break;
-            case 3: *eqChain.get<3>() = *coeffs; eqChain.setBypassed<3> (false); break;
-            case 4: *eqChain.get<4>() = *coeffs; eqChain.setBypassed<4> (false); break;
-            case 5: *eqChain.get<5>() = *coeffs; eqChain.setBypassed<5> (false); break;
-            case 6: *eqChain.get<6>() = *coeffs; eqChain.setBypassed<6> (false); break;
-            case 7: *eqChain.get<7>() = *coeffs; eqChain.setBypassed<7> (false); break;
-        }
+        auto setCoeffs = [&](int idx) {
+            switch(idx) {
+                case 0: chain->get<0>().coefficients = coeffs; break;
+                case 1: chain->get<1>().coefficients = coeffs; break;
+                case 2: chain->get<2>().coefficients = coeffs; break;
+                case 3: chain->get<3>().coefficients = coeffs; break;
+                case 4: chain->get<4>().coefficients = coeffs; break;
+                case 5: chain->get<5>().coefficients = coeffs; break;
+                case 6: chain->get<6>().coefficients = coeffs; break;
+                case 7: chain->get<7>().coefficients = coeffs; break;
+            }
+        };
+
+        setCoeffs((int)i);
+        setBypass((int)i, false);
     }
 
     eqActive = !suggestions.empty();
