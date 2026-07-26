@@ -69,6 +69,8 @@ target_sources(MixMind PRIVATE
     Source/AIAnalysis.cpp
     Source/AIAnalysis.h
     Source/TelemetryData.h
+    Source/AnalyzerCanvas.cpp
+    Source/AnalyzerCanvas.h
 )
 
 # ── Compile definitions ───────────────────────────────────────────────────

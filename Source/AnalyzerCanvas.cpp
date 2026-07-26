@@ -1,0 +1,421 @@
+#include "AnalyzerCanvas.h"
+
+AnalyzerCanvas::AnalyzerCanvas()
+{
+    accent = HostTheme::getColors().accent;
+    startTimerHz (60);
+}
+
+void AnalyzerCanvas::timerCallback()
+{
+    const float k = 0.12f;
+    for (int i = 0; i < kNumBins; ++i)
+        fftSmooth[i] += (fftBins[i] - fftSmooth[i]) * k;
+    repaint();
+}
+
+void AnalyzerCanvas::updateTelemetry (const juce::String& json)
+{
+    auto v = [&](const juce::String& key, float def = 0) -> float
+    {
+        int p = json.indexOf ("\"" + key + "\":");
+        if (p < 0) return def;
+        p += key.length() + 3;
+        int e = json.indexOf (p, ",");
+        if (e < 0) e = json.indexOf (p, "}");
+        return json.substring (p, e < 0 ? json.length() : e).getFloatValue();
+    };
+
+    bassE   = v ("bass_energy");
+    midE    = v ("mid_energy");
+    highE   = v ("high_energy");
+    subE    = v ("sub_bass_energy");
+    lufs    = v ("integrated_lufs", -60);
+    stereo  = v ("stereo_width", 0.5f);
+    crest   = v ("crest_factor");
+    peak    = v ("true_peak_db", -60);
+    phaseCorr = v ("phase_correlation", 1);
+    subCorr  = v ("sub_bass_correlation", 1);
+
+    // Build synthetic FFT bins from spectral band data
+    // Map bass (20-250Hz), mid (250-2k), high (2k+) across 256 bins
+    for (int i = 0; i < kNumBins; ++i)
+    {
+        float t = (float)i / (float)kNumBins;
+        float hz = 20.0f * std::pow (1000.0f, t); // log scale 20Hz-20kHz
+        float val;
+        if (hz < 250)       val = bassE + (subE - bassE) * (1.0f - hz/250.0f);
+        else if (hz < 2000) val = midE * (1.0f - (hz-250)/1750.0f) + bassE * ((hz-250)/1750.0f);
+        else                val = highE * (1.0f - (hz-2000)/18000.0f) + midE * 0.1f;
+        val = (val + 60.0f) / 60.0f;
+        fftBins[i] = juce::jlimit (0.0f, 1.0f, val + std::sin (hz * 0.003f + (float)i * 0.1f) * 0.05f);
+    }
+}
+
+void AnalyzerCanvas::setAIAnalysis (const AIAnalysis& analysis)
+{
+    currentAnalysis = analysis;
+    if (currentMode == AnalyzerMode::AICoPilot)
+        repaint();
+}
+
+void AnalyzerCanvas::setMode (AnalyzerMode mode)
+{
+    currentMode = mode;
+    repaint();
+}
+
+// ── Layout ────────────────────────────────────────────────────────────────────
+void AnalyzerCanvas::resized()
+{
+    auto b = getLocalBounds().toFloat();
+    float modeH = 30.0f;
+    plotLeft   = 30.0f;
+    plotRight  = b.getWidth() - 12.0f;
+    plotTop    = modeH + 8.0f;
+    plotBottom = b.getHeight() - 18.0f;
+}
+
+// ── Main paint dispatcher ─────────────────────────────────────────────────────
+void AnalyzerCanvas::paint (juce::Graphics& g)
+{
+    g.fillAll (JP::bg);
+    drawGrid (g, 6, 8);
+
+    switch (currentMode)
+    {
+        case AnalyzerMode::Spectrum:  drawSpectrumMode (g);  break;
+        case AnalyzerMode::Stereo:    drawStereoMode (g);    break;
+        case AnalyzerMode::Dynamics:  drawDynamicsMode (g);  break;
+        case AnalyzerMode::AICoPilot: drawAICoPilotMode (g); break;
+    }
+
+    drawCrosshair (g);
+    drawModeSelector (g);
+}
+
+// ── Mode selector bar ────────────────────────────────────────────────────────
+void AnalyzerCanvas::drawModeSelector (juce::Graphics& g)
+{
+    auto fonts = HostTheme::getFonts();
+    g.setFont (juce::FontOptions (fonts.ui, 10.0f, juce::Font::bold));
+
+    struct ModeEntry { AnalyzerMode mode; juce::String label; };
+    const ModeEntry modes[] = {
+        { AnalyzerMode::Spectrum,  "FFT" },
+        { AnalyzerMode::Stereo,    "STEREO" },
+        { AnalyzerMode::Dynamics,  "DYN" },
+        { AnalyzerMode::AICoPilot, "AI" }
+    };
+
+    float x = 6.0f;
+    for (auto& m : modes)
+    {
+        bool active = currentMode == m.mode;
+        auto bounds = juce::Rectangle<float> (x, 4.0f, 52.0f, 24.0f);
+        if (active)
+        {
+            g.setColour (accent.withAlpha (0.15f));
+            g.fillRoundedRectangle (bounds, 3.0f);
+            g.setColour (accent);
+        }
+        else
+        {
+            g.setColour (JP::textDim);
+        }
+        g.drawText (m.label, bounds, juce::Justification::centred, false);
+        x += 56.0f;
+    }
+}
+
+// ── Background grid ──────────────────────────────────────────────────────────
+void AnalyzerCanvas::drawGrid (juce::Graphics& g, int horiz, int vert)
+{
+    g.setColour (JP::border.withAlpha (0.4f));
+    float w = plotRight - plotLeft;
+    float h = plotBottom - plotTop;
+    for (int i = 0; i <= horiz; ++i)
+    {
+        float y = plotTop + h * (float)i / (float)horiz;
+        g.drawLine (plotLeft, y, plotRight, y, 0.5f);
+    }
+    for (int i = 0; i <= vert; ++i)
+    {
+        float x = plotLeft + w * (float)i / (float)vert;
+        g.drawLine (x, plotTop, x, plotBottom, 0.5f);
+    }
+}
+
+// ── Crosshair HUD ────────────────────────────────────────────────────────────
+void AnalyzerCanvas::drawCrosshair (juce::Graphics& g)
+{
+    if (!mouseInView || mousePos.x < plotLeft || mousePos.x > plotRight
+        || mousePos.y < plotTop || mousePos.y > plotBottom)
+        return;
+
+    // Crosshair lines
+    g.setColour (accent.withAlpha (0.3f));
+    g.drawLine (plotLeft, mousePos.y, plotRight, mousePos.y, 0.5f);
+    g.drawLine (mousePos.x, plotTop, mousePos.x, plotBottom, 0.5f);
+
+    // HUD tooltip
+    float t = (mousePos.x - plotLeft) / (plotRight - plotLeft);
+    float hz = 20.0f * std::pow (1000.0f, t);
+    float db = (1.0f - (mousePos.y - plotTop) / (plotBottom - plotTop)) * 60.0f - 60.0f;
+
+    juce::String tip;
+    if (hz >= 1000)
+        tip = juce::String (hz / 1000.0f, 1) + " kHz  " + juce::String (db, 1) + " dB";
+    else
+        tip = juce::String ((int)hz) + " Hz  " + juce::String (db, 1) + " dB";
+
+    auto fonts = HostTheme::getFonts();
+    g.setFont (juce::FontOptions (fonts.mono, 9.0f, juce::Font::plain));
+    int tw = (int)g.getCurrentFont().getStringWidth (tip) + 10;
+    auto tipRect = juce::Rectangle<float> (mousePos.x + 12, mousePos.y - 16, (float)tw, 18.0f);
+    if (tipRect.getRight() > plotRight)
+        tipRect.setX (mousePos.x - tw - 12);
+
+    g.setColour (juce::Colour (0xcc1a1c20));
+    g.fillRoundedRectangle (tipRect, 3.0f);
+    g.setColour (accent);
+    g.drawRoundedRectangle (tipRect, 3.0f, 0.5f);
+    g.setColour (JP::text);
+    g.drawText (tip, tipRect, juce::Justification::centred, false);
+}
+
+void AnalyzerCanvas::mouseMove (const juce::MouseEvent& e)
+{
+    mousePos = e.position;
+    mouseInView = true;
+}
+
+void AnalyzerCanvas::mouseExit (const juce::MouseEvent&)
+{
+    mouseInView = false;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  MODE 1: FFT Spectrum
+// ═══════════════════════════════════════════════════════════════════════════════
+void AnalyzerCanvas::drawSpectrumMode (juce::Graphics& g)
+{
+    float w = plotRight - plotLeft;
+    float h = plotBottom - plotTop;
+
+    // Glow fill under curve
+    juce::Path fillPath;
+    fillPath.startNewSubPath (plotLeft, plotBottom);
+    for (int i = 0; i < kNumBins; ++i)
+    {
+        float x = plotLeft + w * (float)i / (float)(kNumBins - 1);
+        float y = plotBottom - h * fftSmooth[i];
+        fillPath.lineTo (x, y);
+    }
+    fillPath.lineTo (plotRight, plotBottom);
+    fillPath.closeSubPath();
+
+    g.setGradientFill (juce::ColourGradient (
+        accent.withAlpha (0.18f), 0, plotBottom,
+        accent.withAlpha (0.02f), 0, plotTop, false));
+    g.fillPath (fillPath);
+
+    // Curve stroke
+    juce::Path curvePath;
+    curvePath.startNewSubPath (plotLeft, plotBottom - h * fftSmooth[0]);
+    for (int i = 1; i < kNumBins; ++i)
+    {
+        float x = plotLeft + w * (float)i / (float)(kNumBins - 1);
+        float y = plotBottom - h * fftSmooth[i];
+        curvePath.lineTo (x, y);
+    }
+    g.setColour (accent.withAlpha (0.9f));
+    g.strokePath (curvePath, juce::PathStrokeType (1.5f));
+
+    // Frequency labels on x-axis
+    auto fonts = HostTheme::getFonts();
+    g.setFont (juce::FontOptions (fonts.mono, 7.0f, juce::Font::plain));
+    g.setColour (JP::textDim);
+    float freqs[] = { 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000 };
+    for (float hz : freqs)
+    {
+        float t = std::log10 (hz / 20.0f) / std::log10 (1000.0f);
+        float x = plotLeft + w * t;
+        juce::String label = hz >= 1000 ? juce::String (hz / 1000.0f, 0) + "k" : juce::String ((int)hz);
+        g.drawText (label, juce::Rectangle<float> (x - 15, plotBottom + 2, 30, 12),
+                    juce::Justification::centred, false);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  MODE 2: Goniometer (Lissajous + phase correlation)
+// ═══════════════════════════════════════════════════════════════════════════════
+void AnalyzerCanvas::drawStereoMode (juce::Graphics& g)
+{
+    float cx = (plotLeft + plotRight) / 2.0f;
+    float cy = (plotTop + plotBottom) / 2.0f;
+    float radius = juce::jmin (plotRight - plotLeft, plotBottom - plotTop) / 2.0f - 10.0f;
+
+    // Goniometer scope background
+    g.setColour (juce::Colour (0x08ffffff));
+    g.fillEllipse (cx - radius, cy - radius, radius * 2, radius * 2);
+    g.setColour (JP::border);
+    g.drawEllipse (cx - radius, cy - radius, radius * 2, radius * 2, 0.5f);
+
+    // Cross lines
+    g.setColour (JP::border.withAlpha (0.3f));
+    g.drawLine (cx - radius, cy, cx + radius, cy, 0.5f);
+    g.drawLine (cx, cy - radius, cx, cy + radius, 0.5f);
+
+    // Lissajous dot cloud
+    if (gonioCount > 1)
+    {
+        juce::Path gonioPath;
+        bool started = false;
+        for (int i = 0; i < gonioCount; ++i)
+        {
+            float l = gonioBufferL[i] * radius;
+            float r = gonioBufferR[i] * radius;
+            float x = cx + (l + r) * 0.7f;   // mid
+            float y = cy - (l - r) * 0.7f;   // side
+            x = juce::jlimit (cx - radius, cx + radius, x);
+            y = juce::jlimit (cy - radius, cy + radius, y);
+            if (!started) { gonioPath.startNewSubPath (x, y); started = true; }
+            else gonioPath.lineTo (x, y);
+        }
+        g.setColour (accent.withAlpha (0.5f));
+        g.strokePath (gonioPath, juce::PathStrokeType (0.8f));
+    }
+
+    // Phase correlation meter
+    auto fonts = HostTheme::getFonts();
+    g.setFont (juce::FontOptions (fonts.mono, 9.0f, juce::Font::bold));
+    float corrWidth = 140.0f;
+    float corrX = (getWidth() - corrWidth) / 2.0f;
+    float corrY = plotBottom + 2.0f;
+
+    // Correlation bar
+    g.setColour (JP::surface);
+    g.fillRoundedRectangle (corrX, corrY, corrWidth, 10.0f, 3.0f);
+    float corrFill = juce::jlimit (0.0f, corrWidth, (phaseCorr + 1.0f) / 2.0f * corrWidth);
+    g.setColour (phaseCorr > 0.7f ? juce::Colours::limegreen :
+                 phaseCorr > 0.3f ? JP::warning : JP::error);
+    g.fillRoundedRectangle (corrX, corrY, corrFill, 10.0f, 3.0f);
+
+    g.setFont (juce::FontOptions (fonts.mono, 8.0f, juce::Font::plain));
+    g.setColour (JP::textMuted);
+    g.drawText ("-1", juce::Rectangle<float> (corrX - 8, corrY, 12, 10), juce::Justification::right, false);
+    g.drawText ("+1", juce::Rectangle<float> (corrX + corrWidth, corrY, 12, 10), juce::Justification::left, false);
+    juce::String corrText = juce::String (phaseCorr, 2);
+    g.setColour (JP::text);
+    g.drawText (corrText, juce::Rectangle<float> (corrX, corrY - 12, corrWidth, 10),
+                juce::Justification::centred, false);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  MODE 3: Dynamics (LUFS, True Peak, Crest Factor)
+// ═══════════════════════════════════════════════════════════════════════════════
+void AnalyzerCanvas::drawDynamicsMode (juce::Graphics& g)
+{
+    float w = plotRight - plotLeft;
+    float barW = (w - 60.0f) / 3.0f;
+    float cx = (plotLeft + plotRight) / 2.0f;
+    float barH = plotBottom - plotTop - 40.0f;
+    auto fonts = HostTheme::getFonts();
+
+    // LUFS
+    float lufsX = plotLeft + 10;
+    g.setFont (juce::FontOptions (fonts.ui, 10.0f, juce::Font::bold));
+    g.setColour (accent);
+    g.drawText ("LUFS", juce::Rectangle<float> (lufsX, plotTop, barW, 16),
+                juce::Justification::centred, false);
+
+    float lufsNorm = juce::jlimit (0.0f, 1.0f, (lufs + 60.0f) / 48.0f);
+    float lufsH = barH * lufsNorm;
+    g.setColour (accent.withAlpha (0.3f));
+    g.fillRoundedRectangle (lufsX, plotBottom - 28 - lufsH, barW, lufsH, 3.0f);
+
+    // Target markers
+    g.setColour (JP::warning.withAlpha (0.6f));
+    float targetY = plotBottom - 28 - barH * ((-14.0f + 60.0f) / 48.0f);
+    g.drawLine (lufsX, targetY, lufsX + barW, targetY, 1.0f);
+    g.setFont (juce::FontOptions (fonts.mono, 7.0f, juce::Font::plain));
+    g.drawText ("-14", juce::Rectangle<float> (lufsX, targetY - 10, barW, 8),
+                juce::Justification::centred, false);
+
+    g.setFont (juce::FontOptions (fonts.mono, 10.0f, juce::Font::bold));
+    g.setColour (JP::text);
+    g.drawText (juce::String (lufs, 1), juce::Rectangle<float> (lufsX, plotBottom - 24, barW, 16),
+                juce::Justification::centred, false);
+
+    // True Peak
+    float tpX = lufsX + barW + 20;
+    g.setFont (juce::FontOptions (fonts.ui, 10.0f, juce::Font::bold));
+    g.setColour (peak > -1.0f ? JP::error : accent);
+    g.drawText ("TRUE PK", juce::Rectangle<float> (tpX, plotTop, barW, 16),
+                juce::Justification::centred, false);
+    float tpNorm = juce::jlimit (0.0f, 1.0f, (peak + 12.0f) / 12.0f);
+    float tpH = barH * tpNorm;
+    g.setColour ((peak > -1.0f ? JP::error : accent).withAlpha (0.3f));
+    g.fillRoundedRectangle (tpX, plotBottom - 28 - tpH, barW, tpH, 3.0f);
+    g.setColour (JP::warning.withAlpha (0.6f));
+    float clipY = plotBottom - 28 - barH * (11.0f / 12.0f);
+    g.drawLine (tpX, clipY, tpX + barW, clipY, 1.0f);
+    g.setFont (juce::FontOptions (fonts.mono, 10.0f, juce::Font::bold));
+    g.setColour (JP::text);
+    g.drawText (juce::String (peak, 1), juce::Rectangle<float> (tpX, plotBottom - 24, barW, 16),
+                juce::Justification::centred, false);
+
+    // Crest Factor
+    float crX = tpX + barW + 20;
+    g.setFont (juce::FontOptions (fonts.ui, 10.0f, juce::Font::bold));
+    g.setColour (crest < 6.0f ? JP::warning : accent);
+    g.drawText ("CREST", juce::Rectangle<float> (crX, plotTop, barW, 16),
+                juce::Justification::centred, false);
+    float crNorm = juce::jlimit (0.0f, 1.0f, crest / 18.0f);
+    float crH = barH * crNorm;
+    g.setColour (JP::accentMixMind.withAlpha (0.3f));
+    g.fillRoundedRectangle (crX, plotBottom - 28 - crH, barW, crH, 3.0f);
+    g.setFont (juce::FontOptions (fonts.mono, 10.0f, juce::Font::bold));
+    g.setColour (JP::text);
+    g.drawText (juce::String (crest, 1) + " dB",
+                juce::Rectangle<float> (crX, plotBottom - 24, barW, 16),
+                juce::Justification::centred, false);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  MODE 4: AI Co-Pilot (spectrum + diagnostic overlays)
+// ═══════════════════════════════════════════════════════════════════════════════
+void AnalyzerCanvas::drawAICoPilotMode (juce::Graphics& g)
+{
+    // First draw the spectrum
+    drawSpectrumMode (g);
+
+    // Then overlay AI diagnostic zones
+    for (auto& target : currentAnalysis.overlayTargets)
+    {
+        float t1 = std::log10 (target.freqStartHz / 20.0f) / std::log10 (1000.0f);
+        float t2 = std::log10 (target.freqEndHz / 20.0f) / std::log10 (1000.0f);
+        float w = plotRight - plotLeft;
+        float x1 = plotLeft + w * juce::jlimit (0.0f, 1.0f, t1);
+        float x2 = plotLeft + w * juce::jlimit (0.0f, 1.0f, t2);
+
+        auto color = juce::Colour::fromString ("FF" + target.colorHex.substring (1));
+
+        // Glowing translucent zone over affected frequencies
+        g.setColour (color.withAlpha (0.15f));
+        g.fillRect (juce::Rectangle<float> (x1, plotTop, x2 - x1, plotBottom - plotTop));
+
+        // Zone border markers
+        g.setColour (color.withAlpha (0.4f));
+        g.drawLine (x1, plotTop, x1, plotBottom, 1.0f);
+        g.drawLine (x2, plotTop, x2, plotBottom, 1.0f);
+
+        // Zone label at top
+        auto fonts = HostTheme::getFonts();
+        g.setFont (juce::FontOptions (fonts.ui, 8.0f, juce::Font::bold));
+        g.setColour (color.withAlpha (0.9f));
+        g.drawText (target.label, juce::Rectangle<float> (x1, plotTop + 2, x2 - x1, 14),
+                    juce::Justification::centred, false);
+    }
+}

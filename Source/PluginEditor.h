@@ -5,6 +5,7 @@
 #include "ChatComponent.h"
 #include "ContextPanel.h"
 #include "PipeVisualizer.h"
+#include "AnalyzerCanvas.h"
 #include "PresetManager.h"
 #include "LookAndFeel.h"
 
@@ -32,9 +33,9 @@ private:
     juce::TextButton licenseButton { "LICENSE" };
 
     // Panels
-    PipeVisualizer pipeVis;         // left — the glass telemetry channel
-    ChatComponent  chatComponent;   // center — the bowl
-    StrawPanel     strawPanel;      // right — presets & controls
+    AnalyzerCanvas analyzer;       // center — multi-mode telemetry display
+    ChatComponent  chatComponent;  // bottom — AI conversation
+    StrawPanel     strawPanel;     // right — presets & controls
 
     // Conversation
     std::vector<ChatMessage> history;
