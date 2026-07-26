@@ -105,6 +105,7 @@ void AnalyzerCanvas::paint (juce::Graphics& g)
     }
 
     drawEQPoints (g);
+    drawEQCurve (g);
     drawCrosshair (g);
     drawModeSelector (g);
 
@@ -598,4 +599,36 @@ void AnalyzerCanvas::drawAICoPilotMode (juce::Graphics& g)
         g.drawText (target.label, juce::Rectangle<float> (x1, plotTop + 2, x2 - x1, 14),
                     juce::Justification::centred, false);
     }
+}
+
+void AnalyzerCanvas::drawEQCurve (juce::Graphics& g)
+{
+    if (eqPoints.empty()) return;
+    if (currentMode != AnalyzerMode::Spectrum && currentMode != AnalyzerMode::AICoPilot) return;
+
+    float w = plotRight - plotLeft;
+    float h = plotBottom - plotTop;
+    juce::Path curve;
+    bool started = false;
+
+    for (int i = 0; i <= 500; ++i)
+    {
+        float norm = (float)i / 500.0f;
+        float freq = 20.0f * std::pow (1000.0f, norm);
+        float x = plotLeft + w * norm;
+        float totalGain = 0.0f;
+        for (auto& pt : eqPoints)
+        {
+            if (!pt.active) continue;
+            float octaves = std::abs (std::log2 (freq / pt.freqHz));
+            totalGain += pt.gainDb * std::exp (-octaves * octaves / 0.5f);
+        }
+        float y = plotBottom - h * ((totalGain + 12.0f) / 24.0f);
+        if (!started) { curve.startNewSubPath (x, y); started = true; }
+        else curve.lineTo (x, y);
+    }
+    g.setColour (JP::text.withAlpha (0.20f));
+    g.strokePath (curve, juce::PathStrokeType (1.5f));
+    g.setColour (JP::text.withAlpha (0.08f));
+    g.strokePath (curve, juce::PathStrokeType (3.5f));
 }

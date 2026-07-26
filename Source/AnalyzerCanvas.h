@@ -68,6 +68,7 @@ private:
     void drawGrid (juce::Graphics& g, int numHoriz, int numVert);
     void drawCrosshair (juce::Graphics& g);
     void drawEQPoints  (juce::Graphics& g);
+    void drawEQCurve   (juce::Graphics& g);
 
     // ── Data ────────────────────────────────────────────────────────────────
     AnalyzerMode currentMode { AnalyzerMode::Spectrum };
