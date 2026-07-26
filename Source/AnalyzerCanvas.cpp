@@ -346,7 +346,7 @@ void AnalyzerCanvas::drawSpectrumMode (juce::Graphics& g)
 {
     float w = plotRight - plotLeft;
     float h = plotBottom - plotTop;
-    auto pink = JP::accent();
+    auto curveColor = JP::text;
 
     // Gradient fill under curve
     juce::Path fillPath;
@@ -361,8 +361,8 @@ void AnalyzerCanvas::drawSpectrumMode (juce::Graphics& g)
     fillPath.closeSubPath();
 
     g.setGradientFill (juce::ColourGradient (
-        pink.withAlpha (0.22f), 0, plotTop,
-        pink.withAlpha (0.01f), 0, plotBottom, false));
+        JP::text.withAlpha (0.22f), 0, plotTop,
+        JP::text.withAlpha (0.01f), 0, plotBottom, false));
     g.fillPath (fillPath);
 
     // Spectrum curve — thick with glow
@@ -374,9 +374,9 @@ void AnalyzerCanvas::drawSpectrumMode (juce::Graphics& g)
         float y = plotBottom - h * fftSmooth[i];
         curve.lineTo (x, y);
     }
-    g.setColour (pink.withAlpha (0.22f));
+    g.setColour (JP::text.withAlpha (0.22f));
     g.strokePath (curve, juce::PathStrokeType (3.0f));
-    g.setColour (pink.withAlpha (0.85f));
+    g.setColour (JP::text.withAlpha (0.85f));
     g.strokePath (curve, juce::PathStrokeType (1.2f));
 
     // Peak hold trail (lighter, half-opacity)
@@ -394,7 +394,7 @@ void AnalyzerCanvas::drawSpectrumMode (juce::Graphics& g)
         float y = plotBottom - h * peakHold[i];
         peakPath.lineTo (x, y);
     }
-    g.setColour (pink.withAlpha (0.18f));
+    g.setColour (JP::text.withAlpha (0.18f));
     g.strokePath (peakPath, juce::PathStrokeType (0.8f));
 
     // Freq labels

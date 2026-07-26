@@ -25,10 +25,10 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     setStatus ("READY");
     addAndMakeVisible (statusLabel);
 
-    // Big visible license button — always accessible
+    // Big black license button on pink background
     licenseButton.setButtonText ("ENTER LICENSE KEY");
-    licenseButton.setColour (juce::TextButton::buttonColourId, JP::warning.withAlpha (0.25f));
-    licenseButton.setColour (juce::TextButton::textColourOffId, JP::warning);
+    licenseButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
+    licenseButton.setColour (juce::TextButton::textColourOffId, JP::text);
     licenseButton.onClick = [this] { showLicenseDialog(); };
     addAndMakeVisible (licenseButton);
     updateLicenseDisplay();
@@ -156,16 +156,16 @@ void MixMindEditor::updateLicenseDisplay()
     auto& lm = audioProcessor.getLicenseManager();
     if (lm.isLicensed())
     {
-        licenseButton.setButtonText ("LICENSED \xe2\x9c\x93");
-        licenseButton.setColour (juce::TextButton::buttonColourId, JP::accentBg());
-        licenseButton.setColour (juce::TextButton::textColourOffId, JP::accent());
+        licenseButton.setButtonText ("LICENSED");
+        licenseButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
+        licenseButton.setColour (juce::TextButton::textColourOffId, JP::text);
     }
     else
     {
         auto r = lm.getFreePromptsRemaining();
-        licenseButton.setButtonText (juce::String (r) + " FREE  \xe2\x86\x92 ACTIVATE");
-        licenseButton.setColour (juce::TextButton::buttonColourId, JP::warning.withAlpha (0.25f));
-        licenseButton.setColour (juce::TextButton::textColourOffId, JP::warning);
+        licenseButton.setButtonText (juce::String (r) + " FREE  \xe2\x86\x92  ENTER KEY");
+        licenseButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
+        licenseButton.setColour (juce::TextButton::textColourOffId, JP::text);
     }
 }
 
