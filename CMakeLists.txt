@@ -239,3 +239,13 @@ target_sources(Reflex PRIVATE
 )
 target_compile_definitions(Reflex PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0 JUCE_DISPLAY_SPLASH_SCREEN=0 JUCE_REPORT_APP_USAGE=0)
 target_link_libraries(Reflex PRIVATE juce::juce_audio_utils juce::juce_audio_processors juce::juce_gui_extra juce::juce_core juce::juce_dsp juce::juce_recommended_config_flags juce::juce_recommended_lto_flags juce::juce_recommended_warning_flags)
+
+juce_add_plugin(ThreeFX VERSION 1.0.0 COMPANY_NAME "${MIXMIND_COMPANY}" PLUGIN_MANUFACTURER_CODE ${MIXMIND_MANUFACTURER} PLUGIN_CODE Tfxf FORMATS VST3 AU Standalone PRODUCT_NAME "3FX" IS_SYNTH FALSE NEEDS_MIDI_INPUT FALSE NEEDS_MIDI_OUTPUT FALSE IS_MIDI_EFFECT FALSE COPY_PLUGIN_AFTER_BUILD TRUE VST3_CATEGORIES Tools AU_MAIN_TYPE kAudioUnitType_Effect)
+target_sources(ThreeFX PRIVATE Source/ThreeFXProcessor.cpp Source/ThreeFXProcessor.h Source/ThreeFXEditor.cpp Source/ThreeFXEditor.h Source/LookAndFeel.h Source/LookAndFeel.cpp Source/LicenseManager.cpp Source/LicenseManager.h Source/HostTheme.cpp Source/HostTheme.h)
+target_compile_definitions(ThreeFX PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0 JUCE_DISPLAY_SPLASH_SCREEN=0 JUCE_REPORT_APP_USAGE=0)
+target_link_libraries(ThreeFX PRIVATE juce::juce_audio_utils juce::juce_audio_processors juce::juce_gui_extra juce::juce_core juce::juce_dsp juce::juce_recommended_config_flags juce::juce_recommended_lto_flags juce::juce_recommended_warning_flags)
+
+juce_add_plugin(Neat VERSION 1.0.0 COMPANY_NAME "${MIXMIND_COMPANY}" PLUGIN_MANUFACTURER_CODE ${MIXMIND_MANUFACTURER} PLUGIN_CODE Nttt FORMATS VST3 AU Standalone PRODUCT_NAME "Neat Neat Neat" IS_SYNTH FALSE NEEDS_MIDI_INPUT FALSE NEEDS_MIDI_OUTPUT FALSE IS_MIDI_EFFECT FALSE COPY_PLUGIN_AFTER_BUILD TRUE VST3_CATEGORIES Tools AU_MAIN_TYPE kAudioUnitType_Effect)
+target_sources(Neat PRIVATE Source/NeatProcessor.cpp Source/NeatProcessor.h Source/NeatEditor.cpp Source/NeatEditor.h Source/LookAndFeel.h Source/LookAndFeel.cpp Source/LicenseManager.cpp Source/LicenseManager.h Source/HostTheme.cpp Source/HostTheme.h)
+target_compile_definitions(Neat PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0 JUCE_DISPLAY_SPLASH_SCREEN=0 JUCE_REPORT_APP_USAGE=0)
+target_link_libraries(Neat PRIVATE juce::juce_audio_utils juce::juce_audio_processors juce::juce_gui_extra juce::juce_core juce::juce_dsp juce::juce_recommended_config_flags juce::juce_recommended_lto_flags juce::juce_recommended_warning_flags)
