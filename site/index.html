@@ -8,180 +8,150 @@
     <style>
         :root { --black: #080809; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         body {
             font-family: 'Helvetica Neue', -apple-system, sans-serif;
-            background: var(--black);
-            color: #fff;
-            min-height: 100vh;
-            display: flex;
+            background: var(--black); color: #fff; min-height: 100vh;
         }
+        .container { max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
+        h1 {
+            text-align: center; font-size: 42px; font-weight: 700;
+            letter-spacing: -1px; margin-bottom: 8px;
+        }
+        h1 a { text-decoration: none; }
+        h1 a span:nth-child(1){color:#ff6b6b}h1 a span:nth-child(2){color:#ffa94d}h1 a span:nth-child(3){color:#ffd43b}h1 a span:nth-child(4){color:#69db7c}h1 a span:nth-child(5){color:#4dabf7}h1 a span:nth-child(6){color:#748ffc}h1 a span:nth-child(7){color:#da77f2}h1 a span:nth-child(8){color:#f783ac}h1 a span:nth-child(9){color:#ff6b6b}
+        .section-label {
+            font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+            color: rgba(255,255,255,0.2); margin: 40px 0 16px;
+        }
+        .plugins { display: flex; flex-direction: column; gap: 16px; }
+        .card {
+            display: flex; border-radius: 8px; overflow: hidden; min-height: 240px;
+            text-decoration: none;
+        }
+        .card-info {
+            width: 280px; flex-shrink: 0; padding: 32px 28px;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .card-info h2 { font-size: 26px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
+        .card-info p { font-size: 12px; line-height: 1.5; opacity: 0.7; margin-bottom: 16px; }
+        .card-actions { display: flex; gap: 8px; }
+        .card-actions a {
+            font-size: 11px; font-weight: 600; padding: 8px 16px; border-radius: 5px;
+            text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-add { background: #fff; color: #080809; }
+        .btn-dl  { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.6); }
+        .card-preview {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            padding: 24px; position: relative;
+        }
+        .card-preview img { max-width: 100%; border-radius: 6px; }
 
-        .sidebar {
-            width: 48px; background: #0c0c0e;
-            border-right: 1px solid rgba(255,255,255,0.06);
-            display: flex; flex-direction: column; align-items: center;
-            padding-top: 20px; flex-shrink: 0; overflow: hidden; z-index: 10;
-            transition: width 0.2s;
-        }
-        .sidebar.open { width: 220px; align-items: flex-start; padding-left: 20px; }
-        .menu-toggle {
-            width: 28px; height: 20px; display: flex; flex-direction: column;
-            justify-content: space-between; cursor: pointer; padding: 0;
-            background: none; border: none; margin-bottom: 32px; flex-shrink: 0;
-        }
-        .menu-toggle span { display: block; height: 2px; background: rgba(255,255,255,0.5); }
-        .menu-content { opacity: 0; transition: opacity 0.15s; width: 180px; }
-        .sidebar.open .menu-content { opacity: 1; }
-        .menu-section {
-            font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
-            color: rgba(255,255,255,0.25); margin-bottom: 10px; margin-top: 24px;
-            cursor: pointer;
-        }
-        .menu-item {
-            display: flex; align-items: center; gap: 10px; font-size: 13px;
-            color: rgba(255,255,255,0.6); padding: 5px 0; text-decoration: none;
-            transition: color 0.15s;
-        }
-        .menu-item:hover { color: #f2c4ce; }
-        .menu-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
-        .menu-dot.avail { background: #f2c4ce; }
-        .menu-dot.soon { background: rgba(255,255,255,0.2); }
+        .card-mixmind .card-info { background: #f2c4ce; color: #080809; }
+        .card-mixmind .card-preview { background: #e8b8ca; }
+        .card-mixmind .btn-add { background: #080809; color: #f2c4ce; }
 
-        .main { flex: 1; padding: 48px 32px 80px; min-width: 0; }
-        .main h1 { text-align: center; margin-bottom: 48px; }
-        .main h1 img { height: 160px; }
+        .card-reflex .card-info { background: #a78bfa; color: #fff; }
+        .card-reflex .card-preview { background: #9575e0; }
+        .card-neat .card-info { background: #f59e0b; color: #2a1a00; }
+        .card-neat .card-preview { background: #e08c00; }
+        .card-3fx .card-info { background: #22d3ee; color: #0a2a30; }
+        .card-3fx .card-preview { background: #1cb8d4; }
 
-        .juice-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 24px;
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        .juice-card {
-            text-align: center; padding: 24px 16px 16px;
-            border-radius: 12px; transition: transform 0.15s;
-            text-decoration: none; display: block;
-        }
-        .juice-card:hover { transform: translateY(-2px); }
-        .juice-card img { height: 140px; margin-bottom: 12px; }
-        .juice-card h2 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-        .juice-card p { font-size: 11px; opacity: 0.6; margin-bottom: 16px; }
-
-        .card-actions { display: flex; gap: 8px; justify-content: center; }
-        .card-actions a, .card-actions button {
-            font-size: 11px; font-weight: 600; padding: 7px 18px;
-            border-radius: 5px; text-decoration: none; cursor: pointer;
-            border: none; font-family: inherit;
-        }
-        .btn-cart { background: #fff; color: #080809; }
-        .btn-dl   { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
-
-        .card-mixmind { background: #f2c4ce22; border: 1px solid #f2c4ce33; }
-        .card-mixmind h2 { color: #f2c4ce; }
-        .card-mixmind p { color: #f2c4ceaa; }
-        .card-reflex { background: #a78bfa22; border: 1px solid #a78bfa33; }
-        .card-reflex h2 { color: #a78bfa; }
-        .card-neat { background: #f59e0b22; border: 1px solid #f59e0b33; }
-        .card-neat h2 { color: #f59e0b; }
-        .card-3fx { background: #22d3ee22; border: 1px solid #22d3ee33; }
-        .card-3fx h2 { color: #22d3ee; }
-        .card-soon { opacity: 0.5; }
+        .card-soon { opacity: 0.55; }
         .soon-tag {
-            font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
-            color: rgba(255,255,255,0.3); margin-bottom: 8px;
+            display: inline-block; font-size: 9px; letter-spacing: 2px;
+            text-transform: uppercase; padding: 2px 8px;
+            border: 1px solid rgba(0,0,0,0.2); border-radius: 3px; margin-bottom: 10px;
         }
-
         @media (max-width: 768px) {
-            .juice-grid { grid-template-columns: 1fr; }
-            .main { padding: 32px 16px 60px; }
-            .main h1 img { height: 100px; }
+            .card { flex-direction: column; }
+            .card-info { width: 100%; padding: 24px; }
+            .card-preview { min-height: 160px; }
         }
     </style>
 </head>
 <body>
-    <div class="sidebar" id="sidebar">
-        <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">
-            <span></span><span></span><span></span>
-        </button>
-        <div class="menu-content">
-            <div class="menu-section">Available</div>
-            <a href="/mixmind.html" class="menu-item"><span class="menu-dot avail"></span>MixMind</a>
-            <div class="menu-section">Coming Soon</div>
-            <a href="/reflex.html" class="menu-item"><span class="menu-dot soon"></span>Reflex</a>
-            <a href="/neat.html" class="menu-item"><span class="menu-dot soon"></span>Neat Neat Neat</a>
-            <a href="/3fx.html" class="menu-item"><span class="menu-dot soon"></span>3FX</a>
-        </div>
-    </div>
+<div class="container">
+    <h1><a href="/">
+        <span>J</span><span>u</span><span>i</span><span>c</span><span>e</span><span>P</span><span>i</span><span>p</span><span>e</span>
+    </a></h1>
 
-    <div class="main">
-        <h1><a href="/" style="text-decoration:none;font-size:42px;font-weight:700;letter-spacing:-1px;"><span style="color:#ff6b6b">J</span><span style="color:#ffa94d">u</span><span style="color:#ffd43b">i</span><span style="color:#69db7c">c</span><span style="color:#4dabf7">e</span><span style="color:#748ffc">P</span><span style="color:#da77f2">i</span><span style="color:#f783ac">p</span><span style="color:#ff6b6b">e</span></a></h1>
-
-        <div class="juice-grid">
-            <!-- MixMind -->
-            <a href="/mixmind.html" class="juice-card card-mixmind">
-                <img src="/assets/juice-mixmind.svg" alt="MixMind">
+    <div class="section-label">Available</div>
+    <div class="plugins">
+        <a href="/mixmind.html" class="card card-mixmind">
+            <div class="card-info">
                 <h2>MixMind</h2>
-                <p>AI mixing assistant with real-time FFT, goniometer, LUFS metering &amp; surgical diagnostics.</p>
-                <div class="card-actions" onclick="event.stopPropagation()">
-                    <a href="#" class="btn-cart" onclick="buyNow()">Add to Cart</a>
+                <p>AI mixing assistant. Real-time FFT, goniometer, LUFS metering, surgical diagnostics. Auto-EQ from AI suggestions.</p>
+                <div class="card-actions" onclick="event.stopPropagation(); event.preventDefault();">
+                    <a href="#" class="btn-add" onclick="buyNow();return false">Add to Cart</a>
                     <a href="/downloads/MixMind-4.3.0.pkg" class="btn-dl">Download</a>
                 </div>
-            </a>
+            </div>
+            <div class="card-preview">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" style="width:300px;background:transparent;">
+                    <rect fill="#141416" width="400" height="200" rx="6" opacity="0.25"/>
+                    <rect fill="#0e0e10" y="0" width="400" height="28" opacity="0.35"/>
+                    <path d="M20,160 L50,100 L90,130 L130,80 L170,110 L210,60 L250,95 L290,70 L330,85 L370,50" stroke="#080809" stroke-width="1.2" fill="none" opacity="0.4"/>
+                    <rect fill="#0e0e10" y="172" width="400" height="28" opacity="0.25"/>
+                </svg>
+            </div>
+        </a>
+    </div>
 
-            <!-- Reflex -->
-            <a href="/reflex.html" class="juice-card card-reflex card-soon">
-                <img src="/assets/juice-reflex.svg" alt="Reflex">
+    <div class="section-label">Coming Soon</div>
+    <div class="plugins">
+        <div class="card card-reflex card-soon">
+            <div class="card-info">
                 <span class="soon-tag">Coming Soon</span>
                 <h2>Reflex</h2>
-                <p>Resonator with sequenced delay &amp; reverb. Notes shift after each hit.</p>
-            </a>
-
-            <!-- Neat Neat Neat -->
-            <a href="/neat.html" class="juice-card card-neat card-soon">
-                <img src="/assets/juice-neat.svg" alt="Neat Neat Neat">
+                <p>Resonator with sequenced delay &amp; reverb. Notes shift after each hit — tuned feedback engine.</p>
+            </div>
+            <div class="card-preview"></div>
+        </div>
+        <div class="card card-neat card-soon">
+            <div class="card-info">
                 <span class="soon-tag">Coming Soon</span>
                 <h2>Neat Neat Neat</h2>
-                <p>Beat repeater &times;3. Glitch, stutter, and rhythmic chaos with surgical control.</p>
-            </a>
-
-            <!-- 3FX -->
-            <a href="/3fx.html" class="juice-card card-3fx card-soon">
-                <img src="/assets/juice-3fx.svg" alt="3FX">
+                <p>Beat repeater &times;3. Three independent repeat engines. Glitch, stutter, rhythmic chaos.</p>
+            </div>
+            <div class="card-preview"></div>
+        </div>
+        <div class="card card-3fx card-soon">
+            <div class="card-info">
                 <span class="soon-tag">Coming Soon</span>
                 <h2>3FX</h2>
-                <p>Three simultaneous effects: phase, flange, and delay — all at once.</p>
-            </a>
-        </div>
-    </div>
-
-    <div id="buyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;align-items:center;justify-content:center;">
-        <div style="background:#141416;border-radius:10px;padding:36px;max-width:380px;width:90%;text-align:center;">
-            <h3 style="color:#f2c4ce;font-size:20px;margin-bottom:8px;">Get MixMind</h3>
-            <p style="color:rgba(255,255,255,0.5);font-size:13px;margin-bottom:20px;">$9/month or $79 lifetime &mdash; instant license delivery</p>
-            <input id="buyEmail" type="email" placeholder="you@email.com" style="width:100%;padding:12px;background:#080809;border:1px solid rgba(242,196,206,0.15);border-radius:6px;color:#f2c4ce;font-size:14px;margin-bottom:12px;outline:none;">
-            <div style="display:flex;gap:10px;">
-                <button onclick="processPurchase()" style="flex:1;padding:12px;background:#f2c4ce;color:#080809;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Get License Key</button>
-                <button onclick="closeBuy()" style="flex:1;padding:12px;background:transparent;color:rgba(255,255,255,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:14px;cursor:pointer;">Cancel</button>
+                <p>Three simultaneous effects: phase, flange, and delay — all at once. Where most limit you to two.</p>
             </div>
-            <div id="buyResult" style="margin-top:16px;display:none;"></div>
+            <div class="card-preview"></div>
         </div>
     </div>
+</div>
 
-    <script>
-    function buyNow(){document.getElementById('buyModal').style.display='flex';}
-    function closeBuy(){document.getElementById('buyModal').style.display='none';}
-    async function processPurchase(){
-        var e=document.getElementById('buyEmail').value;
-        if(!e.includes('@')){alert('Enter a valid email');return;}
-        var r=await fetch('https://getjuicepipe.com/purchase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e})});
-        var d=await r.json();
-        var el=document.getElementById('buyResult');
-        el.style.display='block';
-        el.innerHTML='<strong style="color:#f2c4ce;font-size:16px;">'+d.license_key+'</strong><br><span style="font-size:11px;color:rgba(255,255,255,0.4);">Copy this key and paste into the plugin.</span>';
-    }
-    </script>
+<div id="buyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;align-items:center;justify-content:center;">
+    <div style="background:#141416;border-radius:10px;padding:36px;max-width:380px;width:90%;text-align:center;">
+        <h3 style="color:#f2c4ce;font-size:20px;margin-bottom:8px;">Get MixMind</h3>
+        <p style="color:rgba(255,255,255,0.5);font-size:13px;margin-bottom:20px;">$9/month or $79 lifetime — instant license delivery</p>
+        <input id="buyEmail" type="email" placeholder="you@email.com" style="width:100%;padding:12px;background:#080809;border:1px solid rgba(242,196,206,0.15);border-radius:6px;color:#f2c4ce;font-size:14px;margin-bottom:12px;outline:none;">
+        <div style="display:flex;gap:10px;">
+            <button onclick="processPurchase()" style="flex:1;padding:12px;background:#f2c4ce;color:#080809;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Get License Key</button>
+            <button onclick="closeBuy()" style="flex:1;padding:12px;background:transparent;color:rgba(255,255,255,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:14px;cursor:pointer;">Cancel</button>
+        </div>
+        <div id="buyResult" style="margin-top:16px;display:none;"></div>
+    </div>
+</div>
+<script>
+function buyNow(){document.getElementById('buyModal').style.display='flex'}
+function closeBuy(){document.getElementById('buyModal').style.display='none'}
+async function processPurchase(){
+    var e=document.getElementById('buyEmail').value;
+    if(!e.includes('@')){alert('Enter a valid email');return}
+    var r=await fetch('https://getjuicepipe.com/purchase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e})});
+    var d=await r.json();
+    var el=document.getElementById('buyResult');
+    el.style.display='block';
+    el.innerHTML='<strong style="color:#f2c4ce;font-size:16px;">'+d.license_key+'</strong><br><span style="font-size:11px;color:rgba(255,255,255,0.4);">Copy this key and paste into the plugin.</span>';
+}
+</script>
 </body>
 </html>
