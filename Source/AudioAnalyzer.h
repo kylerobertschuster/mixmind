@@ -18,12 +18,12 @@ public:
     const float* getFFTBins() const { return fftOutput; }
 
     // Smoothed values for display
-    float getBassEnergy()  const { return bassEnergy; }
-    float getMidEnergy()   const { return midEnergy; }
-    float getHighEnergy()  const { return highEnergy; }
-    float getLufs()        const { return currentLufs; }
-    float getStereoWidth() const { return stereoWidth; }
-    float getPhaseCorr()   const { return phaseCorrelation; }
+    float getBassEnergy()  const { return bassEnergy.get(); }
+    float getMidEnergy()   const { return midEnergy.get(); }
+    float getHighEnergy()  const { return highEnergy.get(); }
+    float getLufs()        const { return currentLufs.get(); }
+    float getStereoWidth() const { return stereoWidth.get(); }
+    float getPhaseCorr()   const { return phaseCorrelation.get(); }
 
 private:
     void pushNextSample (float l, float r);
@@ -41,16 +41,14 @@ private:
     int   fifoIdx { 0 };
     bool  fftReady { false };
 
-    // Smoothed output bins (exposed to UI)
+    // Thread-safe: written on audio, read on GUI
     float fftOutput[numBins] { 0 };
-    float fftSmooth[numBins] { 0 };
-
-    float bassEnergy    { 0 };
-    float midEnergy     { 0 };
-    float highEnergy    { 0 };
-    float currentLufs   { -60 };
-    float stereoWidth   { 0.5f };
-    float phaseCorrelation { 1 };
+    juce::Atomic<float> bassEnergy  { 0 };
+    juce::Atomic<float> midEnergy   { 0 };
+    juce::Atomic<float> highEnergy  { 0 };
+    juce::Atomic<float> currentLufs { -60 };
+    juce::Atomic<float> stereoWidth { 0.5f };
+    juce::Atomic<float> phaseCorrelation { 1 };
 
     double sampleRate { 44100 };
 

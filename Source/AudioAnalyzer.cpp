@@ -11,7 +11,6 @@ void AudioAnalyzer::prepare (double sr, int)
     juce::zeromem (fftDataL, sizeof (fftDataL));
     juce::zeromem (fftDataR, sizeof (fftDataR));
     juce::zeromem (fftOutput, sizeof (fftOutput));
-    juce::zeromem (fftSmooth, sizeof (fftSmooth));
     fifoIdx = 0;
     fftReady = false;
 }
@@ -90,15 +89,14 @@ void AudioAnalyzer::performFFT()
         fftOutput[i] = mag;  // raw magnitude
 
         // Smooth for display
-        fftSmooth[i] += (mag - fftSmooth[i]) * k;
 
         if (hz < 250)       b += mag;
         else if (hz < 2000) m += mag;
         else                h += mag;
     }
 
-    bassEnergy  += (b - bassEnergy)  * k;
-    midEnergy   += (m - midEnergy)   * k;
-    highEnergy  += (h - highEnergy)  * k;
+    bassEnergy  = bassEnergy.get()  + (b - bassEnergy.get())  * k;
+    midEnergy   = midEnergy.get()   + (m - midEnergy.get())   * k;
+    highEnergy  = highEnergy.get()  + (h - highEnergy.get())  * k;
     fftReady = false;
 }
