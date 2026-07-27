@@ -56,6 +56,15 @@ public:
 
     // Callback when user adds/removes EQ points
     std::function<void()> onEQChanged;
+
+    // Interactive EQ points (user clicks spectrum to add shaping)
+    struct EQPoint
+    {
+        float freqHz;
+        float gainDb;
+        float q     { 1.0f };
+        bool  active { true };
+    };
     std::vector<EQPoint>& getEQPoints() { return eqPoints; }
 
 private:
@@ -100,13 +109,6 @@ private:
     bool               dragging   { false };
 
     // Interactive EQ points (user clicks spectrum to add shaping)
-    struct EQPoint
-    {
-        float freqHz;
-        float gainDb;
-        float q     { 1.0f };
-        bool  active { true };
-    };
     std::vector<EQPoint> eqPoints;
 
     // AI overlay
