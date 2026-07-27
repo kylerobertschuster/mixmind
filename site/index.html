@@ -50,6 +50,14 @@
         .card-mixmind .card-info { background: #f2c4ce; color: #080809; }
         .card-mixmind .card-preview { background: #e8b8ca; }
         .card-mixmind .btn-add { background: #080809; color: #f2c4ce; }
+        .card-scope .card-info { background: #a78bfa; color: #fff; }
+        .card-scope .card-preview { background: #9575e0; }
+        .card-meter .card-info { background: #f59e0b; color: #2a1a00; }
+        .card-meter .card-preview { background: #e08c00; }
+        .card-eqt .card-info { background: #22d3ee; color: #0a2a30; }
+        .card-eqt .card-preview { background: #1cb8d4; }
+        .card-reflex .card-info { background: #69db7c; color: #0a2a10; }
+        .card-reflex .card-preview { background: #51cf66; }
 
         .card-reflex .card-info { background: #a78bfa; color: #fff; }
         .card-reflex .card-preview { background: #9575e0; }
@@ -79,60 +87,46 @@
 
     <div class="section-label">Available</div>
     <div class="plugins">
-        <a href="/mixmind.html" class="card card-mixmind">
+        <div class="card card-mixmind">
             <div class="card-info">
                 <h2>MixMind</h2>
-                <p>AI mixing assistant. Real-time FFT, goniometer, LUFS metering, surgical diagnostics. Auto-EQ from AI suggestions.</p>
-                <div class="card-actions" onclick="event.stopPropagation(); event.preventDefault();">
-                    <a href="#" class="btn-add" onclick="buyNow();return false">Add to Cart</a>
-                    <a href="/downloads/MixMind-4.3.0.pkg" class="btn-dl">Download</a>
-                </div>
+                <p>AI mixing assistant with real-time FFT spectrum. Chat with an expert engineer about your mix.</p>
+                <div class="card-actions"><a href="/downloads/MixMind-5.0.0.pkg" class="btn-dl">Download</a></div>
             </div>
-            <div class="card-preview">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" style="width:300px;background:transparent;">
-                    <rect fill="#141416" width="400" height="200" rx="6" opacity="0.25"/>
-                    <rect fill="#0e0e10" y="0" width="400" height="28" opacity="0.35"/>
-                    <path d="M20,160 L50,100 L90,130 L130,80 L170,110 L210,60 L250,95 L290,70 L330,85 L370,50" stroke="#080809" stroke-width="1.2" fill="none" opacity="0.4"/>
-                    <rect fill="#0e0e10" y="172" width="400" height="28" opacity="0.25"/>
-                </svg>
-            </div>
-        </a>
-
-        <!-- Scope -->
-        <a href="#" class="card card-reflex">
+            <div class="card-preview"></div>
+        </div>
+        <div class="card card-scope">
             <div class="card-info">
                 <h2>Scope</h2>
-                <p>Goniometer and phase scope. Lissajous stereo field visualization with phase correlation meter.</p>
-                <div class="card-actions" onclick="event.stopPropagation();event.preventDefault();">
-                    <a href="/downloads/Scope-1.0.0.pkg" class="btn-dl">Download</a>
-                </div>
+                <p>Goniometer and phase scope. Lissajous stereo field visualization with correlation meter.</p>
+                <div class="card-actions"><a href="/downloads/Scope-1.0.0.pkg" class="btn-dl">Download</a></div>
             </div>
             <div class="card-preview"></div>
-        </a>
-
-        <!-- EQT -->
-        <a href="#" class="card card-3fx">
-            <div class="card-info">
-                <h2>EQT</h2>
-                <p>Parametric EQ with real-time FFT spectrum. Click to place nodes, drag to shape, scroll to adjust Q. 8-band IIR DSP.</p>
-                <div class="card-actions" onclick="event.stopPropagation();event.preventDefault();">
-                    <a href="/downloads/EQT-1.0.0.pkg" class="btn-dl">Download</a>
-                </div>
-            </div>
-            <div class="card-preview"></div>
-        </a>
-
-        <!-- Meter -->
-        <a href="#" class="card card-neat">
+        </div>
+        <div class="card card-meter">
             <div class="card-info">
                 <h2>Meter</h2>
                 <p>LUFS, true peak, crest factor, phase correlation, and spectral band meters.</p>
-                <div class="card-actions" onclick="event.stopPropagation();event.preventDefault();">
-                    <a href="/downloads/Meter-1.0.0.pkg" class="btn-dl">Download</a>
-                </div>
+                <div class="card-actions"><a href="/downloads/Meter-1.0.0.pkg" class="btn-dl">Download</a></div>
             </div>
             <div class="card-preview"></div>
-        </a>
+        </div>
+        <div class="card card-eqt">
+            <div class="card-info">
+                <h2>EQT</h2>
+                <p>Parametric EQ with real-time FFT. Click to place nodes, drag to shape, scroll for Q.</p>
+                <div class="card-actions"><a href="/downloads/EQT-1.0.0.pkg" class="btn-dl">Download</a></div>
+            </div>
+            <div class="card-preview"></div>
+        </div>
+        <div class="card card-reflex">
+            <div class="card-info">
+                <h2>Reflex</h2>
+                <p>Resonator with sequenced delay &amp; reverb. Transient-triggered 8-step note sequencer.</p>
+                <div class="card-actions"><a href="/downloads/Reflex-1.0.0.pkg" class="btn-dl">Download</a></div>
+            </div>
+            <div class="card-preview"></div>
+        </div>
     </div>
 
     <div class="section-label">Coming Soon</div>

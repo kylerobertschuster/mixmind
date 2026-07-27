@@ -13,8 +13,11 @@ namespace JP
     const juce::Colour text        { 0xffffffff };
     const juce::Colour textMuted   { 0xffa0a0aa };
     const juce::Colour textDim     { 0xff555560 };
-    inline juce::Colour accent()   { return juce::Colour (0xfff2c4ce); }
-    inline juce::Colour accentBg() { return juce::Colour (0x18f2c4ce); }
+    inline juce::Colour currentAccent { 0xfff2c4ce };
+    inline juce::Colour accent()   { return currentAccent; }
+    inline juce::Colour accentBg() { return currentAccent.withAlpha (0.18f); }
+    inline void setAccent (juce::Colour c) { currentAccent = c; }
+    inline void setAccentHex (juce::uint32 hex) { currentAccent = juce::Colour (hex); }
     const juce::Colour error       { 0xffff4444 };
     const juce::Colour success     { 0xfff2c4ce };
     const juce::Colour warning     { 0xffffaa00 };

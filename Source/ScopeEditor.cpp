@@ -3,6 +3,7 @@
 ScopeEditor::ScopeEditor (ScopeProcessor& p) : AudioProcessorEditor (&p), proc (p)
 {
     setLookAndFeel (&laf);
+    JP::setAccentHex (0xffa78bfa);
     setSize (600, 500);
     setResizable (true, true);
     setResizeLimits (400, 300, 1200, 900);

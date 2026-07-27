@@ -3,6 +3,7 @@
 ReflexEditor::ReflexEditor (ReflexProcessor& p) : AudioProcessorEditor (&p), proc (p)
 {
     setLookAndFeel (&laf);
+    JP::setAccentHex (0xff69db7c);
     setSize (700, 400);
     setResizable (true, true);
     setResizeLimits (500, 300, 1200, 700);
