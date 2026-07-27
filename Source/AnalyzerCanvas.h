@@ -64,6 +64,7 @@ public:
         float gainDb;
         float q     { 1.0f };
         bool  active { true };
+        bool  preview { false };  // ghosted until APPLY EQ commits
     };
     std::vector<EQPoint>& getEQPoints() { return eqPoints; }
 

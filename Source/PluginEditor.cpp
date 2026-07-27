@@ -63,12 +63,57 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     {
         analyzer.getEQPoints().clear();
         for (auto& s : lastEQSuggestions)
-            analyzer.getEQPoints().push_back ({ s.freqHz, s.gainDb, s.q, true });
+            analyzer.getEQPoints().push_back ({ s.freqHz, s.gainDb, s.q, true, true });
         analyzer.repaint();
         addNodesButton.setVisible (false);
+        bypassEQButton.setVisible (false);
+        clearNodesButton.setVisible (true);
+        applyEQButton.setVisible (true);
+        resized();
     };
     addNodesButton.setVisible (false);
     addAndMakeVisible (addNodesButton);
+
+    // Bypass EQ  -  toggle the DSP chain on/off
+    bypassEQButton.setButtonText ("BYPASS");
+    bypassEQButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
+    bypassEQButton.setColour (juce::TextButton::textColourOffId, JP::text);
+    bypassEQButton.onClick = [this]
+    {
+        if (audioProcessor.isEQActive())
+        {
+            audioProcessor.clearEQ();
+            bypassEQButton.setButtonText ("BYPASSED");
+            bypassEQButton.setColour (juce::TextButton::textColourOffId, JP::accent().withAlpha (0.5f));
+            setStatus ("EQ BYPASSED");
+        }
+        else if (!lastEQSuggestions.empty())
+        {
+            audioProcessor.applyEQ (lastEQSuggestions);
+            bypassEQButton.setButtonText ("BYPASS");
+            bypassEQButton.setColour (juce::TextButton::textColourOffId, JP::text);
+            setStatus ("EQ ACTIVE");
+        }
+    };
+    bypassEQButton.setVisible (false);
+    addAndMakeVisible (bypassEQButton);
+
+    // Clear Nodes
+    clearNodesButton.setButtonText ("CLEAR");
+    clearNodesButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
+    clearNodesButton.setColour (juce::TextButton::textColourOffId, JP::text);
+    clearNodesButton.onClick = [this]
+    {
+        analyzer.getEQPoints().clear();
+        audioProcessor.clearEQ();
+        analyzer.repaint();
+        clearNodesButton.setVisible (false);
+        applyEQButton.setVisible (false);
+        bypassEQButton.setVisible (false);
+        resized();
+    };
+    clearNodesButton.setVisible (false);
+    addAndMakeVisible (clearNodesButton);
 
     // ── Analyzer canvas  -  center, multi-mode telemetry ───────────────────
     addAndMakeVisible (analyzer);
@@ -136,8 +181,10 @@ void MixMindEditor::resized()
     // Header
     auto header = b.removeFromTop (JP::headerH);
     titleLabel.setBounds   (header.withLeft (14).withWidth (300));
-    addNodesButton.setBounds (header.withLeft (getWidth() - 480).withWidth (110).withHeight (28).withY (6));
-    applyEQButton.setBounds (header.withLeft (getWidth() - 360).withWidth (130).withHeight (28).withY (6));
+    clearNodesButton.setBounds (header.withLeft (getWidth() - 630).withWidth (70).withHeight (28).withY (6));
+    bypassEQButton.setBounds (header.withLeft (getWidth() - 550).withWidth (80).withHeight (28).withY (6));
+    addNodesButton.setBounds (header.withLeft (getWidth() - 460).withWidth (100).withHeight (28).withY (6));
+    applyEQButton.setBounds (header.withLeft (getWidth() - 350).withWidth (120).withHeight (28).withY (6));
     licenseButton.setBounds (header.withLeft (getWidth() - 220).withWidth (180).withHeight (28).withY (6));
     statusLabel.setBounds  (header.withLeft (getWidth() - 240).withWidth (90));
 

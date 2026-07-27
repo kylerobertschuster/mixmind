@@ -233,29 +233,39 @@ void AnalyzerCanvas::mouseDown (const juce::MouseEvent& e)
     if (pos.x < plotLeft || pos.x > plotRight || pos.y < plotTop || pos.y > plotBottom)
         return;
 
-    // Convert mouse position to frequency and gain
+    // Double-click to delete nearest node
+    if (e.getNumberOfClicks() == 2)
+    {
+        for (auto it = eqPoints.begin(); it != eqPoints.end(); ++it)
+        {
+            float ptT = std::log10 (it->freqHz / 20.0f) / std::log10 (1000.0f);
+            float ptX = plotLeft + (plotRight - plotLeft) * ptT;
+            float ptY = plotBottom - (plotBottom - plotTop) * ((it->gainDb + 12.0f) / 24.0f);
+            if (std::abs (pos.x - ptX) < 16.0f && std::abs (pos.y - ptY) < 16.0f)
+            {
+                eqPoints.erase (it);
+                if (onEQChanged) onEQChanged();
+                repaint();
+                return;
+            }
+        }
+        return;
+    }
+
     float t = (pos.x - plotLeft) / (plotRight - plotLeft);
     float hz = 20.0f * std::pow (1000.0f, juce::jlimit (0.0f, 1.0f, t));
     float db = (1.0f - (pos.y - plotTop) / (plotBottom - plotTop)) * 24.0f - 12.0f;
 
-    // Check if clicking near an existing point to drag it
     for (auto& pt : eqPoints)
     {
         float ptT = std::log10 (pt.freqHz / 20.0f) / std::log10 (1000.0f);
         float ptX = plotLeft + (plotRight - plotLeft) * ptT;
         float ptY = plotBottom - (plotBottom - plotTop) * ((pt.gainDb + 12.0f) / 24.0f);
         if (std::abs (pos.x - ptX) < 12.0f && std::abs (pos.y - ptY) < 12.0f)
-        {
-            dragging = true;
-            return;
-        }
+        { dragging = true; return; }
     }
 
-    // Add new EQ point
-    EQPoint pt;
-    pt.freqHz = hz;
-    pt.gainDb = db;
-    eqPoints.push_back (pt);
+    eqPoints.push_back ({ hz, db, 1.0f, true, false });
     if (onEQChanged) onEQChanged();
     repaint();
 }
@@ -328,31 +338,43 @@ void AnalyzerCanvas::drawEQPoints (juce::Graphics& g)
     for (auto& pt : eqPoints)
     {
         if (!pt.active) continue;
+        bool isPreview = pt.preview;
         float t = std::log10 (pt.freqHz / 20.0f) / std::log10 (1000.0f);
         float x = plotLeft + (plotRight - plotLeft) * juce::jlimit (0.0f, 1.0f, t);
         float y = plotBottom - (plotBottom - plotTop) * ((pt.gainDb + 12.0f) / 24.0f);
 
+        float alpha = isPreview ? 0.6f : 1.0f;
+
         // Glow halo
-        g.setColour (JP::accent().withAlpha (0.35f));
+        g.setColour (JP::accent().withAlpha (0.35f * alpha));
         g.fillEllipse (x - 14, y - 14, 28, 28);
-        g.setColour (JP::accent().withAlpha (0.12f));
+        g.setColour (JP::accent().withAlpha (0.12f * alpha));
         g.fillEllipse (x - 18, y - 18, 36, 36);
 
-        // Solid fill
-        g.setColour (JP::accent());
-        g.fillEllipse (x - 5, y - 5, 10, 10);
-        g.setColour (JP::bg);
-        g.drawEllipse (x - 5, y - 5, 10, 10, 1.0f);
+        // Fill  -  dashed outline for preview, solid for committed
+        if (isPreview)
+        {
+            g.setColour (JP::accent().withAlpha (0.5f));
+            g.drawEllipse (x - 5, y - 5, 10, 10, 1.5f);
+            float dash[] = { 2.0f, 2.0f };
+            g.drawDashedLine (juce::Line<float> (x - 6, y, x + 6, y), dash, 2);
+        }
+        else
+        {
+            g.setColour (JP::accent());
+            g.fillEllipse (x - 5, y - 5, 10, 10);
+            g.setColour (JP::bg);
+            g.drawEllipse (x - 5, y - 5, 10, 10, 1.0f);
+        }
 
-        // Readouts: freq + gain + Q
+        // Readouts
         g.setFont (juce::FontOptions (fonts.mono, 8.0f, juce::Font::bold));
+        g.setColour (JP::text.withAlpha (alpha));
+        juce::String gainLabel = (pt.gainDb >= 0 ? "+" : "") + juce::String (pt.gainDb, 1) + "dB";
+        juce::String qLabel = "Q " + juce::String (pt.q, 1);
         juce::String label = pt.freqHz >= 1000
             ? juce::String (pt.freqHz / 1000.0f, 1) + "k"
             : juce::String ((int)pt.freqHz) + "Hz";
-        juce::String gainLabel = (pt.gainDb >= 0 ? "+" : "") + juce::String (pt.gainDb, 1) + "dB";
-        juce::String qLabel = "Q " + juce::String (pt.q, 1);
-
-        g.setColour (JP::text);
         g.drawText (label,    juce::Rectangle<float> (x - 22, y + 8,  44, 12), juce::Justification::centred, false);
         g.drawText (gainLabel,juce::Rectangle<float> (x - 22, y - 20, 44, 12), juce::Justification::centred, false);
         g.setFont (juce::FontOptions (fonts.mono, 7.0f, juce::Font::plain));

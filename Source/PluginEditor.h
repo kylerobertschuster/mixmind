@@ -33,6 +33,8 @@ private:
     juce::TextButton licenseButton { "LICENSE" };
     juce::TextButton applyEQButton { "APPLY EQ" };
     juce::TextButton addNodesButton { "ADD NODES" };
+    juce::TextButton bypassEQButton { "BYPASS" };
+    juce::TextButton clearNodesButton { "CLEAR" };
 
     // Panels
     AnalyzerCanvas analyzer;       // center — multi-mode telemetry display
