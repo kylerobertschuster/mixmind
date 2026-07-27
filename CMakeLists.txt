@@ -95,3 +95,87 @@ target_link_libraries(MixMind PRIVATE
 # Set these environment variables before running:
 #   export MIXMIND_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 #   export MIXMIND_NOTARIZE=true
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Scope — Goniometer / Phase Scope
+# ═══════════════════════════════════════════════════════════════════════════
+juce_add_plugin(Scope
+    VERSION                     1.0.0
+    COMPANY_NAME                "${MIXMIND_COMPANY}"
+    PLUGIN_MANUFACTURER_CODE    ${MIXMIND_MANUFACTURER}
+    PLUGIN_CODE                 Scop
+    FORMATS                     VST3 AU Standalone
+    PRODUCT_NAME                "Scope"
+    IS_SYNTH                    FALSE
+    NEEDS_MIDI_INPUT            FALSE
+    NEEDS_MIDI_OUTPUT           FALSE
+    IS_MIDI_EFFECT              FALSE
+    COPY_PLUGIN_AFTER_BUILD     TRUE
+    VST3_CATEGORIES             Tools
+    AU_MAIN_TYPE                kAudioUnitType_Effect
+)
+
+target_sources(Scope PRIVATE
+    Source/ScopeProcessor.cpp Source/ScopeProcessor.h
+    Source/ScopeEditor.cpp Source/ScopeEditor.h
+    Source/AudioAnalyzer.cpp Source/AudioAnalyzer.h
+    Source/LookAndFeel.h Source/LookAndFeel.cpp
+    Source/LicenseManager.cpp Source/LicenseManager.h
+    Source/HostTheme.cpp Source/HostTheme.h
+)
+
+target_compile_definitions(Scope PUBLIC
+    JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+    JUCE_DISPLAY_SPLASH_SCREEN=0
+    JUCE_REPORT_APP_USAGE=0
+)
+
+target_link_libraries(Scope PRIVATE
+    juce::juce_audio_utils juce::juce_audio_processors
+    juce::juce_gui_extra juce::juce_core juce::juce_dsp
+    juce::juce_recommended_config_flags juce::juce_recommended_lto_flags
+    juce::juce_recommended_warning_flags
+)
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Meter — LUFS / Dynamics Metering
+# ═══════════════════════════════════════════════════════════════════════════
+juce_add_plugin(Meter
+    VERSION                     1.0.0
+    COMPANY_NAME                "${MIXMIND_COMPANY}"
+    PLUGIN_MANUFACTURER_CODE    ${MIXMIND_MANUFACTURER}
+    PLUGIN_CODE                 Metr
+    FORMATS                     VST3 AU Standalone
+    PRODUCT_NAME                "Meter"
+    IS_SYNTH                    FALSE
+    NEEDS_MIDI_INPUT            FALSE
+    NEEDS_MIDI_OUTPUT           FALSE
+    IS_MIDI_EFFECT              FALSE
+    COPY_PLUGIN_AFTER_BUILD     TRUE
+    VST3_CATEGORIES             Tools
+    AU_MAIN_TYPE                kAudioUnitType_Effect
+)
+
+target_sources(Meter PRIVATE
+    Source/MeterProcessor.cpp Source/MeterProcessor.h
+    Source/MeterEditor.cpp Source/MeterEditor.h
+    Source/AudioAnalyzer.cpp Source/AudioAnalyzer.h
+    Source/LookAndFeel.h Source/LookAndFeel.cpp
+    Source/LicenseManager.cpp Source/LicenseManager.h
+    Source/HostTheme.cpp Source/HostTheme.h
+)
+
+target_compile_definitions(Meter PUBLIC
+    JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+    JUCE_DISPLAY_SPLASH_SCREEN=0
+    JUCE_REPORT_APP_USAGE=0
+)
+
+target_link_libraries(Meter PRIVATE
+    juce::juce_audio_utils juce::juce_audio_processors
+    juce::juce_gui_extra juce::juce_core juce::juce_dsp
+    juce::juce_recommended_config_flags juce::juce_recommended_lto_flags
+    juce::juce_recommended_warning_flags
+)
