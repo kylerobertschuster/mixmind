@@ -179,3 +179,45 @@ target_link_libraries(Meter PRIVATE
     juce::juce_recommended_config_flags juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
 )
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  EQT — Parametric EQ
+# ═══════════════════════════════════════════════════════════════════════════
+juce_add_plugin(EQT
+    VERSION                     1.0.0
+    COMPANY_NAME                "${MIXMIND_COMPANY}"
+    PLUGIN_MANUFACTURER_CODE    ${MIXMIND_MANUFACTURER}
+    PLUGIN_CODE                 Equt
+    FORMATS                     VST3 AU Standalone
+    PRODUCT_NAME                "EQT"
+    IS_SYNTH                    FALSE
+    NEEDS_MIDI_INPUT            FALSE
+    NEEDS_MIDI_OUTPUT           FALSE
+    IS_MIDI_EFFECT              FALSE
+    COPY_PLUGIN_AFTER_BUILD     TRUE
+    VST3_CATEGORIES             Tools
+    AU_MAIN_TYPE                kAudioUnitType_Effect
+)
+
+target_sources(EQT PRIVATE
+    Source/EQTProcessor.cpp Source/EQTProcessor.h
+    Source/EQTEditor.cpp Source/EQTEditor.h
+    Source/AudioAnalyzer.cpp Source/AudioAnalyzer.h
+    Source/LookAndFeel.h Source/LookAndFeel.cpp
+    Source/LicenseManager.cpp Source/LicenseManager.h
+    Source/HostTheme.cpp Source/HostTheme.h
+)
+
+target_compile_definitions(EQT PUBLIC
+    JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+    JUCE_DISPLAY_SPLASH_SCREEN=0
+    JUCE_REPORT_APP_USAGE=0
+)
+
+target_link_libraries(EQT PRIVATE
+    juce::juce_audio_utils juce::juce_audio_processors
+    juce::juce_gui_extra juce::juce_core juce::juce_dsp
+    juce::juce_recommended_config_flags juce::juce_recommended_lto_flags
+    juce::juce_recommended_warning_flags
+)
