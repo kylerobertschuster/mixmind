@@ -55,6 +55,21 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     applyEQButton.setVisible (false);
     addAndMakeVisible (applyEQButton);
 
+    // Add Nodes  -  auto-place AI EQ suggestions on spectrum
+    addNodesButton.setButtonText ("ADD NODES");
+    addNodesButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
+    addNodesButton.setColour (juce::TextButton::textColourOffId, JP::text);
+    addNodesButton.onClick = [this]
+    {
+        analyzer.getEQPoints().clear();
+        for (auto& s : lastEQSuggestions)
+            analyzer.getEQPoints().push_back ({ s.freqHz, s.gainDb, s.q, true });
+        analyzer.repaint();
+        addNodesButton.setVisible (false);
+    };
+    addNodesButton.setVisible (false);
+    addAndMakeVisible (addNodesButton);
+
     // ── Analyzer canvas  -  center, multi-mode telemetry ───────────────────
     addAndMakeVisible (analyzer);
 
@@ -121,6 +136,7 @@ void MixMindEditor::resized()
     // Header
     auto header = b.removeFromTop (JP::headerH);
     titleLabel.setBounds   (header.withLeft (14).withWidth (300));
+    addNodesButton.setBounds (header.withLeft (getWidth() - 480).withWidth (110).withHeight (28).withY (6));
     applyEQButton.setBounds (header.withLeft (getWidth() - 360).withWidth (130).withHeight (28).withY (6));
     licenseButton.setBounds (header.withLeft (getWidth() - 220).withWidth (180).withHeight (28).withY (6));
     statusLabel.setBounds  (header.withLeft (getWidth() - 240).withWidth (90));
@@ -251,12 +267,12 @@ void MixMindEditor::handleUserMessage (const juce::String& text)
                     if (display.isEmpty()) display = result.text;
                     analyzer.setAIAnalysis (analysis);
 
-                    // Show Apply EQ button if suggestions exist
+                    // Show Apply EQ + Add Nodes buttons
                     if (!analysis.eqSuggestions.empty())
                     {
                         lastEQSuggestions = analysis.eqSuggestions;
                         applyEQButton.setVisible (true);
-                        applyEQButton.setButtonText ("APPLY EQ");
+                        addNodesButton.setVisible (true);
                         resized();
                     }
                 }

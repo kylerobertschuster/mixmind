@@ -56,6 +56,7 @@ public:
 
     // Callback when user adds/removes EQ points
     std::function<void()> onEQChanged;
+    std::vector<EQPoint>& getEQPoints() { return eqPoints; }
 
 private:
     void timerCallback() override;

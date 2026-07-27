@@ -32,6 +32,7 @@ private:
     juce::Label      statusLabel;
     juce::TextButton licenseButton { "LICENSE" };
     juce::TextButton applyEQButton { "APPLY EQ" };
+    juce::TextButton addNodesButton { "ADD NODES" };
 
     // Panels
     AnalyzerCanvas analyzer;       // center — multi-mode telemetry display
