@@ -221,3 +221,21 @@ target_link_libraries(EQT PRIVATE
     juce::juce_recommended_config_flags juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
 )
+
+juce_add_plugin(Reflex
+    VERSION 1.0.0 COMPANY_NAME "${MIXMIND_COMPANY}"
+    PLUGIN_MANUFACTURER_CODE ${MIXMIND_MANUFACTURER} PLUGIN_CODE Rflx
+    FORMATS VST3 AU Standalone PRODUCT_NAME "Reflex"
+    IS_SYNTH FALSE NEEDS_MIDI_INPUT FALSE NEEDS_MIDI_OUTPUT FALSE
+    IS_MIDI_EFFECT FALSE COPY_PLUGIN_AFTER_BUILD TRUE
+    VST3_CATEGORIES Tools AU_MAIN_TYPE kAudioUnitType_Effect
+)
+target_sources(Reflex PRIVATE
+    Source/ReflexProcessor.cpp Source/ReflexProcessor.h
+    Source/ReflexEditor.cpp Source/ReflexEditor.h
+    Source/LookAndFeel.h Source/LookAndFeel.cpp
+    Source/LicenseManager.cpp Source/LicenseManager.h
+    Source/HostTheme.cpp Source/HostTheme.h
+)
+target_compile_definitions(Reflex PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0 JUCE_DISPLAY_SPLASH_SCREEN=0 JUCE_REPORT_APP_USAGE=0)
+target_link_libraries(Reflex PRIVATE juce::juce_audio_utils juce::juce_audio_processors juce::juce_gui_extra juce::juce_core juce::juce_dsp juce::juce_recommended_config_flags juce::juce_recommended_lto_flags juce::juce_recommended_warning_flags)
