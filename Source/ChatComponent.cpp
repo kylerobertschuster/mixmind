@@ -86,10 +86,10 @@ void MessageBubble::paint (juce::Graphics& g)
 
     if (thinking)
     {
-        // Animated dots (paint-only approximation — actual animation needs a Timer)
+        // Animated dots (paint-only approximation  -  actual animation needs a Timer)
         g.setColour (JP::textMuted);
         g.setFont (bodyFont);
-        g.drawText ("Analyzing your session…", textArea, juce::Justification::centredLeft);
+        g.drawText ("Analyzing your session...", textArea, juce::Justification::centredLeft);
 
         // Three dots
         for (int i = 0; i < 3; ++i)
@@ -101,7 +101,7 @@ void MessageBubble::paint (juce::Graphics& g)
     }
     else
     {
-        // Render content — split into tip blocks (lines starting with digit or →)
+        // Render content  -  split into tip blocks (lines starting with digit or ->)
         auto lines = juce::StringArray::fromLines (content);
         int  yPos  = textArea.getY();
         int  xL    = textArea.getX();
@@ -112,9 +112,9 @@ void MessageBubble::paint (juce::Graphics& g)
             auto line = rawLine.trim();
             if (line.isEmpty()) { yPos += 8; continue; }
 
-            // Detect tip lines: "1." "2." "→" "•"
+            // Detect tip lines: "1." "2." "->" "•"
             bool isTip = (line.length() > 2 &&
-                          (juce::CharacterFunctions::isDigit (line[0]) || line.startsWith ("->") || line.startsWith ("→") || line.startsWith ("•")));
+                          (juce::CharacterFunctions::isDigit (line[0]) || line.startsWith ("->") || line.startsWith ("->") || line.startsWith ("•")));
 
             if (isTip)
             {
@@ -250,7 +250,7 @@ ChatComponent::ChatComponent()
     inputBox.setReturnKeyStartsNewLine (false);
     inputBox.setScrollbarsShown (false);
     inputBox.setFont (juce::Font (juce::FontOptions ("Helvetica Neue", 13.0f, juce::Font::plain)));
-    inputBox.setTextToShowWhenEmpty ("Ask about your mix…",
+    inputBox.setTextToShowWhenEmpty ("Ask about your mix...",
                                      JP::textDim);
     inputBox.addListener (this);
     addAndMakeVisible (inputBox);

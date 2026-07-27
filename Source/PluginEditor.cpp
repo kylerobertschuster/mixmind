@@ -33,7 +33,7 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     addAndMakeVisible (licenseButton);
     updateLicenseDisplay();
 
-    // Apply EQ button — visible when AI returns EQ suggestions
+    // Apply EQ button  -  visible when AI returns EQ suggestions
     applyEQButton.setButtonText ("APPLY EQ");
     applyEQButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
     applyEQButton.setColour (juce::TextButton::textColourOffId, JP::text);
@@ -48,21 +48,21 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
         else if (!lastEQSuggestions.empty())
         {
             audioProcessor.applyEQ (lastEQSuggestions);
-            applyEQButton.setButtonText ("EQ ON — CLICK TO BYPASS");
+            applyEQButton.setButtonText ("EQ ON  -  CLICK TO BYPASS");
             setStatus ("EQ ACTIVE");
         }
     };
     applyEQButton.setVisible (false);
     addAndMakeVisible (applyEQButton);
 
-    // ── Analyzer canvas — center, multi-mode telemetry ───────────────────
+    // ── Analyzer canvas  -  center, multi-mode telemetry ───────────────────
     addAndMakeVisible (analyzer);
 
-    // ── Straw panel — right ──────────────────────────────────────────────
+    // ── Straw panel  -  right ──────────────────────────────────────────────
     strawPanel.onQuickPrompt = [this] { handleUserMessage (strawPanel.quickPromptText); };
     addAndMakeVisible (strawPanel);
 
-    // ── Chat — bottom ────────────────────────────────────────────────────
+    // ── Chat  -  bottom ────────────────────────────────────────────────────
     chatComponent.onSendMessage = [this] (const juce::String& t) { handleUserMessage (t); };
     addAndMakeVisible (chatComponent);
 
@@ -222,9 +222,9 @@ void MixMindEditor::handleUserMessage (const juce::String& text)
 
     systemPrompt +=
         "You are JuicePipe Core, an expert C++ DSP audio analyzer.\n"
-        "Cross-reference: if phase_correlation < 0 and highs are strong → phase cancellation.\n"
-        "If crest_factor < 6dB and true_peak_db > 0 → over-compression/clipping.\n"
-        "If sub_bass_energy is high but sub_bass_correlation < 0.85 → low-end phase instability.\n\n"
+        "Cross-reference: if phase_correlation < 0 and highs are strong -> phase cancellation.\n"
+        "If crest_factor < 6dB and true_peak_db > 0 -> over-compression/clipping.\n"
+        "If sub_bass_energy is high but sub_bass_correlation < 0.85 -> low-end phase instability.\n\n"
         "Respond STRICTLY in JSON:\n"
         "{\"summary\":\"...\",\"status_severity\":\"info|warning|critical\","
         "\"eq_suggestions\":[{\"freq_hz\":250,\"recommended_gain_db\":-2.0,\"recommended_q\":1.2,"

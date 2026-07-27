@@ -53,7 +53,7 @@ void AnalyzerCanvas::updateTelemetry (const juce::String& json)
         else
             val = highE + (midE * 0.15f - highE) * ((hz - 2000.0f) / 18000.0f);
 
-        // Add variation based on frequency and frame — makes it look like real FFT
+        // Add variation based on frequency and frame  -  makes it look like real FFT
         float noise = std::sin (hz * 0.037f + (float)i * 0.073f)
                     + std::sin (hz * 0.013f + (float)i * 0.037f) * 0.6f
                     + std::sin (hz * 0.007f) * 0.3f;
@@ -115,7 +115,7 @@ void AnalyzerCanvas::paint (juce::Graphics& g)
         auto fonts = HostTheme::getFonts();
         g.setFont (juce::FontOptions (fonts.ui, 11.0f, juce::Font::plain));
         g.setColour (JP::textDim.withAlpha (0.4f));
-        g.drawText ("No signal — press play in your DAW",
+        g.drawText ("No signal  -  press play in your DAW",
                     juce::Rectangle<float> (plotLeft, plotTop, plotRight - plotLeft, plotBottom - plotTop),
                     juce::Justification::centred, false);
     }
@@ -362,7 +362,7 @@ void AnalyzerCanvas::drawSpectrumMode (juce::Graphics& g)
 {
     float w = plotRight - plotLeft;
     float h = plotBottom - plotTop;
-    auto curveColor = JP::text;
+    auto curveColor = JP::accent();
 
     // Gradient fill under curve
     juce::Path fillPath;
@@ -377,11 +377,11 @@ void AnalyzerCanvas::drawSpectrumMode (juce::Graphics& g)
     fillPath.closeSubPath();
 
     g.setGradientFill (juce::ColourGradient (
-        JP::text.withAlpha (0.22f), 0, plotTop,
-        JP::text.withAlpha (0.01f), 0, plotBottom, false));
+        JP::accent().withAlpha (0.22f), 0, plotTop,
+        JP::accent().withAlpha (0.01f), 0, plotBottom, false));
     g.fillPath (fillPath);
 
-    // Spectrum curve — thick with glow
+    // Spectrum curve  -  thick with glow
     juce::Path curve;
     curve.startNewSubPath (plotLeft, plotBottom - h * fftSmooth[0]);
     for (int i = 1; i < kNumBins; ++i)
@@ -390,9 +390,9 @@ void AnalyzerCanvas::drawSpectrumMode (juce::Graphics& g)
         float y = plotBottom - h * fftSmooth[i];
         curve.lineTo (x, y);
     }
-    g.setColour (JP::text.withAlpha (0.22f));
+    g.setColour (JP::accent().withAlpha (0.22f));
     g.strokePath (curve, juce::PathStrokeType (3.0f));
-    g.setColour (JP::text.withAlpha (0.85f));
+    g.setColour (JP::accent().withAlpha (0.85f));
     g.strokePath (curve, juce::PathStrokeType (1.2f));
 
     // Peak hold trail (lighter, half-opacity)
@@ -410,7 +410,7 @@ void AnalyzerCanvas::drawSpectrumMode (juce::Graphics& g)
         float y = plotBottom - h * peakHold[i];
         peakPath.lineTo (x, y);
     }
-    g.setColour (JP::text.withAlpha (0.18f));
+    g.setColour (JP::accent().withAlpha (0.18f));
     g.strokePath (peakPath, juce::PathStrokeType (0.8f));
 
     // Freq labels
@@ -627,8 +627,8 @@ void AnalyzerCanvas::drawEQCurve (juce::Graphics& g)
         if (!started) { curve.startNewSubPath (x, y); started = true; }
         else curve.lineTo (x, y);
     }
-    g.setColour (JP::text.withAlpha (0.20f));
+    g.setColour (JP::accent().withAlpha (0.20f));
     g.strokePath (curve, juce::PathStrokeType (1.5f));
-    g.setColour (JP::text.withAlpha (0.08f));
+    g.setColour (JP::accent().withAlpha (0.08f));
     g.strokePath (curve, juce::PathStrokeType (3.5f));
 }

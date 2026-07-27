@@ -4,22 +4,20 @@
 
 namespace JP
 {
-    // Powder pink background, jet black text
-    const juce::Colour bg          { 0xfff0c4d4 };
-    const juce::Colour surface     { 0xffe8b8ca };
-    const juce::Colour surfaceRaised { 0xffdcacc0 };
-    const juce::Colour border      { 0x1a080809 };
-    const juce::Colour borderSoft  { 0x0f080809 };
-    const juce::Colour text        { 0xff080809 };
-    const juce::Colour textMuted   { 0x73080809 };
-    const juce::Colour textDim     { 0x2e080809 };
-    inline juce::Colour accent()   { return juce::Colour (0xff080809); }
-    inline juce::Colour accentBg() { return juce::Colour (0x12080809); }
-    const juce::Colour error       { 0xffcc0000 };
-    const juce::Colour success     { 0xff080809 };
-    const juce::Colour warning     { 0xffcc5500 };
-    const juce::Colour glass       { 0x08080809 };
-    const juce::Colour glassHighlight { 0x12080809 };
+    // Dark pro-audio chassis with powder pink accents
+    const juce::Colour bg          { 0xff0b0b0e };
+    const juce::Colour surface     { 0xff141418 };
+    const juce::Colour surfaceRaised { 0xff1a1a20 };
+    const juce::Colour border      { 0x1ff2c4ce };
+    const juce::Colour borderSoft  { 0x0ff2c4ce };
+    const juce::Colour text        { 0xffffffff };
+    const juce::Colour textMuted   { 0xffa0a0aa };
+    const juce::Colour textDim     { 0xff555560 };
+    inline juce::Colour accent()   { return juce::Colour (0xfff2c4ce); }
+    inline juce::Colour accentBg() { return juce::Colour (0x18f2c4ce); }
+    const juce::Colour error       { 0xffff4444 };
+    const juce::Colour success     { 0xfff2c4ce };
+    const juce::Colour warning     { 0xffffaa00 };
     constexpr int headerH  = 40;
     constexpr int sidebarW = 220;
     constexpr int editorW  = 1050;
