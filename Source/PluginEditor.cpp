@@ -115,6 +115,21 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     clearNodesButton.setVisible (false);
     addAndMakeVisible (clearNodesButton);
 
+    // Meter toggle button
+    meterToggleButton.setButtonText ("METERS");
+    meterToggleButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
+    meterToggleButton.setColour (juce::TextButton::textColourOffId, JP::text);
+    meterToggleButton.onClick = [this]
+    {
+        juiceBox.setCollapsed (!juiceBox.isCollapsed());
+        resized();
+        repaint();
+    };
+    addAndMakeVisible (meterToggleButton);
+
+    // ── Juice box meter panel  -  left ──────────────────────────────────
+    addAndMakeVisible (juiceBox);
+
     // ── Analyzer canvas  -  center, multi-mode telemetry ───────────────────
     addAndMakeVisible (analyzer);
 
@@ -181,7 +196,8 @@ void MixMindEditor::resized()
     // Header
     auto header = b.removeFromTop (JP::headerH);
     titleLabel.setBounds   (header.withLeft (14).withWidth (300));
-    clearNodesButton.setBounds (header.withLeft (getWidth() - 630).withWidth (70).withHeight (28).withY (6));
+    meterToggleButton.setBounds (header.withLeft (getWidth() - 720).withWidth (70).withHeight (28).withY (6));
+    clearNodesButton.setBounds (header.withLeft (getWidth() - 640).withWidth (70).withHeight (28).withY (6));
     bypassEQButton.setBounds (header.withLeft (getWidth() - 550).withWidth (80).withHeight (28).withY (6));
     addNodesButton.setBounds (header.withLeft (getWidth() - 460).withWidth (100).withHeight (28).withY (6));
     applyEQButton.setBounds (header.withLeft (getWidth() - 350).withWidth (120).withHeight (28).withY (6));
@@ -191,6 +207,10 @@ void MixMindEditor::resized()
     // Right: presets panel
     auto sidebar = b.removeFromRight (JP::sidebarW);
     strawPanel.setBounds (sidebar);
+
+    // Left: juice box meter panel
+    auto meterArea = b.removeFromLeft (juiceBox.isCollapsed() ? 48 : 180);
+    juiceBox.setBounds (meterArea);
 
     // Split remaining space: analyzer (top 55%) / chat (bottom 45%)
     auto chatArea = b.removeFromBottom ((int)(b.getHeight() * 0.45f));
@@ -353,8 +373,10 @@ void MixMindEditor::timerCallback()
 {
     ++dotPhase;
 
-    // Feed analyzer with live telemetry every frame
-    analyzer.updateTelemetry (audioProcessor.audioAnalyzer.getAnalysisAsJson());
+    // Feed analyzer and juice box with live telemetry every frame
+    auto json = audioProcessor.audioAnalyzer.getAnalysisAsJson();
+    analyzer.updateTelemetry (json);
+    juiceBox.updateFromJson (json);
 
     if (waitingForReply) repaint();
 }

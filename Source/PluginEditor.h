@@ -6,6 +6,7 @@
 #include "ContextPanel.h"
 #include "PipeVisualizer.h"
 #include "AnalyzerCanvas.h"
+#include "JuiceBoxMeter.h"
 #include "PresetManager.h"
 #include "LookAndFeel.h"
 
@@ -35,8 +36,10 @@ private:
     juce::TextButton addNodesButton { "ADD NODES" };
     juce::TextButton bypassEQButton { "BYPASS" };
     juce::TextButton clearNodesButton { "CLEAR" };
+    juce::TextButton meterToggleButton { "METERS" };
 
     // Panels
+    JuiceBoxMeter  juiceBox;       // left — collapsible meter panel
     AnalyzerCanvas analyzer;       // center — multi-mode telemetry display
     ChatComponent  chatComponent;  // bottom — AI conversation
     StrawPanel     strawPanel;     // right — presets & controls

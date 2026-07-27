@@ -71,6 +71,8 @@ target_sources(MixMind PRIVATE
     Source/TelemetryData.h
     Source/AnalyzerCanvas.cpp
     Source/AnalyzerCanvas.h
+    Source/JuiceBoxMeter.cpp
+    Source/JuiceBoxMeter.h
 )
 
 # ── Compile definitions ───────────────────────────────────────────────────
