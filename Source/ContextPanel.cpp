@@ -37,7 +37,7 @@ StrawPanel::StrawPanel()
 
     // ── Signal chain ──────────────────────────────────────────────────────
     addSectionLabel (chainLabel);
-    chainText.setFont (juce::Font (juce::FontOptions ("Helvetica Neue", 10.0f, juce::Font::plain)));
+    chainText.setFont (juce::Font (juce::FontOptions ("Helvetica Neue", 11.0f, juce::Font::bold)));
     chainText.setColour (juce::Label::textColourId, JP::textMuted);
     chainText.setJustificationType (juce::Justification::topLeft);
     updateChain();
@@ -102,6 +102,8 @@ void StrawPanel::resized()
 void StrawPanel::updateChain()
 {
     auto chain = presetManager.getTemplateChain();
+    chainText.setFont (juce::Font (juce::FontOptions ("Helvetica Neue", 11.0f, juce::Font::bold)));
+    chainText.setColour (juce::Label::textColourId, JP::textMuted);
     chainText.setText (chain.joinIntoString ("\n"), juce::dontSendNotification);
 }
 

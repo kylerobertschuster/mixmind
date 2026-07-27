@@ -31,11 +31,20 @@ juce::Typeface::Ptr JuicePipeLAF::getTypefaceForFont (const juce::Font&)
 void JuicePipeLAF::drawButtonBackground (juce::Graphics& g, juce::Button& btn, const juce::Colour&, bool o, bool d)
 {
     auto r = btn.getLocalBounds().toFloat().reduced (0.5f);
-    juce::Colour f = JP::surface;
-    if (d) f = JP::surfaceRaised; else if (o) f = JP::surfaceRaised;
-    g.setColour (f); g.fillRoundedRectangle (r, 3.0f);
-    g.setColour (o ? JP::text : JP::border);
-    g.drawRoundedRectangle (r, 3.0f, 1.0f);
+    juce::Colour f = JP::surfaceRaised;
+    if (d) f = JP::accentBg(); else if (o) f = JP::surfaceRaised.brighter (0.03f);
+    g.setColour (f); g.fillRoundedRectangle (r, 4.0f);
+    // Pill border — pink on hover
+    if (o)
+    {
+        g.setColour (JP::accent().withAlpha (0.4f));
+        g.drawRoundedRectangle (r, 4.0f, 1.0f);
+    }
+    else
+    {
+        g.setColour (JP::border);
+        g.drawRoundedRectangle (r, 4.0f, 0.5f);
+    }
 }
 
 void JuicePipeLAF::drawButtonText (juce::Graphics& g, juce::TextButton& b, bool o, bool)
