@@ -4,16 +4,9 @@
 #include "PluginProcessor.h"
 #include "ChatComponent.h"
 #include "ContextPanel.h"
-#include "PipeVisualizer.h"
 #include "AnalyzerCanvas.h"
-#include "JuiceBoxMeter.h"
-#include "PresetManager.h"
 #include "LookAndFeel.h"
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  MixMindEditor  — surgical telemetry layout
-//  Pipe visualizer (left) + Chat (center) + Presets panel (right)
-// ─────────────────────────────────────────────────────────────────────────────
 class MixMindEditor : public juce::AudioProcessorEditor,
                       private juce::Timer
 {
@@ -28,36 +21,26 @@ private:
     MixMindProcessor& audioProcessor;
     JuicePipeLAF      laf;
 
+    // Layout
+    AnalyzerCanvas analyzer;
+    ChatComponent  chatComponent;
+    StrawPanel     strawPanel;
+
     // Header
     juce::Label      titleLabel;
-    juce::Label      statusLabel;
     juce::TextButton licenseButton { "LICENSE" };
-    juce::TextButton applyEQButton { "APPLY EQ" };
-    juce::TextButton addNodesButton { "ADD NODES" };
-    juce::TextButton bypassEQButton { "BYPASS" };
-    juce::TextButton clearNodesButton { "CLEAR" };
-    juce::TextButton meterToggleButton { "METERS" };
 
-    // Panels
-    JuiceBoxMeter  juiceBox;       // left — collapsible meter panel
-    AnalyzerCanvas analyzer;       // center — multi-mode telemetry display
-    ChatComponent  chatComponent;  // bottom — AI conversation
-    StrawPanel     strawPanel;     // right — presets & controls
-
-    // Conversation
+    // Chat state
     std::vector<ChatMessage> history;
     MessageBubble*           thinkingBubble { nullptr };
     bool                     waitingForReply { false };
-    std::vector<EQSuggestion> lastEQSuggestions;
 
-    // Helpers
     void handleUserMessage (const juce::String& text);
-    void setStatus (const juce::String& text);
-    void timerCallback() override;
     void showLicenseDialog();
     void updateLicenseDisplay();
+    void timerCallback() override;
 
-    int  dotPhase { 0 };
+    int dotPhase { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixMindEditor)
 };

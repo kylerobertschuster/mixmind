@@ -1,143 +1,34 @@
 #include "PluginEditor.h"
 #include "LicenseManager.h"
-#include "HostTheme.h"
-#include "AIAnalysis.h"
 
 MixMindEditor::MixMindEditor (MixMindProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
     setLookAndFeel (&laf);
-    setSize (JP::editorW, JP::editorH);
+    setSize (1050, 680);
     setResizable (true, true);
-    setResizeLimits (900, 560, 1600, 1000);
+    setResizeLimits (700, 400, 1600, 1000);
 
-    auto fonts = HostTheme::getFonts();
-
-    // ── Header ───────────────────────────────────────────────────────────
-    titleLabel.setText ("JuicePipe  \xe2\x80\x94  MixMind", juce::dontSendNotification);
-    titleLabel.setFont (juce::FontOptions (fonts.heading, 12.0f, juce::Font::bold));
-    titleLabel.setColour (juce::Label::textColourId, JP::text.withAlpha (0.6f));
+    // Header
+    titleLabel.setText ("JuicePipe - MixMind", juce::dontSendNotification);
+    titleLabel.setFont (juce::FontOptions ("Helvetica Neue", 12.0f, juce::Font::bold));
+    titleLabel.setColour (juce::Label::textColourId, JP::text.withAlpha (0.5f));
     addAndMakeVisible (titleLabel);
 
-    statusLabel.setFont (juce::FontOptions (fonts.ui, 10.0f, juce::Font::plain));
-    statusLabel.setColour (juce::Label::textColourId, JP::textMuted);
-    statusLabel.setJustificationType (juce::Justification::right);
-    setStatus ("READY");
-    addAndMakeVisible (statusLabel);
-
-    // License button
-    licenseButton.setButtonText ("ENTER LICENSE KEY");
     licenseButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
     licenseButton.setColour (juce::TextButton::textColourOffId, JP::text);
     licenseButton.onClick = [this] { showLicenseDialog(); };
-    addAndMakeVisible (licenseButton);
     updateLicenseDisplay();
+    addAndMakeVisible (licenseButton);
 
-    // Apply EQ button  -  visible when AI returns EQ suggestions
-    applyEQButton.setButtonText ("APPLY EQ");
-    applyEQButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
-    applyEQButton.setColour (juce::TextButton::textColourOffId, JP::text);
-    applyEQButton.onClick = [this]
-    {
-        if (audioProcessor.isEQActive())
-        {
-            audioProcessor.clearEQ();
-            applyEQButton.setButtonText ("APPLY EQ");
-            setStatus ("EQ OFF");
-        }
-        else if (!lastEQSuggestions.empty())
-        {
-            audioProcessor.applyEQ (lastEQSuggestions);
-            applyEQButton.setButtonText ("EQ ON  -  CLICK TO BYPASS");
-            setStatus ("EQ ACTIVE");
-        }
-    };
-    applyEQButton.setVisible (false);
-    addAndMakeVisible (applyEQButton);
-
-    // Add Nodes  -  auto-place AI EQ suggestions on spectrum
-    addNodesButton.setButtonText ("ADD NODES");
-    addNodesButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
-    addNodesButton.setColour (juce::TextButton::textColourOffId, JP::text);
-    addNodesButton.onClick = [this]
-    {
-        analyzer.getEQPoints().clear();
-        for (auto& s : lastEQSuggestions)
-            analyzer.getEQPoints().push_back ({ s.freqHz, s.gainDb, s.q, true, true });
-        analyzer.repaint();
-        addNodesButton.setVisible (false);
-        bypassEQButton.setVisible (false);
-        clearNodesButton.setVisible (true);
-        applyEQButton.setVisible (true);
-        resized();
-    };
-    addNodesButton.setVisible (false);
-    addAndMakeVisible (addNodesButton);
-
-    // Bypass EQ  -  toggle the DSP chain on/off
-    bypassEQButton.setButtonText ("BYPASS");
-    bypassEQButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
-    bypassEQButton.setColour (juce::TextButton::textColourOffId, JP::text);
-    bypassEQButton.onClick = [this]
-    {
-        if (audioProcessor.isEQActive())
-        {
-            audioProcessor.clearEQ();
-            bypassEQButton.setButtonText ("BYPASSED");
-            bypassEQButton.setColour (juce::TextButton::textColourOffId, JP::accent().withAlpha (0.5f));
-            setStatus ("EQ BYPASSED");
-        }
-        else if (!lastEQSuggestions.empty())
-        {
-            audioProcessor.applyEQ (lastEQSuggestions);
-            bypassEQButton.setButtonText ("BYPASS");
-            bypassEQButton.setColour (juce::TextButton::textColourOffId, JP::text);
-            setStatus ("EQ ACTIVE");
-        }
-    };
-    bypassEQButton.setVisible (false);
-    addAndMakeVisible (bypassEQButton);
-
-    // Clear Nodes
-    clearNodesButton.setButtonText ("CLEAR");
-    clearNodesButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
-    clearNodesButton.setColour (juce::TextButton::textColourOffId, JP::text);
-    clearNodesButton.onClick = [this]
-    {
-        analyzer.getEQPoints().clear();
-        audioProcessor.clearEQ();
-        analyzer.repaint();
-        clearNodesButton.setVisible (false);
-        applyEQButton.setVisible (false);
-        bypassEQButton.setVisible (false);
-        resized();
-    };
-    clearNodesButton.setVisible (false);
-    addAndMakeVisible (clearNodesButton);
-
-    // Meter toggle button
-    meterToggleButton.setButtonText ("METERS");
-    meterToggleButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
-    meterToggleButton.setColour (juce::TextButton::textColourOffId, JP::text);
-    meterToggleButton.onClick = [this]
-    {
-        juiceBox.setCollapsed (!juiceBox.isCollapsed());
-        resized();
-        repaint();
-    };
-    addAndMakeVisible (meterToggleButton);
-
-    // ── Juice box meter panel  -  left ──────────────────────────────────
-    addAndMakeVisible (juiceBox);
-
-    // ── Analyzer canvas  -  center, multi-mode telemetry ───────────────────
+    // Spectrum
     addAndMakeVisible (analyzer);
 
-    // ── Straw panel  -  right ──────────────────────────────────────────────
+    // Presets sidebar
     strawPanel.onQuickPrompt = [this] { handleUserMessage (strawPanel.quickPromptText); };
     addAndMakeVisible (strawPanel);
 
-    // ── Chat  -  bottom ────────────────────────────────────────────────────
+    // Chat
     chatComponent.onSendMessage = [this] (const juce::String& t) { handleUserMessage (t); };
     addAndMakeVisible (chatComponent);
 
@@ -147,13 +38,8 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
         juce::Timer::callAfterDelay (500, [this] { showLicenseDialog(); });
 }
 
-MixMindEditor::~MixMindEditor()
-{
-    stopTimer();
-    setLookAndFeel (nullptr);
-}
+MixMindEditor::~MixMindEditor() { stopTimer(); setLookAndFeel (nullptr); }
 
-// ── Layout: header top, analyzer center, chat bottom, presets right ────────
 void MixMindEditor::paint (juce::Graphics& g)
 {
     g.fillAll (JP::bg);
@@ -161,72 +47,58 @@ void MixMindEditor::paint (juce::Graphics& g)
 
     // Header
     g.setColour (JP::surface);
-    g.fillRect (0.0f, 0.0f, w, (float)JP::headerH);
+    g.fillRect (juce::Rectangle<float> (0, 0, w, (float)JP::headerH));
     g.setColour (JP::border);
-    g.drawLine (0.0f, (float)JP::headerH, w, (float)JP::headerH, 1.0f);
+    g.drawLine (0, (float)JP::headerH, w, (float)JP::headerH, 1.0f);
 
-    // Glass highlight
-    g.setGradientFill (juce::ColourGradient (
-        JP::glassHighlight, 0.0f, 0.0f,
-        juce::Colours::transparentBlack, 0.0f, (float)JP::headerH, false));
-    g.fillRect (0.0f, 0.0f, w, (float)JP::headerH);
-
-    // Right sidebar divider
+    // Sidebar divider
     float sx = w - (float)JP::sidebarW;
     g.setColour (JP::border);
     g.drawLine (sx, (float)JP::headerH, sx, h, 0.5f);
 
     // Status dots
-    float dotY = JP::headerH * 0.5f, dotX = w - 50.0f;
-    float a = waitingForReply ? 0.3f + 0.7f * std::abs (std::sin ((float)dotPhase * 0.08f)) : 0.4f;
-    auto acc = HostTheme::getColors().accent;
-    g.setColour (waitingForReply ? acc.withAlpha (a) : JP::textDim);
-    g.fillEllipse (dotX, dotY - 3.0f, 6.0f, 6.0f);
+    float dy = JP::headerH * 0.5f, dx = w - 50.0f;
+    float a = waitingForReply ? 0.3f + 0.7f * std::abs(std::sin((float)dotPhase * 0.08f)) : 0.4f;
+    g.setColour (waitingForReply ? JP::accent().withAlpha(a) : JP::textDim);
+    g.fillEllipse (dx, dy - 3, 6, 6);
 
-    bool listening = !audioProcessor.audioAnalyzer.getAnalysisAsJson().contains ("-100");
-    float la = listening ? 0.3f + 0.7f * std::abs (std::sin ((float)dotPhase * 0.04f)) : 0.2f;
-    g.setColour (listening ? juce::Colours::cyan.withAlpha (la) : JP::textDim);
-    g.fillEllipse (dotX + 16.0f, dotY - 3.0f, 6.0f, 6.0f);
+    bool sig = audioProcessor.audioAnalyzer.getLufs() > -90.0f;
+    float la = sig ? 0.3f + 0.7f * std::abs(std::sin((float)dotPhase * 0.04f)) : 0.2f;
+    g.setColour (sig ? juce::Colours::cyan.withAlpha(la) : JP::textDim);
+    g.fillEllipse (dx + 16, dy - 3, 6, 6);
 }
 
 void MixMindEditor::resized()
 {
     auto b = getLocalBounds();
-
-    // Header
     auto header = b.removeFromTop (JP::headerH);
-    titleLabel.setBounds   (header.withLeft (14).withWidth (300));
-    meterToggleButton.setBounds (header.withLeft (getWidth() - 720).withWidth (70).withHeight (28).withY (6));
-    clearNodesButton.setBounds (header.withLeft (getWidth() - 640).withWidth (70).withHeight (28).withY (6));
-    bypassEQButton.setBounds (header.withLeft (getWidth() - 550).withWidth (80).withHeight (28).withY (6));
-    addNodesButton.setBounds (header.withLeft (getWidth() - 460).withWidth (100).withHeight (28).withY (6));
-    applyEQButton.setBounds (header.withLeft (getWidth() - 350).withWidth (120).withHeight (28).withY (6));
-    licenseButton.setBounds (header.withLeft (getWidth() - 220).withWidth (180).withHeight (28).withY (6));
-    statusLabel.setBounds  (header.withLeft (getWidth() - 240).withWidth (90));
+    titleLabel.setBounds (header.withLeft (14).withWidth (300));
+    licenseButton.setBounds (header.withLeft (getWidth() - 160).withWidth (130).withHeight (26).withY (7));
 
-    // Right: presets panel
     auto sidebar = b.removeFromRight (JP::sidebarW);
     strawPanel.setBounds (sidebar);
 
-    // Left: juice box meter panel
-    auto meterArea = b.removeFromLeft (juiceBox.isCollapsed() ? 48 : 180);
-    juiceBox.setBounds (meterArea);
-
-    // Split remaining space: analyzer (top 55%) / chat (bottom 45%)
-    auto chatArea = b.removeFromBottom ((int)(b.getHeight() * 0.45f));
+    auto chatArea = b.removeFromBottom ((int)(b.getHeight() * 0.42f));
     analyzer.setBounds (b);
     chatComponent.setBounds (chatArea);
 }
 
-// ── License dialog ────────────────────────────────────────────────────────
+void MixMindEditor::timerCallback()
+{
+    ++dotPhase;
+    analyzer.updateBins (audioProcessor.audioAnalyzer.getFFTBins(),
+                         AudioAnalyzer::numBins);
+    if (waitingForReply) repaint();
+}
+
+// ── License ──────────────────────────────────────────────────────────────
 void MixMindEditor::showLicenseDialog()
 {
     auto& lm = audioProcessor.getLicenseManager();
-
     juce::String msg;
     if (lm.isLicensed()) msg = "Licensed. Enter a new key:";
     else if (lm.getFreePromptsRemaining() > 0)
-        msg = juce::String (lm.getFreePromptsRemaining()) + " free prompts. Paste key:";
+        msg = juce::String(lm.getFreePromptsRemaining()) + " free prompts. Paste key:";
     else msg = "All free prompts used. Paste key:";
 
     auto* w = new juce::AlertWindow ("MixMind License", msg,
@@ -234,15 +106,11 @@ void MixMindEditor::showLicenseDialog()
     w->addTextEditor ("key", lm.getLicenseKey(), "MM-XXXXXXXXXXXXXXXX");
     w->addButton ("Activate", 1);
     w->addButton ("Cancel", 0);
-
     w->enterModalState (true,
-        juce::ModalCallbackFunction::create ([this, w] (int result)
-        {
-            if (result == 1)
-            {
+        juce::ModalCallbackFunction::create ([this, w] (int r) {
+            if (r == 1) {
                 auto key = w->getTextEditorContents ("key").trim();
-                if (key.isNotEmpty())
-                {
+                if (key.isNotEmpty()) {
                     audioProcessor.getLicenseManager().setLicenseKey (key);
                     audioProcessor.getApiClient().setLicenseKey (key);
                     updateLicenseDisplay();
@@ -250,133 +118,60 @@ void MixMindEditor::showLicenseDialog()
             }
             delete w;
         }));
-
     lm.markWelcomeShown();
 }
 
 void MixMindEditor::updateLicenseDisplay()
 {
     auto& lm = audioProcessor.getLicenseManager();
-    if (lm.isLicensed())
-    {
+    if (lm.isLicensed()) {
         licenseButton.setButtonText ("LICENSED");
-        licenseButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
-        licenseButton.setColour (juce::TextButton::textColourOffId, JP::text);
-    }
-    else
-    {
+        licenseButton.setColour (juce::TextButton::textColourOffId, JP::accent());
+    } else {
         auto r = lm.getFreePromptsRemaining();
-        licenseButton.setButtonText (juce::String (r) + " FREE  \xe2\x86\x92  ENTER KEY");
-        licenseButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
-        licenseButton.setColour (juce::TextButton::textColourOffId, JP::text);
+        licenseButton.setButtonText (juce::String(r) + " FREE - ENTER KEY");
+        licenseButton.setColour (juce::TextButton::textColourOffId, JP::warning);
     }
 }
 
-// ── Message handling ──────────────────────────────────────────────────────
+// ── Chat ─────────────────────────────────────────────────────────────────
 void MixMindEditor::handleUserMessage (const juce::String& text)
 {
-    if (waitingForReply) return;
-    if (text.trim().isEmpty()) return;
+    if (waitingForReply || text.trim().isEmpty()) return;
 
     auto& lm = audioProcessor.getLicenseManager();
     if (!lm.canPrompt()) { showLicenseDialog(); return; }
 
     chatComponent.addUserMessage (text);
     history.push_back ({ ChatMessage::Role::User, text });
-
-    thinkingBubble  = chatComponent.addAIThinking();
+    thinkingBubble = chatComponent.addAIThinking();
     waitingForReply = true;
     chatComponent.setInputEnabled (false);
-    setStatus ("THINKING");
     repaint();
 
-    // Build system prompt with AI Co-Pilot instructions
-    auto systemPrompt = strawPanel.buildSystemPrompt();
-    systemPrompt += "\n\n=== LIVE TELEMETRY ===\n";
-    systemPrompt += audioProcessor.audioAnalyzer.getAnalysisAsJson() + "\n\n";
-
-    // Include user's interactive EQ state
-    juce::String eqState = analyzer.getEQStateJson();
-    if (eqState != "[]")
-    {
-        systemPrompt += "EQ STATE (user has placed these interactive EQ points): " + eqState + "\n";
-        systemPrompt += "Consider these EQ points in your analysis. The user may want you to refine them.\n\n";
-    }
-
-    systemPrompt +=
-        "You are JuicePipe Core, an expert C++ DSP audio analyzer.\n"
-        "Cross-reference: if phase_correlation < 0 and highs are strong -> phase cancellation.\n"
-        "If crest_factor < 6dB and true_peak_db > 0 -> over-compression/clipping.\n"
-        "If sub_bass_energy is high but sub_bass_correlation < 0.85 -> low-end phase instability.\n\n"
-        "Respond STRICTLY in JSON:\n"
-        "{\"summary\":\"...\",\"status_severity\":\"info|warning|critical\","
-        "\"eq_suggestions\":[{\"freq_hz\":250,\"recommended_gain_db\":-2.0,\"recommended_q\":1.2,"
-        "\"filter_type\":\"Bell\",\"channel\":\"Mid\",\"reason\":\"...\"}],"
-        "\"visual_overlay_targets\":[{\"freq_start_hz\":200,\"freq_end_hz\":300,"
-        "\"label\":\"Mud\",\"color_hex\":\"#FF5555\"}],"
-        "\"phase_warning\":\"nullable\",\"routing_advice\":\"nullable\"}\n"
-        "JSON ONLY. No markdown, no conversation.";
+    juce::String systemPrompt =
+        "You are MixMind, an expert mixing engineer. "
+        "You receive real-time FFT spectrum data from a DAW plugin. "
+        "Give specific, actionable mixing advice. Cite frequencies and dB values. "
+        "Be direct. No filler.\n\n"
+        "=== LIVE TELEMETRY ===\n"
+        "LUFS: " + juce::String (audioProcessor.audioAnalyzer.getLufs(), 1) + "\n"
+        "Stereo width: " + juce::String (audioProcessor.audioAnalyzer.getStereoWidth(), 2) + "\n"
+        "Phase correlation: " + juce::String (audioProcessor.audioAnalyzer.getPhaseCorr(), 2) + "\n";
 
     audioProcessor.getApiClient().send (systemPrompt, history,
-        [this] (ApiClient::Result result)
-        {
+        [this] (ApiClient::Result result) {
             waitingForReply = false;
             chatComponent.setInputEnabled (true);
-
-            if (result.success)
-            {
-                // Parse structured AI response
-                auto analysis = AIAnalysis::fromJson (result.text);
-                juce::String display;
-                if (analysis.valid)
-                {
-                    display = analysis.toDisplayText();
-                    if (display.isEmpty()) display = result.text;
-                    analyzer.setAIAnalysis (analysis);
-
-                    // Show Apply EQ + Add Nodes buttons
-                    if (!analysis.eqSuggestions.empty())
-                    {
-                        lastEQSuggestions = analysis.eqSuggestions;
-                        applyEQButton.setVisible (true);
-                        addNodesButton.setVisible (true);
-                        resized();
-                    }
-                }
-                else
-                {
-                    display = result.text;
-                }
-
-                chatComponent.finalizeAI (thinkingBubble, display);
-                history.push_back ({ ChatMessage::Role::Assistant, display });
-                setStatus ("READY");
+            if (result.success) {
+                chatComponent.finalizeAI (thinkingBubble, result.text);
+                history.push_back ({ ChatMessage::Role::Assistant, result.text });
                 audioProcessor.getLicenseManager().recordPrompt();
                 updateLicenseDisplay();
-            }
-            else
-            {
+            } else {
                 chatComponent.finalizeAI (thinkingBubble, "Error: " + result.errorMessage);
-                setStatus ("ERROR");
             }
             thinkingBubble = nullptr;
             repaint();
         });
-}
-
-void MixMindEditor::setStatus (const juce::String& text)
-{
-    statusLabel.setText (text, juce::dontSendNotification);
-}
-
-void MixMindEditor::timerCallback()
-{
-    ++dotPhase;
-
-    // Feed analyzer and juice box with live telemetry every frame
-    auto json = audioProcessor.audioAnalyzer.getAnalysisAsJson();
-    analyzer.updateTelemetry (json);
-    juiceBox.updateFromJson (json);
-
-    if (waitingForReply) repaint();
 }

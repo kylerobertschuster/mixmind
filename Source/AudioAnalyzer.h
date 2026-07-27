@@ -12,43 +12,47 @@ public:
     void prepare (double sampleRate, int samplesPerBlock);
     void process (const juce::AudioBuffer<float>& buffer);
 
-    juce::String getAnalysisAsJson() const;
+    // Real FFT bin data (2048-point magnitude spectrum)
+    static constexpr int fftSize = 2048;
+    static constexpr int numBins = fftSize / 2;
+    const float* getFFTBins() const { return fftOutput; }
+
+    // Smoothed values for display
+    float getBassEnergy()  const { return bassEnergy; }
+    float getMidEnergy()   const { return midEnergy; }
+    float getHighEnergy()  const { return highEnergy; }
+    float getLufs()        const { return currentLufs; }
+    float getStereoWidth() const { return stereoWidth; }
+    float getPhaseCorr()   const { return phaseCorrelation; }
 
 private:
-    void pushNextSampleIntoFifo (float sampleL, float sampleR);
+    void pushNextSample (float l, float r);
     void performFFT();
 
-    static constexpr int fftOrder = 11; // 2048 points
-    static constexpr int fftSize  = 1 << fftOrder;
+    static constexpr int fftOrder = 11;
 
-    juce::dsp::FFT forwardFFT;
-    juce::dsp::WindowingFunction<float> window;
+    juce::dsp::FFT forwardFFT { fftOrder };
+    juce::dsp::WindowingFunction<float> window { fftSize, juce::dsp::WindowingFunction<float>::hann };
 
-    // Stereo FIFO for goniometer / phase correlation
-    float fifoL [fftSize];
-    float fifoR [fftSize];
-    float fftDataL [2 * fftSize];
-    float fftDataR [2 * fftSize];
-    int fifoIndex = 0;
-    bool nextFFTBlockReady = false;
+    float fifoL[fftSize] { 0 };
+    float fifoR[fftSize] { 0 };
+    float fftDataL[2 * fftSize] { 0 };
+    float fftDataR[2 * fftSize] { 0 };
+    int   fifoIdx { 0 };
+    bool  fftReady { false };
 
-    // Running analysis
-    float integratedLufs   { -60.0f };
-    float shortTermLufs    { -60.0f };
-    float truePeakDb       { -60.0f };
-    float crestFactor      { 0.0f };
-    float rmsLevel         { -60.0f };
+    // Smoothed output bins (exposed to UI)
+    float fftOutput[numBins] { 0 };
+    float fftSmooth[numBins] { 0 };
 
-    float stereoWidth      { 0.5f };
-    float phaseCorrelation { 1.0f };
-    float subBassCorrelation { 1.0f };
+    float bassEnergy    { 0 };
+    float midEnergy     { 0 };
+    float highEnergy    { 0 };
+    float currentLufs   { -60 };
+    float stereoWidth   { 0.5f };
+    float phaseCorrelation { 1 };
 
-    float bassEnergy    { 0.0f };
-    float subBassEnergy { 0.0f };
-    float midEnergy     { 0.0f };
-    float highEnergy    { 0.0f };
-
-    double sampleRate { 44100.0 };
+    double sampleRate { 44100 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioAnalyzer)
 };

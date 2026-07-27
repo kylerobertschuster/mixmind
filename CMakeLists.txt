@@ -62,17 +62,12 @@ target_sources(MixMind PRIVATE
     Source/LicenseManager.h
     Source/PresetManager.cpp
     Source/PresetManager.h
-    Source/PipeVisualizer.cpp
-    Source/PipeVisualizer.h
     Source/HostTheme.cpp
     Source/HostTheme.h
     Source/AIAnalysis.cpp
     Source/AIAnalysis.h
-    Source/TelemetryData.h
     Source/AnalyzerCanvas.cpp
     Source/AnalyzerCanvas.h
-    Source/JuiceBoxMeter.cpp
-    Source/JuiceBoxMeter.h
 )
 
 # ── Compile definitions ───────────────────────────────────────────────────
