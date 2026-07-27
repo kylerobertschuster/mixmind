@@ -323,6 +323,8 @@ void AnalyzerCanvas::drawEQPoints (juce::Graphics& g)
     if (currentMode != AnalyzerMode::Spectrum && currentMode != AnalyzerMode::AICoPilot)
         return;
 
+    auto fonts = HostTheme::getFonts();
+
     for (auto& pt : eqPoints)
     {
         if (!pt.active) continue;
@@ -330,28 +332,52 @@ void AnalyzerCanvas::drawEQPoints (juce::Graphics& g)
         float x = plotLeft + (plotRight - plotLeft) * juce::jlimit (0.0f, 1.0f, t);
         float y = plotBottom - (plotBottom - plotTop) * ((pt.gainDb + 12.0f) / 24.0f);
 
-        // Glow circle
-        g.setColour (accent.withAlpha (0.25f));
-        g.fillEllipse (x - 10, y - 10, 20, 20);
+        // Glow halo
+        g.setColour (JP::accent().withAlpha (0.35f));
+        g.fillEllipse (x - 14, y - 14, 28, 28);
+        g.setColour (JP::accent().withAlpha (0.12f));
+        g.fillEllipse (x - 18, y - 18, 36, 36);
 
-        // Solid dot
-        g.setColour (accent);
+        // Solid fill
+        g.setColour (JP::accent());
         g.fillEllipse (x - 5, y - 5, 10, 10);
+        g.setColour (JP::bg);
+        g.drawEllipse (x - 5, y - 5, 10, 10, 1.0f);
 
-        // Frequency label
-        auto fonts = HostTheme::getFonts();
+        // Readouts: freq + gain + Q
         g.setFont (juce::FontOptions (fonts.mono, 8.0f, juce::Font::bold));
         juce::String label = pt.freqHz >= 1000
             ? juce::String (pt.freqHz / 1000.0f, 1) + "k"
             : juce::String ((int)pt.freqHz) + "Hz";
-        g.setColour (JP::text);
-        g.drawText (label, juce::Rectangle<float> (x - 20, y + 8, 40, 12),
-                    juce::Justification::centred, false);
-
-        // Gain label
         juce::String gainLabel = (pt.gainDb >= 0 ? "+" : "") + juce::String (pt.gainDb, 1) + "dB";
-        g.drawText (gainLabel, juce::Rectangle<float> (x - 20, y - 20, 40, 12),
-                    juce::Justification::centred, false);
+        juce::String qLabel = "Q " + juce::String (pt.q, 1);
+
+        g.setColour (JP::text);
+        g.drawText (label,    juce::Rectangle<float> (x - 22, y + 8,  44, 12), juce::Justification::centred, false);
+        g.drawText (gainLabel,juce::Rectangle<float> (x - 22, y - 20, 44, 12), juce::Justification::centred, false);
+        g.setFont (juce::FontOptions (fonts.mono, 7.0f, juce::Font::plain));
+        g.setColour (JP::textMuted);
+        g.drawText (qLabel,   juce::Rectangle<float> (x - 22, y - 30, 44, 10), juce::Justification::centred, false);
+    }
+}
+
+void AnalyzerCanvas::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel)
+{
+    if (eqPoints.empty()) return;
+    auto pos = e.position;
+    for (auto& pt : eqPoints)
+    {
+        float ptT = std::log10 (pt.freqHz / 20.0f) / std::log10 (1000.0f);
+        float ptX = plotLeft + (plotRight - plotLeft) * ptT;
+        float ptY = plotBottom - (plotBottom - plotTop) * ((pt.gainDb + 12.0f) / 24.0f);
+        if (std::abs (pos.x - ptX) < 20.0f && std::abs (pos.y - ptY) < 20.0f)
+        {
+            pt.q += wheel.deltaY * 0.5f;
+            pt.q = juce::jlimit (0.1f, 10.0f, pt.q);
+            if (onEQChanged) onEQChanged();
+            repaint();
+            return;
+        }
     }
 }
 
@@ -377,9 +403,18 @@ void AnalyzerCanvas::drawSpectrumMode (juce::Graphics& g)
     fillPath.closeSubPath();
 
     g.setGradientFill (juce::ColourGradient (
-        JP::accent().withAlpha (0.22f), 0, plotTop,
-        JP::accent().withAlpha (0.01f), 0, plotBottom, false));
+        JP::accent().withAlpha (0.18f), 0, plotTop,
+        JP::accent().withAlpha (0.03f), 0, plotBottom, false));
     g.fillPath (fillPath);
+
+    // 0dB baseline
+    float zeroDbY = plotBottom - h * (60.0f / 60.0f);
+    g.setColour (JP::accent().withAlpha (0.12f));
+    g.drawLine (plotLeft, zeroDbY, plotRight, zeroDbY, 0.5f);
+    auto fonts = HostTheme::getFonts();
+    g.setFont (juce::FontOptions (fonts.mono, 7.0f, juce::Font::plain));
+    g.setColour (JP::accent().withAlpha (0.3f));
+    g.drawText ("0 dB", juce::Rectangle<float> (plotRight - 30, zeroDbY - 8, 28, 10), juce::Justification::right, false);
 
     // Spectrum curve  -  thick with glow
     juce::Path curve;
