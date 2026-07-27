@@ -445,11 +445,9 @@ void AnalyzerCanvas::drawSpectrumMode (juce::Graphics& g)
         float y = plotBottom - h * peakHold[i];
         peakPath.lineTo (x, y);
     }
-    g.setColour (JP::accent().withAlpha (0.18f));
     g.strokePath (peakPath, juce::PathStrokeType (0.8f));
 
     // Freq labels
-    auto fonts = HostTheme::getFonts();
     g.setFont (juce::FontOptions (fonts.mono, 7.0f, juce::Font::plain));
     g.setColour (JP::textDim);
     float freqs[] = { 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000 };
