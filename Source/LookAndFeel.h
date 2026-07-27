@@ -18,6 +18,8 @@ namespace JP
     const juce::Colour error       { 0xffff4444 };
     const juce::Colour success     { 0xfff2c4ce };
     const juce::Colour warning     { 0xffffaa00 };
+    const juce::Colour glass       { 0x0af2c4ce };
+    const juce::Colour glassHighlight { 0x14f2c4ce };
     constexpr int headerH  = 40;
     constexpr int sidebarW = 220;
     constexpr int editorW  = 1050;
