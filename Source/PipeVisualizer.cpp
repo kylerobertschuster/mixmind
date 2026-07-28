@@ -136,7 +136,7 @@ void PipeVisualizer::drawReadouts (juce::Graphics& g)
     g.setFont (juce::FontOptions ("Menlo", 10.0f, juce::Font::bold));
     juce::String lufsText = juce::String (aLufs, 1) + " LUFS";
     g.setColour (aLufs > -14.0f ? JP::warning :
-                 aLufs > -20.0f ? JP::accent() : JP::textMuted);
+                 aLufs > -20.0f ? JP::accent : JP::textMuted);
     g.drawSingleLineText (lufsText, 4, (int)pipeY + 10);
 
     // Stereo width

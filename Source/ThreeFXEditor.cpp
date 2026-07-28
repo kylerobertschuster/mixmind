@@ -2,7 +2,7 @@
 
 ThreeFXEditor::ThreeFXEditor(ThreeFXProcessor& p) : AudioProcessorEditor(&p), proc(p)
 {
-    setLookAndFeel(&laf); JP::setAccent(juce::Colour(0xfff59e0b));
+    setLookAndFeel(&laf); JP::setTheme(juce::Colour(0xfff59e0b));
     setSize(650,380); setResizable(true,true); setResizeLimits(450,280,1100,600);
 
     titleLabel.setText("JuicePipe - 3FX",juce::dontSendNotification);
@@ -16,8 +16,8 @@ ThreeFXEditor::ThreeFXEditor(ThreeFXProcessor& p) : AudioProcessorEditor(&p), pr
     auto mk=[&](juce::Slider& s,juce::Label& l,const juce::String& n,float mn,float mx,float d,float st){
         s.setSliderStyle(juce::Slider::RotaryVerticalDrag); s.setTextBoxStyle(juce::Slider::TextBoxBelow,false,44,14);
         s.setRange(mn,mx,st); s.setValue(d);
-        s.setColour(juce::Slider::rotarySliderFillColourId,JP::accent());
-        s.setColour(juce::Slider::thumbColourId,JP::accent());
+        s.setColour(juce::Slider::rotarySliderFillColourId,JP::accent);
+        s.setColour(juce::Slider::thumbColourId,JP::accent);
         s.setColour(juce::Slider::textBoxTextColourId,JP::text);
         s.setColour(juce::Slider::textBoxOutlineColourId,juce::Colours::transparentBlack);
         addAndMakeVisible(s); l.setText(n,juce::dontSendNotification);

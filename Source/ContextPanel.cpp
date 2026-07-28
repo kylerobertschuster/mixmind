@@ -125,5 +125,5 @@ juce::String StrawPanel::buildSystemPrompt() const
 void StrawPanel::addSectionLabel (juce::Label& lbl)
 {
     lbl.setFont (juce::Font (juce::FontOptions ("Helvetica Neue", 9.0f, juce::Font::bold)));
-    lbl.setColour (juce::Label::textColourId, JP::accent().withAlpha(0.4f));
+    lbl.setColour (juce::Label::textColourId, JP::accent.withAlpha(0.4f));
 }

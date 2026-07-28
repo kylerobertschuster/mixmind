@@ -39,7 +39,7 @@ void JuiceBoxMeter::updateFromJson (const juce::String& json)
 void JuiceBoxMeter::paint (juce::Graphics& g)
 {
     auto b = getLocalBounds().toFloat();
-    auto pink = JP::accent();
+    auto pink = JP::accent;
     auto black = JP::text;
 
     // Juice box body — rounded rectangle
@@ -111,7 +111,7 @@ void JuiceBoxMeter::drawMeterBar (juce::Graphics& g, float x, float y, float w, 
                                    const juce::String& label, const juce::String& unit,
                                    bool warn)
 {
-    auto pink = JP::accent();
+    auto pink = JP::accent;
     float norm = juce::jlimit (0.0f, 1.0f, (value - minVal) / (maxVal - minVal));
     float fillW = w * norm;
 

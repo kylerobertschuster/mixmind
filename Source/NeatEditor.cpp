@@ -2,7 +2,7 @@
 
 NeatEditor::NeatEditor(NeatProcessor& p) : AudioProcessorEditor(&p), proc(p)
 {
-    setLookAndFeel(&laf); JP::setAccent(juce::Colour(0xff22d3ee));
+    setLookAndFeel(&laf); JP::setTheme(juce::Colour(0xff22d3ee));
     setSize(680,420); setResizable(true,true); setResizeLimits(480,300,1200,700);
 
     titleLabel.setText("JuicePipe - Neat Neat Neat",juce::dontSendNotification);
@@ -16,8 +16,8 @@ NeatEditor::NeatEditor(NeatProcessor& p) : AudioProcessorEditor(&p), proc(p)
     auto mk=[&](juce::Slider& s,juce::Label& l,const juce::String& n,float mn,float mx,float d,float st){
         s.setSliderStyle(juce::Slider::RotaryVerticalDrag); s.setTextBoxStyle(juce::Slider::TextBoxBelow,false,40,14);
         s.setRange(mn,mx,st); s.setValue(d);
-        s.setColour(juce::Slider::rotarySliderFillColourId,JP::accent());
-        s.setColour(juce::Slider::thumbColourId,JP::accent());
+        s.setColour(juce::Slider::rotarySliderFillColourId,JP::accent);
+        s.setColour(juce::Slider::thumbColourId,JP::accent);
         s.setColour(juce::Slider::textBoxTextColourId,JP::text);
         s.setColour(juce::Slider::textBoxOutlineColourId,juce::Colours::transparentBlack);
         addAndMakeVisible(s); l.setText(n,juce::dontSendNotification);

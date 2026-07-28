@@ -53,7 +53,7 @@ void MessageBubble::paint (juce::Graphics& g)
 
     // ── Meta label ──────────────────────────────────────────────────────────
     g.setFont (metaFont);
-    g.setColour (isUser ? JP::accent().withAlpha (0.7f) : JP::textMuted);
+    g.setColour (isUser ? JP::accent.withAlpha (0.7f) : JP::textMuted);
     g.drawText (isUser ? "YOU" : "MIXMIND",
                 bounds.removeFromTop (20).reduced (4, 0),
                 isUser ? juce::Justification::right : juce::Justification::left);
@@ -68,9 +68,9 @@ void MessageBubble::paint (juce::Graphics& g)
     // Background + border
     if (isUser)
     {
-        g.setColour (JP::accent().withAlpha(0.4f));
+        g.setColour (JP::accent.withAlpha(0.4f));
         g.fillRect (bubble);
-        g.setColour (JP::accent().withAlpha (0.2f));
+        g.setColour (JP::accent.withAlpha (0.2f));
         g.drawRect (bubble.toFloat(), 1.0f);
     }
     else
@@ -95,7 +95,7 @@ void MessageBubble::paint (juce::Graphics& g)
         for (int i = 0; i < 3; ++i)
         {
             float alpha = 0.3f + 0.7f * (float)((juce::Time::getMillisecondCounter() / 400 + i) % 3 == 0);
-            g.setColour (JP::accent().withAlpha (alpha));
+            g.setColour (JP::accent.withAlpha (alpha));
             g.fillEllipse ((float)(textArea.getRight() - 60 + i * 14), (float)textArea.getCentreY() - 3, 7, 7);
         }
     }
@@ -131,9 +131,9 @@ void MessageBubble::paint (juce::Graphics& g)
 
                 tipRect.setHeight (tipH);
 
-                g.setColour (JP::accent().withAlpha(0.4f));
+                g.setColour (JP::accent.withAlpha(0.4f));
                 g.fillRect (tipRect);
-                g.setColour (JP::accent().withAlpha(0.6f));
+                g.setColour (JP::accent.withAlpha(0.6f));
                 g.fillRect (tipRect.withWidth (2));
 
                 g.setColour (JP::text);

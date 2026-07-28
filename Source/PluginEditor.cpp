@@ -59,7 +59,7 @@ void MixMindEditor::paint (juce::Graphics& g)
     // Status dots
     float dy = JP::headerH * 0.5f, dx = w - 50.0f;
     float a = waitingForReply ? 0.3f + 0.7f * std::abs(std::sin((float)dotPhase * 0.08f)) : 0.4f;
-    g.setColour (waitingForReply ? JP::accent().withAlpha(a) : JP::textDim);
+    g.setColour (waitingForReply ? JP::accent.withAlpha(a) : JP::textDim);
     g.fillEllipse (dx, dy - 3, 6, 6);
 
     bool sig = audioProcessor.audioAnalyzer.getLufs() > -90.0f;
@@ -126,7 +126,7 @@ void MixMindEditor::updateLicenseDisplay()
     auto& lm = audioProcessor.getLicenseManager();
     if (lm.isLicensed()) {
         licenseButton.setButtonText ("LICENSED");
-        licenseButton.setColour (juce::TextButton::textColourOffId, JP::accent());
+        licenseButton.setColour (juce::TextButton::textColourOffId, JP::accent);
     } else {
         auto r = lm.getFreePromptsRemaining();
         licenseButton.setButtonText (juce::String(r) + " FREE - ENTER KEY");

@@ -4,30 +4,33 @@
 
 namespace JP
 {
-    // Dark pro-audio chassis with powder pink accents
-    const juce::Colour bg          { 0xff0b0b0e };
-    const juce::Colour surface     { 0xff141418 };
-    const juce::Colour surfaceRaised { 0xff1a1a20 };
-    const juce::Colour border      { 0x1ff2c4ce };
-    const juce::Colour borderSoft  { 0x0ff2c4ce };
-    const juce::Colour text        { 0xffffffff };
-    const juce::Colour textMuted   { 0xffa0a0aa };
-    const juce::Colour textDim     { 0xff555560 };
-    // Rainbow palette — 8 distinct colors, 9th letter wraps to 1st
+    // Soft saturated theme — mutable per-plugin
+    inline juce::Colour bg          { 0xfff2c4ce };
+    inline juce::Colour surface     { 0xffe8b8ca };
+    inline juce::Colour surfaceRaised { 0xffdcacc0 };
+    inline juce::Colour border      { 0x18000000 };
+    inline juce::Colour text        { 0xff1a1a1a };
+    inline juce::Colour textMuted   { 0x801a1a1a };
+    inline juce::Colour textDim     { 0x401a1a1a };
+    inline juce::Colour accent      { 0xff1a1a1a };
+    inline juce::Colour accentBg    { 0x101a1a1a };
+    inline juce::Colour error       { 0xffcc3333 };
+    inline juce::Colour warning     { 0xffcc6600 };
+    inline juce::Colour glass       { 0x08000000 };
+
     const juce::Colour rainbow[8] = {
         juce::Colour(0xffff6b6b), juce::Colour(0xffffa94d), juce::Colour(0xffffd43b), juce::Colour(0xff69db7c),
         juce::Colour(0xff4dabf7), juce::Colour(0xff748ffc), juce::Colour(0xffda77f2), juce::Colour(0xfff783ac)
     };
     inline juce::Colour rainbowColor(int i) { return rainbow[i % 8]; }
-    inline juce::Colour currentAccent { 0xfff2c4ce };
-    inline juce::Colour accent()   { return currentAccent; }
-    inline juce::Colour accentBg() { return currentAccent.withAlpha (0.18f); }
-    inline void setAccent (juce::Colour c) { currentAccent = c; }
-    const juce::Colour error       { 0xffff4444 };
-    const juce::Colour success     { 0xfff2c4ce };
-    const juce::Colour warning     { 0xffffaa00 };
-    const juce::Colour glass       { 0x0af2c4ce };
-    const juce::Colour glassHighlight { 0x14f2c4ce };
+
+    inline void setTheme (juce::Colour c) {
+        bg = c;
+        surface = c.darker (0.06f);
+        surfaceRaised = c.darker (0.10f);
+        accentBg = juce::Colour (0x10000000);
+    }
+
     constexpr int headerH  = 40;
     constexpr int sidebarW = 220;
     constexpr int editorW  = 1050;

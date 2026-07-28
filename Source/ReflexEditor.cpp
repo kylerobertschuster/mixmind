@@ -3,7 +3,7 @@
 ReflexEditor::ReflexEditor (ReflexProcessor& p) : AudioProcessorEditor (&p), proc (p)
 {
     setLookAndFeel (&laf);
-    JP::setAccent(juce::Colour(0xff69db7c));
+    JP::setTheme(juce::Colour(0xff69db7c));
     setSize (700, 400);
     setResizable (true, true);
     setResizeLimits (500, 300, 1200, 700);
@@ -25,9 +25,9 @@ ReflexEditor::ReflexEditor (ReflexProcessor& p) : AudioProcessorEditor (&p), pro
         s.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 50, 16);
         s.setRange (min, max, step);
         s.setValue (def);
-        s.setColour (juce::Slider::rotarySliderFillColourId, JP::accent());
+        s.setColour (juce::Slider::rotarySliderFillColourId, JP::accent);
         s.setColour (juce::Slider::rotarySliderOutlineColourId, JP::border);
-        s.setColour (juce::Slider::thumbColourId, JP::accent());
+        s.setColour (juce::Slider::thumbColourId, JP::accent);
         s.setColour (juce::Slider::textBoxTextColourId, JP::text);
         s.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
         addAndMakeVisible (s);

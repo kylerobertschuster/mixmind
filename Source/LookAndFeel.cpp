@@ -13,7 +13,7 @@ JuicePipeLAF::JuicePipeLAF()
     setColour (juce::ComboBox::arrowColourId, JP::textMuted);
     setColour (juce::PopupMenu::backgroundColourId, JP::surfaceRaised);
     setColour (juce::PopupMenu::textColourId, JP::text);
-    setColour (juce::PopupMenu::highlightedBackgroundColourId, JP::accentBg());
+    setColour (juce::PopupMenu::highlightedBackgroundColourId, JP::accentBg);
     setColour (juce::PopupMenu::highlightedTextColourId, JP::text);
     setColour (juce::ScrollBar::thumbColourId, JP::border);
     setColour (juce::ScrollBar::trackColourId, JP::bg);
@@ -32,12 +32,12 @@ void JuicePipeLAF::drawButtonBackground (juce::Graphics& g, juce::Button& btn, c
 {
     auto r = btn.getLocalBounds().toFloat().reduced (0.5f);
     juce::Colour f = JP::surfaceRaised;
-    if (d) f = JP::accentBg(); else if (o) f = JP::surfaceRaised.brighter (0.03f);
+    if (d) f = JP::accentBg; else if (o) f = JP::surfaceRaised.brighter (0.03f);
     g.setColour (f); g.fillRoundedRectangle (r, 4.0f);
     // Pill border — pink on hover
     if (o)
     {
-        g.setColour (JP::accent().withAlpha (0.4f));
+        g.setColour (JP::accent.withAlpha (0.4f));
         g.drawRoundedRectangle (r, 4.0f, 1.0f);
     }
     else
@@ -67,7 +67,7 @@ void JuicePipeLAF::drawComboBox (juce::Graphics& g, int w, int h, bool, int,int,
 void JuicePipeLAF::drawPopupMenuItem (juce::Graphics& g, const juce::Rectangle<int>& a, bool, bool, bool hl, bool, bool,
                                        const juce::String& t, const juce::String&, const juce::Image*, const juce::Colour*)
 {
-    if (hl) { g.setColour (JP::accentBg()); g.fillRect (a); }
+    if (hl) { g.setColour (JP::accentBg); g.fillRect (a); }
     g.setColour (JP::text);
     g.setFont (juce::FontOptions ("Helvetica Neue", 11.0f, juce::Font::bold));
     g.drawText (t, a.reduced (10,0), juce::Justification::left, false);

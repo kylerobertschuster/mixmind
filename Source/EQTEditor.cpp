@@ -4,7 +4,7 @@
 EQTEditor::EQTEditor (EQTProcessor& p) : AudioProcessorEditor (&p), proc (p)
 {
     setLookAndFeel (&laf);
-    JP::setAccent(juce::Colour(0xff22d3ee));
+    JP::setTheme(juce::Colour(0xff22d3ee));
     setSize (800, 500);
     setResizable (true, true);
     setResizeLimits (500, 300, 1400, 900);
@@ -100,7 +100,7 @@ void EQTEditor::timerCallback()
 void EQTEditor::drawSpectrum (juce::Graphics& g)
 {
     if (!hasSignal) return;
-    auto pink = JP::accent();
+    auto pink = JP::accent;
     float w = plotRight - plotLeft, h = plotBottom - plotTop;
 
     juce::Path curve;
@@ -171,13 +171,13 @@ void EQTEditor::drawEQCurve (juce::Graphics& g)
         if (!started) { curve.startNewSubPath (x, y); started = true; }
         else curve.lineTo (x, y);
     }
-    g.setColour (JP::accent().withAlpha (0.3f));
+    g.setColour (JP::accent.withAlpha (0.3f));
     g.strokePath (curve, juce::PathStrokeType (1.5f));
 }
 
 void EQTEditor::drawEQBands (juce::Graphics& g)
 {
-    auto pink = JP::accent();
+    auto pink = JP::accent;
     float w = plotRight - plotLeft, h = plotBottom - plotTop;
     for (size_t i = 0; i < bands.size(); ++i)
     {

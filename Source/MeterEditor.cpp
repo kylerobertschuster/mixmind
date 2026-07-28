@@ -3,7 +3,7 @@
 MeterEditor::MeterEditor (MeterProcessor& p) : AudioProcessorEditor (&p), proc (p)
 {
     setLookAndFeel (&laf);
-    JP::setAccent(juce::Colour(0xfff59e0b));
+    JP::setTheme(juce::Colour(0xfff59e0b));
     setSize (500, 600);
     setResizable (true, true);
     setResizeLimits (350, 400, 1000, 900);
@@ -39,27 +39,27 @@ void MeterEditor::paint (juce::Graphics& g)
     float barW = w - pad * 2;
     float gap = 16;
 
-    drawMeterBar (g, pad, barY, barW, 36, aLufs,  proc.audioAnalyzer.getLufs(),        -60, 0,   "INTEGRATED LUFS", "LUFS",   JP::accent());
+    drawMeterBar (g, pad, barY, barW, 36, aLufs,  proc.audioAnalyzer.getLufs(),        -60, 0,   "INTEGRATED LUFS", "LUFS",   JP::accent);
     barY += 52;
-    drawMeterBar (g, pad, barY, barW, 28, aPeak,  proc.audioAnalyzer.getLufs() + 3,     -12, 0,   "TRUE PEAK",       "dBTP",   aPeak > -1 ? JP::warning : JP::accent(), true);
+    drawMeterBar (g, pad, barY, barW, 28, aPeak,  proc.audioAnalyzer.getLufs() + 3,     -12, 0,   "TRUE PEAK",       "dBTP",   aPeak > -1 ? JP::warning : JP::accent, true);
     barY += 44;
-    drawMeterBar (g, pad, barY, barW, 28, aCrest, proc.audioAnalyzer.getLufs() * 0.2f,   0, 20,  "CREST FACTOR",    "dB",     aCrest < 6 ? JP::warning : JP::accent());
+    drawMeterBar (g, pad, barY, barW, 28, aCrest, proc.audioAnalyzer.getLufs() * 0.2f,   0, 20,  "CREST FACTOR",    "dB",     aCrest < 6 ? JP::warning : JP::accent);
     barY += 44;
-    drawMeterBar (g, pad, barY, barW, 28, aPhase, proc.audioAnalyzer.getPhaseCorr(),     -1,  1,  "PHASE CORR",      "corr",   aPhase < 0.3f ? JP::warning : JP::accent());
+    drawMeterBar (g, pad, barY, barW, 28, aPhase, proc.audioAnalyzer.getPhaseCorr(),     -1,  1,  "PHASE CORR",      "corr",   aPhase < 0.3f ? JP::warning : JP::accent);
     barY += 44;
-    drawMeterBar (g, pad, barY, barW, 28, aStereo,proc.audioAnalyzer.getStereoWidth(),    0,  1,  "STEREO WIDTH",    "M/S",    JP::accent());
+    drawMeterBar (g, pad, barY, barW, 28, aStereo,proc.audioAnalyzer.getStereoWidth(),    0,  1,  "STEREO WIDTH",    "M/S",    JP::accent);
     barY += 52;
 
     // Spectral bars
     g.setFont (juce::FontOptions ("Helvetica Neue", 10.0f, juce::Font::bold));
-    g.setColour (JP::accent().withAlpha (0.4f));
+    g.setColour (JP::accent.withAlpha (0.4f));
     g.drawText ("SPECTRUM", juce::Rectangle<float> (pad, barY, barW, 16), juce::Justification::left, false);
     barY += 22;
-    drawMeterBar (g, pad, barY, barW, 16, aBass,  proc.audioAnalyzer.getBassEnergy(),    -60, 0, "BASS", "", JP::accent());
+    drawMeterBar (g, pad, barY, barW, 16, aBass,  proc.audioAnalyzer.getBassEnergy(),    -60, 0, "BASS", "", JP::accent);
     barY += 28;
-    drawMeterBar (g, pad, barY, barW, 16, aMid,   proc.audioAnalyzer.getMidEnergy(),     -60, 0, "MID",  "", JP::accent());
+    drawMeterBar (g, pad, barY, barW, 16, aMid,   proc.audioAnalyzer.getMidEnergy(),     -60, 0, "MID",  "", JP::accent);
     barY += 28;
-    drawMeterBar (g, pad, barY, barW, 16, aHigh,  proc.audioAnalyzer.getHighEnergy(),    -60, 0, "HIGH", "", JP::accent());
+    drawMeterBar (g, pad, barY, barW, 16, aHigh,  proc.audioAnalyzer.getHighEnergy(),    -60, 0, "HIGH", "", JP::accent);
 }
 
 void MeterEditor::resized()

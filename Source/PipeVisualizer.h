@@ -44,7 +44,7 @@ private:
     float aStereo  { 0.5f }; float aCrest   { 0.0f };
     float aPeak    { -60.0f };
 
-    juce::Colour accent    { JP::accent() };
+    juce::Colour accent    { JP::accent };
     bool         advancedMode { false };
 
     float pipeX { 0 }, pipeW { 0 }, pipeY { 0 }, pipeH { 0 };

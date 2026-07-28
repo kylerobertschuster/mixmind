@@ -3,7 +3,7 @@
 ScopeEditor::ScopeEditor (ScopeProcessor& p) : AudioProcessorEditor (&p), proc (p)
 {
     setLookAndFeel (&laf);
-    JP::setAccent(juce::Colour(0xffa78bfa));
+    JP::setTheme(juce::Colour(0xffa78bfa));
     setSize (600, 500);
     setResizable (true, true);
     setResizeLimits (400, 300, 1200, 900);
@@ -85,7 +85,7 @@ void ScopeEditor::drawGoniometer (juce::Graphics& g)
             if (i == 0) path.startNewSubPath (x, y);
             else path.lineTo (x, y);
         }
-        g.setColour (JP::accent().withAlpha (0.5f));
+        g.setColour (JP::accent.withAlpha (0.5f));
         g.strokePath (path, juce::PathStrokeType (0.8f));
     }
 }
@@ -93,7 +93,7 @@ void ScopeEditor::drawGoniometer (juce::Graphics& g)
 void ScopeEditor::drawReadouts (juce::Graphics& g)
 {
     float x = 16, y = (float)getHeight() - 100;
-    auto pink = JP::accent();
+    auto pink = JP::accent;
 
     auto drawBar = [&](const juce::String& label, float val, float min, float max, const juce::String& unit)
     {
