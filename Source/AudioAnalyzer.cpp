@@ -86,7 +86,7 @@ void AudioAnalyzer::performFFT()
     {
         float hz = (float)i * (float)sampleRate / (float)fftSize;
         float mag = fftDataL[i];
-        fftOutput[i] = mag;  // raw magnitude
+        fftOutput[i] = mag * (2.0f / (float)fftSize);  // normalize to 0-1
 
         // Smooth for display
 
