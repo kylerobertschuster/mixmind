@@ -84,11 +84,10 @@ void AnalyzerCanvas::drawGrid (juce::Graphics& g)
 void AnalyzerCanvas::drawSpectrum (juce::Graphics& g)
 {
     if (!hasSignal) return;
-    auto pink = JP::accent();
     float w = plotRight - plotLeft;
     float h = plotBottom - plotTop;
 
-    // Fill under curve
+    // Rainbow fill under curve
     juce::Path fillPath;
     fillPath.startNewSubPath (plotLeft, plotBottom);
     for (int i = 0; i < kNumBins; ++i)
@@ -101,23 +100,30 @@ void AnalyzerCanvas::drawSpectrum (juce::Graphics& g)
     fillPath.closeSubPath();
 
     g.setGradientFill (juce::ColourGradient (
-        pink.withAlpha (0.15f), 0, plotTop,
-        pink.withAlpha (0.02f), 0, plotBottom, false));
+        JP::rainbowColor(0).withAlpha (0.12f), 0, plotTop,
+        JP::rainbowColor(0).withAlpha (0.02f), 0, plotBottom, false));
     g.fillPath (fillPath);
 
-    // Spectrum line
-    juce::Path curve;
-    curve.startNewSubPath (plotLeft, plotBottom - h * smoothBins[0]);
-    for (int i = 1; i < kNumBins; ++i)
+    // Rainbow spectrum — 8 colored segments
+    int segSize = kNumBins / 8;
+    for (int seg = 0; seg < 8; ++seg)
     {
-        float x = plotLeft + w * (float)i / (float)(kNumBins - 1);
-        float y = plotBottom - h * smoothBins[i];
-        curve.lineTo (x, y);
+        int start = seg * segSize;
+        int end   = (seg == 7) ? kNumBins - 1 : (seg + 1) * segSize;
+        auto col = JP::rainbowColor(seg);
+
+        juce::Path segPath;
+        segPath.startNewSubPath (plotLeft + w * (float)start / (float)(kNumBins - 1),
+                                  plotBottom - h * smoothBins[start]);
+        for (int i = start + 1; i <= end; ++i)
+        {
+            float x = plotLeft + w * (float)i / (float)(kNumBins - 1);
+            float y = plotBottom - h * smoothBins[i];
+            segPath.lineTo (x, y);
+        }
+        g.setColour (col.withAlpha (0.75f));
+        g.strokePath (segPath, juce::PathStrokeType (1.2f));
     }
-    g.setColour (pink.withAlpha (0.3f));
-    g.strokePath (curve, juce::PathStrokeType (2.5f));
-    g.setColour (pink.withAlpha (0.9f));
-    g.strokePath (curve, juce::PathStrokeType (1.2f));
 
     // Peak hold
     juce::Path peakPath;
@@ -128,6 +134,6 @@ void AnalyzerCanvas::drawSpectrum (juce::Graphics& g)
         float y = plotBottom - h * peakHold[i];
         peakPath.lineTo (x, y);
     }
-    g.setColour (pink.withAlpha (0.15f));
+    g.setColour (JP::rainbowColor(0).withAlpha (0.10f));
     g.strokePath (peakPath, juce::PathStrokeType (0.8f));
 }

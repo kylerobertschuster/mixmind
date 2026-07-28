@@ -3,7 +3,7 @@
 MeterEditor::MeterEditor (MeterProcessor& p) : AudioProcessorEditor (&p), proc (p)
 {
     setLookAndFeel (&laf);
-    JP::setAccentHex (0xfff59e0b);
+    JP::setAccent(juce::Colour(0xfff59e0b));
     setSize (500, 600);
     setResizable (true, true);
     setResizeLimits (350, 400, 1000, 900);

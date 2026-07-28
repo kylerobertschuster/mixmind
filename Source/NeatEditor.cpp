@@ -2,7 +2,7 @@
 
 NeatEditor::NeatEditor(NeatProcessor& p) : AudioProcessorEditor(&p), proc(p)
 {
-    setLookAndFeel(&laf); JP::setAccentHex(0xff22d3ee);
+    setLookAndFeel(&laf); JP::setAccent(juce::Colour(0xff22d3ee));
     setSize(680,420); setResizable(true,true); setResizeLimits(480,300,1200,700);
 
     titleLabel.setText("JuicePipe - Neat Neat Neat",juce::dontSendNotification);

@@ -4,7 +4,7 @@
 EQTEditor::EQTEditor (EQTProcessor& p) : AudioProcessorEditor (&p), proc (p)
 {
     setLookAndFeel (&laf);
-    JP::setAccentHex (0xff22d3ee);
+    JP::setAccent(juce::Colour(0xff22d3ee));
     setSize (800, 500);
     setResizable (true, true);
     setResizeLimits (500, 300, 1400, 900);

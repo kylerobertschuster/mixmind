@@ -13,11 +13,16 @@ namespace JP
     const juce::Colour text        { 0xffffffff };
     const juce::Colour textMuted   { 0xffa0a0aa };
     const juce::Colour textDim     { 0xff555560 };
+    // Rainbow palette — 8 distinct colors, 9th letter wraps to 1st
+    const juce::Colour rainbow[8] = {
+        juce::Colour(0xffff6b6b), juce::Colour(0xffffa94d), juce::Colour(0xffffd43b), juce::Colour(0xff69db7c),
+        juce::Colour(0xff4dabf7), juce::Colour(0xff748ffc), juce::Colour(0xffda77f2), juce::Colour(0xfff783ac)
+    };
+    inline juce::Colour rainbowColor(int i) { return rainbow[i % 8]; }
     inline juce::Colour currentAccent { 0xfff2c4ce };
     inline juce::Colour accent()   { return currentAccent; }
     inline juce::Colour accentBg() { return currentAccent.withAlpha (0.18f); }
     inline void setAccent (juce::Colour c) { currentAccent = c; }
-    inline void setAccentHex (juce::uint32 hex) { currentAccent = juce::Colour (hex); }
     const juce::Colour error       { 0xffff4444 };
     const juce::Colour success     { 0xfff2c4ce };
     const juce::Colour warning     { 0xffffaa00 };
