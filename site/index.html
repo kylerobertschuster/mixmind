@@ -12,70 +12,50 @@
             font-family: 'Helvetica Neue', -apple-system, sans-serif;
             background: var(--black); color: #fff; min-height: 100vh;
         }
-        .container { max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
+        .container { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
         h1 {
             text-align: center; font-size: 42px; font-weight: 700;
-            letter-spacing: -1px; margin-bottom: 8px;
+            letter-spacing: -1px; margin-bottom: 40px;
         }
         h1 a { text-decoration: none; }
         h1 a span:nth-child(1){color:#ff6b6b}h1 a span:nth-child(2){color:#ffa94d}h1 a span:nth-child(3){color:#ffd43b}h1 a span:nth-child(4){color:#69db7c}h1 a span:nth-child(5){color:#4dabf7}h1 a span:nth-child(6){color:#748ffc}h1 a span:nth-child(7){color:#da77f2}h1 a span:nth-child(8){color:#f783ac}h1 a span:nth-child(9){color:#ff6b6b}
-        .section-label {
-            font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
-            color: rgba(255,255,255,0.2); margin: 40px 0 16px;
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
         }
-        .plugins { display: flex; flex-direction: column; gap: 16px; }
-        .card {
-            display: flex; border-radius: 8px; overflow: hidden; min-height: 240px;
-            text-decoration: none;
-        }
-        .card-info {
-            width: 280px; flex-shrink: 0; padding: 32px 28px;
+        .tile {
+            display: block; text-decoration: none; border-radius: 10px;
+            padding: 28px 22px; min-height: 180px;
             display: flex; flex-direction: column; justify-content: center;
+            transition: transform 0.15s, box-shadow 0.15s;
         }
-        .card-info h2 { font-size: 26px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
-        .card-info p { font-size: 12px; line-height: 1.5; opacity: 0.7; margin-bottom: 16px; }
-        .card-actions { display: flex; gap: 8px; }
-        .card-actions a {
-            font-size: 11px; font-weight: 600; padding: 8px 16px; border-radius: 5px;
-            text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
-        }
-        .btn-add { background: #fff; color: #080809; }
-        .btn-dl  { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.6); }
-        .card-preview {
-            flex: 1; display: flex; align-items: center; justify-content: center;
-            padding: 24px; position: relative;
-        }
-        .card-preview img { max-width: 100%; border-radius: 6px; }
+        .tile:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
+        .tile h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.5px; }
+        .tile p { font-size: 12px; line-height: 1.5; opacity: 0.7; }
+        .tile .dl { display: inline-block; margin-top: 12px; font-size: 11px; font-weight: 600; padding: 6px 14px; border-radius: 4px; text-decoration: none; }
 
-        .card-mixmind .card-info { background: #f2c4ce; color: #080809; }
-        .card-mixmind .card-preview { background: #e8b8ca; }
-        .card-mixmind .btn-add { background: #080809; color: #f2c4ce; }
-        .card-scope .card-info { background: #a78bfa; color: #fff; }
-        .card-scope .card-preview { background: #9575e0; }
-        .card-meter .card-info { background: #f59e0b; color: #2a1a00; }
-        .card-meter .card-preview { background: #e08c00; }
-        .card-eqt .card-info { background: #22d3ee; color: #0a2a30; }
-        .card-eqt .card-preview { background: #1cb8d4; }
-        .card-reflex .card-info { background: #69db7c; color: #0a2a10; }
-        .card-reflex .card-preview { background: #51cf66; }
+        .tile-mixmind { background: #f2c4ce; color: #080809; }
+        .tile-mixmind .dl { background: #080809; color: #f2c4ce; }
+        .tile-scope { background: #a78bfa; color: #fff; }
+        .tile-scope .dl { background: rgba(255,255,255,0.15); color: #fff; }
+        .tile-meter { background: #f59e0b; color: #2a1a00; }
+        .tile-meter .dl { background: rgba(0,0,0,0.15); color: #2a1a00; }
+        .tile-eqt { background: #22d3ee; color: #0a2a30; }
+        .tile-eqt .dl { background: rgba(0,0,0,0.12); color: #0a2a30; }
+        .tile-reflex { background: #69db7c; color: #0a2a10; }
+        .tile-reflex .dl { background: rgba(0,0,0,0.12); color: #0a2a10; }
+        .tile-3fx { background: #ffa94d; color: #2a1200; }
+        .tile-3fx .dl { background: rgba(0,0,0,0.12); color: #2a1200; }
+        .tile-neat { background: #da77f2; color: #1a0a20; }
+        .tile-neat .dl { background: rgba(0,0,0,0.12); color: #1a0a20; }
 
-        .card-reflex .card-info { background: #a78bfa; color: #fff; }
-        .card-reflex .card-preview { background: #9575e0; }
-        .card-neat .card-info { background: #f59e0b; color: #2a1a00; }
-        .card-neat .card-preview { background: #e08c00; }
-        .card-3fx .card-info { background: #22d3ee; color: #0a2a30; }
-        .card-3fx .card-preview { background: #1cb8d4; }
-
-        
-        .soon-tag {
-            display: inline-block; font-size: 9px; letter-spacing: 2px;
-            text-transform: uppercase; padding: 2px 8px;
-            border: 1px solid rgba(0,0,0,0.2); border-radius: 3px; margin-bottom: 10px;
+        @media (max-width: 700px) {
+            .grid { grid-template-columns: 1fr 1fr; }
         }
-        @media (max-width: 768px) {
-            .card { flex-direction: column; }
-            .card-info { width: 100%; padding: 24px; }
-            .card-preview { min-height: 160px; }
+        @media (max-width: 440px) {
+            .grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -85,68 +65,42 @@
         <span>J</span><span>u</span><span>i</span><span>c</span><span>e</span><span>P</span><span>i</span><span>p</span><span>e</span>
     </a></h1>
 
-    <div class="section-label">Available</div>
-    <div class="plugins">
-        <div class="card card-mixmind">
-            <div class="card-info">
-                <h2>MixMind</h2>
-                <p>AI mixing assistant with real-time FFT spectrum. Chat with an expert engineer about your mix.</p>
-                <div class="card-actions"><a href="/downloads/MixMind-5.0.0.pkg" class="btn-dl">Download</a></div>
-            </div>
-            <div class="card-preview"></div>
-        </div>
-        <div class="card card-scope">
-            <div class="card-info">
-                <h2>Scope</h2>
-                <p>Goniometer and phase scope. Lissajous stereo field visualization with correlation meter.</p>
-                <div class="card-actions"><a href="/downloads/Scope-1.0.0.pkg" class="btn-dl">Download</a></div>
-            </div>
-            <div class="card-preview"></div>
-        </div>
-        <div class="card card-meter">
-            <div class="card-info">
-                <h2>Meter</h2>
-                <p>LUFS, true peak, crest factor, phase correlation, and spectral band meters.</p>
-                <div class="card-actions"><a href="/downloads/Meter-1.0.0.pkg" class="btn-dl">Download</a></div>
-            </div>
-            <div class="card-preview"></div>
-        </div>
-        <div class="card card-eqt">
-            <div class="card-info">
-                <h2>EQT</h2>
-                <p>Parametric EQ with real-time FFT. Click to place nodes, drag to shape, scroll for Q.</p>
-                <div class="card-actions"><a href="/downloads/EQT-1.0.0.pkg" class="btn-dl">Download</a></div>
-            </div>
-            <div class="card-preview"></div>
-        </div>
-        <div class="card card-reflex">
-            <div class="card-info">
-                <h2>Reflex</h2>
-                <p>Resonator with sequenced delay &amp; reverb. Transient-triggered 8-step note sequencer.</p>
-                <div class="card-actions"><a href="/downloads/Reflex-1.0.0.pkg" class="btn-dl">Download</a></div>
-            </div>
-            <div class="card-preview"></div>
-        </div>
-    </div>
-
-    
-        </div>
-        <div class="card card-neat card-soon">
-            <div class="card-info">
-                <span class="soon-tag">Coming Soon</span>
-                <h2>Neat Neat Neat</h2>
-                <p>Beat repeater &times;3. Three independent repeat engines. Glitch, stutter, rhythmic chaos.</p>
-            </div>
-            <div class="card-preview"></div>
-        </div>
-        <div class="card card-3fx card-soon">
-            <div class="card-info">
-                <span class="soon-tag">Coming Soon</span>
-                <h2>3FX</h2>
-                <p>Three simultaneous effects: phase, flange, and delay — all at once. Where most limit you to two.</p>
-            </div>
-            <div class="card-preview"></div>
-        </div>
+    <div class="grid">
+        <a href="/mixmind.html" class="tile tile-mixmind">
+            <h2>MixMind</h2>
+            <p>AI mixing assistant with real-time FFT spectrum. Chat with an expert engineer about your mix.</p>
+            <span class="dl">Download</span>
+        </a>
+        <a href="/scope.html" class="tile tile-scope">
+            <h2>Scope</h2>
+            <p>Goniometer and phase scope. Lissajous stereo field visualization with correlation meter.</p>
+            <span class="dl">Download</span>
+        </a>
+        <a href="/meter.html" class="tile tile-meter">
+            <h2>Meter</h2>
+            <p>LUFS, true peak, crest factor, phase correlation, and spectral band meters.</p>
+            <span class="dl">Download</span>
+        </a>
+        <a href="/eqt.html" class="tile tile-eqt">
+            <h2>EQT</h2>
+            <p>Parametric EQ with real-time FFT. Click to place nodes, drag to shape, scroll for Q.</p>
+            <span class="dl">Download</span>
+        </a>
+        <a href="/reflex.html" class="tile tile-reflex">
+            <h2>Reflex</h2>
+            <p>Resonator with sequenced delay &amp; reverb. Transient-triggered 8-step note sequencer.</p>
+            <span class="dl">Download</span>
+        </a>
+        <a href="/3fx.html" class="tile tile-3fx">
+            <h2>3FX</h2>
+            <p>Three simultaneous effects: phase, flange, and delay — all at once.</p>
+            <span class="dl">Download</span>
+        </a>
+        <a href="/neat.html" class="tile tile-neat">
+            <h2>Neat Neat Neat</h2>
+            <p>Beat repeater ×3. Three independent repeat engines with pitch and decay control.</p>
+            <span class="dl">Download</span>
+        </a>
     </div>
 </div>
 
@@ -155,10 +109,7 @@
         <h3 style="color:#f2c4ce;font-size:20px;margin-bottom:8px;">Get MixMind</h3>
         <p style="color:rgba(255,255,255,0.5);font-size:13px;margin-bottom:20px;">$9/month or $79 lifetime — instant license delivery</p>
         <input id="buyEmail" type="email" placeholder="you@email.com" style="width:100%;padding:12px;background:#080809;border:1px solid rgba(242,196,206,0.15);border-radius:6px;color:#f2c4ce;font-size:14px;margin-bottom:12px;outline:none;">
-        <div style="display:flex;gap:10px;">
-            <button onclick="processPurchase()" style="flex:1;padding:12px;background:#f2c4ce;color:#080809;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Get License Key</button>
-            <button onclick="closeBuy()" style="flex:1;padding:12px;background:transparent;color:rgba(255,255,255,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:14px;cursor:pointer;">Cancel</button>
-        </div>
+        <div style="display:flex;gap:10px;"><button onclick="processPurchase()" style="flex:1;padding:12px;background:#f2c4ce;color:#080809;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Get License Key</button><button onclick="closeBuy()" style="flex:1;padding:12px;background:transparent;color:rgba(255,255,255,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:14px;cursor:pointer;">Cancel</button></div>
         <div id="buyResult" style="margin-top:16px;display:none;"></div>
     </div>
 </div>
@@ -170,8 +121,7 @@ async function processPurchase(){
     if(!e.includes('@')){alert('Enter a valid email');return}
     var r=await fetch('https://getjuicepipe.com/purchase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e})});
     var d=await r.json();
-    var el=document.getElementById('buyResult');
-    el.style.display='block';
+    var el=document.getElementById('buyResult');el.style.display='block';
     el.innerHTML='<strong style="color:#f2c4ce;font-size:16px;">'+d.license_key+'</strong><br><span style="font-size:11px;color:rgba(255,255,255,0.4);">Copy this key and paste into the plugin.</span>';
 }
 </script>
