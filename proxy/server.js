@@ -274,8 +274,28 @@ app.post("/api/chat", async (req, res) => {
     }
 });
 
-// ── Purchase: auto-generate license key ──────────────────────────────────────
+// ── Purchase: gated behind Stripe webhook or admin key ────────────────────
+// In production, /purchase is called ONLY by Stripe webhook with a secret.
+// Until Stripe is configured, purchase requires x-admin-secret.
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
+
 app.post("/purchase", (req, res) => {
+    // If Stripe is configured, verify the webhook signature
+    if (STRIPE_WEBHOOK_SECRET) {
+        // TODO: verify Stripe signature here when Stripe is set up
+        // const sig = req.headers["stripe-signature"];
+        // const event = stripe.webhooks.constructEvent(req.rawBody, sig, STRIPE_WEBHOOK_SECRET);
+    } else {
+        // No payment provider: require admin key to generate licenses manually
+        const secret = req.headers["x-admin-secret"];
+        if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
+            return res.status(402).json({
+                error: "Payment required. Purchase flow is not yet configured.",
+                hint: "Contact JuicePipe to purchase a license."
+            });
+        }
+    }
+
     const { email } = req.body;
     if (!email || !email.includes("@")) {
         return res.status(400).json({ error: "Valid email required" });
