@@ -51,12 +51,12 @@ void StrawPanel::paint (juce::Graphics& g)
 
     // Glass highlight at top of straw
     g.setGradientFill (juce::ColourGradient (
-        JP::glass.withAlpha (0.15f), 0, 0,
-        JP::glass.withAlpha (0.0f), 0, 40, false));
+        JP::border.withAlpha (0.15f), 0, 0,
+        JP::border.withAlpha (0.0f), 0, 40, false));
     g.fillRect (0, 0, getWidth(), 40);
 
     // Right edge "glass" line — the straw tube
-    g.setColour (JP::glass);
+    g.setColour (JP::border);
     g.drawLine ((float)getWidth() - 0.5f, 0, (float)getWidth() - 0.5f, (float)getHeight(), 0.5f);
 }
 

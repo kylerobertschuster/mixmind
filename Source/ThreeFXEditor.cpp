@@ -2,7 +2,7 @@
 
 ThreeFXEditor::ThreeFXEditor(ThreeFXProcessor& p) : AudioProcessorEditor(&p), proc(p)
 {
-    setLookAndFeel(&laf); JP::setTheme(juce::Colour(0xfff59e0b));
+    setLookAndFeel(&laf); JP::setAccent(juce::Colour(0xffffff8d));
     setSize(650,380); setResizable(true,true); setResizeLimits(450,280,1100,600);
 
     titleLabel.setText("JuicePipe - 3FX",juce::dontSendNotification);

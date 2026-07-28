@@ -3,7 +3,7 @@
 ReflexEditor::ReflexEditor (ReflexProcessor& p) : AudioProcessorEditor (&p), proc (p)
 {
     setLookAndFeel (&laf);
-    JP::setTheme(juce::Colour(0xff69db7c));
+    JP::setAccent(juce::Colour(0xffb9f6ca));
     setSize (700, 400);
     setResizable (true, true);
     setResizeLimits (500, 300, 1200, 700);

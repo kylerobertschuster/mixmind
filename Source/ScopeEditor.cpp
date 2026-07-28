@@ -3,7 +3,7 @@
 ScopeEditor::ScopeEditor (ScopeProcessor& p) : AudioProcessorEditor (&p), proc (p)
 {
     setLookAndFeel (&laf);
-    JP::setTheme(juce::Colour(0xffa78bfa));
+    JP::setAccent(juce::Colour(0xffb388ff));
     setSize (600, 500);
     setResizable (true, true);
     setResizeLimits (400, 300, 1200, 900);

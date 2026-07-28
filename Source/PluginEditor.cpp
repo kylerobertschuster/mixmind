@@ -4,7 +4,7 @@
 MixMindEditor::MixMindEditor (MixMindProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    setLookAndFeel (&laf);
+    setLookAndFeel (&laf); JP::setAccent(juce::Colour(0xffff8a80));
     setSize (1050, 680);
     setResizable (true, true);
     setResizeLimits (700, 400, 1600, 1000);

@@ -4,32 +4,37 @@
 
 namespace JP
 {
-    // Soft saturated theme — mutable per-plugin
-    inline juce::Colour bg          { 0xfff2c4ce };
-    inline juce::Colour surface     { 0xffe8b8ca };
-    inline juce::Colour surfaceRaised { 0xffdcacc0 };
-    inline juce::Colour border      { 0x18000000 };
-    inline juce::Colour text        { 0xff1a1a1a };
-    inline juce::Colour textMuted   { 0x801a1a1a };
-    inline juce::Colour textDim     { 0x401a1a1a };
-    inline juce::Colour accent      { 0xff1a1a1a };
-    inline juce::Colour accentBg    { 0x101a1a1a };
-    inline juce::Colour error       { 0xffcc3333 };
-    inline juce::Colour warning     { 0xffcc6600 };
-    inline juce::Colour glass       { 0x08000000 };
+    // ── Dark Mode Pastel Chassis (60%) ────────────────────────────────────
+    const juce::Colour bg          { 0xff1e1e1e };
+    const juce::Colour surface     { 0xff252528 };
+    const juce::Colour surfaceRaised { 0xff2c2c30 };
+    const juce::Colour border      { 0x18ffffff };
 
-    const juce::Colour rainbow[8] = {
-        juce::Colour(0xffff6b6b), juce::Colour(0xffffa94d), juce::Colour(0xffffd43b), juce::Colour(0xff69db7c),
-        juce::Colour(0xff4dabf7), juce::Colour(0xff748ffc), juce::Colour(0xffda77f2), juce::Colour(0xfff783ac)
+    // ── Text — clean white on dark (30%) ──────────────────────────────────
+    const juce::Colour text        { 0xffeeeeee };
+    const juce::Colour textMuted   { 0x80eeeeee };
+    const juce::Colour textDim     { 0x40eeeeee };
+
+    // ── Pastel Rainbow Accents (10% — knobs, curves, buttons) ────────────
+    // Desaturated, high luminance — no eye strain on dark backgrounds
+    inline juce::Colour accent { 0xffff8a80 };  // default: soft coral
+    const juce::Colour accentBg    { 0x18ff8a80 };
+    const juce::Colour error       { 0xffff5252 };
+    const juce::Colour warning     { 0xffffcc80 };
+
+    // Full pastel rainbow palette
+    const juce::Colour pastel[7] = {
+        juce::Colour(0xffff8a80),  // Soft Coral Red
+        juce::Colour(0xffffcc80),  // Warm Apricot Orange
+        juce::Colour(0xffffff8d),  // Pale Lemon Yellow
+        juce::Colour(0xffb9f6ca),  // Mint Green
+        juce::Colour(0xff80d8ff),  // Sky Blue
+        juce::Colour(0xffb388ff),  // Soft Lavender
+        juce::Colour(0xffea80fc),  // Light Magenta
     };
-    inline juce::Colour rainbowColor(int i) { return rainbow[i % 8]; }
+    inline juce::Colour pastelColor(int i) { return pastel[i % 7]; }
 
-    inline void setTheme (juce::Colour c) {
-        bg = c;
-        surface = c.darker (0.06f);
-        surfaceRaised = c.darker (0.10f);
-        accentBg = juce::Colour (0x10000000);
-    }
+    inline void setAccent (juce::Colour c) { accent = c; }
 
     constexpr int headerH  = 40;
     constexpr int sidebarW = 220;
