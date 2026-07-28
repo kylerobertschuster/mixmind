@@ -1,129 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JuicePipe</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <style>
-        :root { --black: #080809; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Helvetica Neue', -apple-system, sans-serif;
-            background: var(--black); color: #fff; min-height: 100vh;
-        }
-        .container { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
-        h1 {
-            text-align: center; font-size: 42px; font-weight: 700;
-            letter-spacing: -1px; margin-bottom: 40px;
-        }
-        h1 a { text-decoration: none; }
-        h1 a span:nth-child(1){color:#ff6b6b}h1 a span:nth-child(2){color:#ffa94d}h1 a span:nth-child(3){color:#ffd43b}h1 a span:nth-child(4){color:#69db7c}h1 a span:nth-child(5){color:#4dabf7}h1 a span:nth-child(6){color:#748ffc}h1 a span:nth-child(7){color:#da77f2}h1 a span:nth-child(8){color:#f783ac}h1 a span:nth-child(9){color:#ff6b6b}
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-        }
-        .tile {
-            display: block; text-decoration: none; border-radius: 10px;
-            padding: 28px 22px; min-height: 180px;
-            display: flex; flex-direction: column; justify-content: center;
-            transition: transform 0.15s, box-shadow 0.15s;
-        }
-        .tile:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
-        .tile h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.5px; }
-        .tile p { font-size: 12px; line-height: 1.5; opacity: 0.7; }
-        .tile .dl { display: inline-block; margin-top: 12px; font-size: 11px; font-weight: 600; padding: 6px 14px; border-radius: 4px; text-decoration: none; }
-
-        .tile-mixmind { background: #f2c4ce; color: #080809; }
-        .tile-mixmind .dl { background: #080809; color: #f2c4ce; }
-        .tile-scope { background: #a78bfa; color: #fff; }
-        .tile-scope .dl { background: rgba(255,255,255,0.15); color: #fff; }
-        .tile-meter { background: #f59e0b; color: #2a1a00; }
-        .tile-meter .dl { background: rgba(0,0,0,0.15); color: #2a1a00; }
-        .tile-eqt { background: #22d3ee; color: #0a2a30; }
-        .tile-eqt .dl { background: rgba(0,0,0,0.12); color: #0a2a30; }
-        .tile-reflex { background: #69db7c; color: #0a2a10; }
-        .tile-reflex .dl { background: rgba(0,0,0,0.12); color: #0a2a10; }
-        .tile-3fx { background: #ffa94d; color: #2a1200; }
-        .tile-3fx .dl { background: rgba(0,0,0,0.12); color: #2a1200; }
-        .tile-neat { background: #da77f2; color: #1a0a20; }
-        .tile-neat .dl { background: rgba(0,0,0,0.12); color: #1a0a20; }
-
-        @media (max-width: 700px) {
-            .grid { grid-template-columns: 1fr 1fr; }
-        }
-        @media (max-width: 440px) {
-            .grid { grid-template-columns: 1fr; }
-        }
-    </style>
-</head>
-<body>
-<div class="container">
-    <h1><a href="/">
-        <span>J</span><span>u</span><span>i</span><span>c</span><span>e</span><span>P</span><span>i</span><span>p</span><span>e</span>
-    </a></h1>
-
-    <div class="grid">
-        <a href="/downloads/MixMind-1.2.0.pkg" class="tile tile-mixmind">
-            <h2>MixMind</h2>
-            <p>Real-time FFT spectrum + AI analysis. A second set of ears in your DAW.</p>
-            <span class="dl">Download</span>
-        </a>
-        <a href="/downloads/Scope-1.2.0.pkg" class="tile tile-scope">
-            <h2>Scope</h2>
-            <p>Goniometer and phase scope. Lissajous stereo field visualization with correlation meter.</p>
-            <span class="dl">Download</span>
-        </a>
-        <a href="/downloads/Meter-1.2.0.pkg" class="tile tile-meter">
-            <h2>Meter</h2>
-            <p>LUFS, true peak, crest factor, phase correlation, and spectral band meters.</p>
-            <span class="dl">Download</span>
-        </a>
-        <a href="/downloads/EQT-1.2.0.pkg" class="tile tile-eqt">
-            <h2>EQT</h2>
-            <p>Parametric EQ with real-time FFT. Click to place nodes, drag to shape, scroll for Q.</p>
-            <span class="dl">Download</span>
-        </a>
-        <a href="/downloads/Reflex-1.2.0.pkg" class="tile tile-reflex">
-            <h2>Reflex</h2>
-            <p>Resonator with sequenced delay &amp; reverb. Transient-triggered 8-step note sequencer.</p>
-            <span class="dl">Download</span>
-        </a>
-        <a href="/downloads/ThreeFX-1.2.0.pkg" class="tile tile-3fx">
-            <h2>3FX</h2>
-            <p>Three simultaneous effects: phase, flange, and delay — all at once.</p>
-            <span class="dl">Download</span>
-        </a>
-        <a href="/downloads/Neat-1.2.0.pkg" class="tile tile-neat">
-            <h2>Neat Neat Neat</h2>
-            <p>Beat repeater ×3. Three independent repeat engines with pitch and decay control.</p>
-            <span class="dl">Download</span>
-        </a>
-    </div>
-</div>
-
-<div id="buyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;align-items:center;justify-content:center;">
-    <div style="background:#141416;border-radius:10px;padding:36px;max-width:380px;width:90%;text-align:center;">
-        <h3 style="color:#f2c4ce;font-size:20px;margin-bottom:8px;">Get MixMind</h3>
-        <p style="color:rgba(255,255,255,0.5);font-size:13px;margin-bottom:20px;">$10/month or $99 lifetime<br>$199 for full JuicePipe suite</p>
-        <input id="buyEmail" type="email" placeholder="you@email.com" style="width:100%;padding:12px;background:#080809;border:1px solid rgba(242,196,206,0.15);border-radius:6px;color:#f2c4ce;font-size:14px;margin-bottom:12px;outline:none;">
-        <div style="display:flex;gap:10px;"><button onclick="processPurchase()" style="flex:1;padding:12px;background:#f2c4ce;color:#080809;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Get License Key</button><button onclick="closeBuy()" style="flex:1;padding:12px;background:transparent;color:rgba(255,255,255,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:14px;cursor:pointer;">Cancel</button></div>
-        <div id="buyResult" style="margin-top:16px;display:none;"></div>
-    </div>
-</div>
-<script>
-function buyNow(){document.getElementById('buyModal').style.display='flex'}
-function closeBuy(){document.getElementById('buyModal').style.display='none'}
-async function processPurchase(){
-    var e=document.getElementById('buyEmail').value;
-    if(!e.includes('@')){alert('Enter a valid email');return}
-    var r=await fetch('https://getjuicepipe.com/purchase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e})});
-    var d=await r.json();
-    var el=document.getElementById('buyResult');el.style.display='block';
-    el.innerHTML='<strong style="color:#f2c4ce;font-size:16px;">'+d.license_key+'</strong><br><span style="font-size:11px;color:rgba(255,255,255,0.4);">Copy this key and paste into the plugin.</span>';
-}
-</script>
-</body>
-</html>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>JuicePipe</title><link rel="icon" type="image/svg+xml" href="/favicon.svg"><style>
+:root{--black:#080809}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Helvetica Neue',-apple-system,sans-serif;background:var(--black);color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:80px 24px 60px}
+h1 a{text-decoration:none;font-size:42px;font-weight:700;letter-spacing:-1px}
+h1 a span:nth-child(1){color:#ff6b6b}h1 a span:nth-child(2){color:#ffa94d}h1 a span:nth-child(3){color:#ffd43b}h1 a span:nth-child(4){color:#69db7c}h1 a span:nth-child(5){color:#4dabf7}h1 a span:nth-child(6){color:#748ffc}h1 a span:nth-child(7){color:#da77f2}h1 a span:nth-child(8){color:#f783ac}h1 a span:nth-child(9){color:#ff6b6b}
+.tagline{color:rgba(255,255,255,0.5);font-size:14px;max-width:480px;text-align:center;line-height:1.6;margin:12px 0 48px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:960px;width:100%}
+.tile{display:block;text-decoration:none;border-radius:10px;padding:28px 22px;min-height:180px;display:flex;flex-direction:column;justify-content:center;transition:transform .15s,box-shadow .15s}
+.tile:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,0.4)}
+.tile h2{font-size:22px;font-weight:700;margin-bottom:6px;letter-spacing:-.5px}
+.tile p{font-size:12px;line-height:1.5;opacity:.7}
+.tile-mixmind{background:#ff8a80;color:#1a0000}.tile-scope{background:#b388ff;color:#0a0020}.tile-meter{background:#ffcc80;color:#1a0c00}.tile-eqt{background:#80d8ff;color:#001a20}.tile-reflex{background:#b9f6ca;color:#001a08}.tile-3fx{background:#ffff8d;color:#1a1a00}.tile-neat{background:#ea80fc;color:#1a0020}
+@media(max-width:700px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:440px){.grid{grid-template-columns:1fr}}
+</style></head><body>
+<h1><a href="/"><span>J</span><span>u</span><span>i</span><span>c</span><span>e</span><span>P</span><span>i</span><span>p</span><span>e</span></a></h1>
+<div class="tagline">Tools that help you understand why your mix sounds the way it does —<br>visualize tradeoffs, learn as you go, and make better decisions.<br>Not replace you. Arm you.</div>
+<div class="grid">
+<a href="/downloads/MixMind-1.2.0.pkg" class="tile tile-mixmind"><h2>MixMind</h2><p>Real-time FFT + AI analysis. A second set of ears in your DAW.</p></a><a href="/downloads/Scope-1.2.0.pkg" class="tile tile-scope"><h2>Scope</h2><p>Goniometer and phase scope. See your stereo field.</p></a><a href="/downloads/Meter-1.2.0.pkg" class="tile tile-meter"><h2>Meter</h2><p>LUFS, true peak, crest factor. Know your dynamics.</p></a><a href="/downloads/EQT-1.2.0.pkg" class="tile tile-eqt"><h2>EQT</h2><p>Parametric EQ with real-time FFT. Click to shape.</p></a><a href="/downloads/Reflex-1.2.0.pkg" class="tile tile-reflex"><h2>Reflex</h2><p>Resonator with sequenced delay and reverb.</p></a><a href="/downloads/ThreeFX-1.2.0.pkg" class="tile tile-3fx"><h2>3FX</h2><p>Phase, flange, and delay — all at once.</p></a><a href="/downloads/Neat-1.2.0.pkg" class="tile tile-neat"><h2>Neat</h2><p>Beat repeater ×3. Glitch and rhythm control.</p></a></div></body></html>
