@@ -10,7 +10,7 @@ public:
     ~ReflexProcessor() override = default;
 
     void prepareToPlay (double sr, int bs) override;
-    void releaseResources() override {}
+    void releaseResources() override { delayBuffer.clear(); delayWritePos = 0; }
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     juce::AudioProcessorEditor* createEditor() override;

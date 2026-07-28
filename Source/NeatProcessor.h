@@ -9,7 +9,7 @@ public:
     NeatProcessor();
     ~NeatProcessor() override = default;
     void prepareToPlay (double sr, int bs) override;
-    void releaseResources() override {}
+    void releaseResources() override { for(auto& b:delayBuf) b.clear(); delayPos[0]=delayPos[1]=delayPos[2]=0; }
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }

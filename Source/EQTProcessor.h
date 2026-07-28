@@ -11,7 +11,7 @@ public:
     ~EQTProcessor() override = default;
 
     void prepareToPlay (double sr, int bs) override;
-    void releaseResources() override {}
+    void releaseResources() override { chain.reset(); }
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     juce::AudioProcessorEditor* createEditor() override;

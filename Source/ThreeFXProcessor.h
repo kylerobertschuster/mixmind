@@ -9,7 +9,7 @@ public:
     ThreeFXProcessor();
     ~ThreeFXProcessor() override = default;
     void prepareToPlay (double sr, int bs) override;
-    void releaseResources() override {}
+    void releaseResources() override { delayBuf.clear(); delayPos = 0; phaseLFO = flangeLFO = 0; }
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
