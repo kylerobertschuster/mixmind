@@ -43,7 +43,7 @@ Hey — here's your MixMind beta license:
 
   License: MM-XXXXXXXXXXXXXXX
   Download: https://github.com/kylerobertschuster/mixmind/releases/tag/beta-1
-  Proxy: https://juicepipe.audio
+  Proxy: https://getjuicepipe.com
 
 To use it:
   1. Download the .pkg and install
@@ -69,7 +69,7 @@ No pressure — just curious. Thanks for trying it out.
 Generate licenses:
 
 ```bash
-curl -X POST https://juicepipe.audio/admin/generate-license \
+curl -X POST https://getjuicepipe.com/admin/generate-license \
   -H "x-admin-secret: YOUR_SECRET" \
   -d '{"count":10}'
 ```

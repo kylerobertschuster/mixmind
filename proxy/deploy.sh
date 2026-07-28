@@ -9,7 +9,7 @@ set -euo pipefail
 # ═══════════════════════════════════════════════════════════════════════
 
 # ── Config ────────────────────────────────────────────────────────────
-JUICEPIPE_DOMAIN="${JUICEPIPE_DOMAIN:-juicepipe.audio}"
+JUICEPIPE_DOMAIN="${JUICEPIPE_DOMAIN:-getjuicepipe.com}"
 JUICEPIPE_USER="${JUICEPIPE_USER:-juicepipe}"
 JUICEPIPE_HOME="/home/${JUICEPIPE_USER}"
 

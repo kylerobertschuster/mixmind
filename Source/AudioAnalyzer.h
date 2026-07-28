@@ -41,7 +41,7 @@ private:
     int   fifoIdx { 0 };
     bool  fftReady { false };
 
-    // Thread-safe: written on audio, read on GUI
+    // Written on audio thread, read on GUI thread — plain float, torn reads are harmless for display
     float fftOutput[numBins] { 0 };
     juce::Atomic<float> bassEnergy  { 0 };
     juce::Atomic<float> midEnergy   { 0 };
