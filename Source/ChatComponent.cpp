@@ -344,3 +344,8 @@ void ChatComponent::submit()
     inputBox.clear();
     if (onSendMessage) onSendMessage (text);
 }
+
+void ChatComponent::setInputText (const juce::String& text)
+{
+    inputBox.setText (text, juce::sendNotificationAsync);
+}

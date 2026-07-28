@@ -21,6 +21,25 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     updateLicenseDisplay();
     addAndMakeVisible (licenseButton);
 
+    // Quick prompt dropdown
+    promptLabel.setFont(juce::FontOptions("Helvetica Neue",9,juce::Font::bold));
+    promptLabel.setColour(juce::Label::textColourId,JP::text.withAlpha(0.5f));
+    addAndMakeVisible(promptLabel);
+    promptDropdown.addItem("Select a prompt...",1);
+    promptDropdown.addItem("Is my low end balanced?",2);
+    promptDropdown.addItem("How's the stereo width?",3);
+    promptDropdown.addItem("Check my dynamics and crest factor",4);
+    promptDropdown.addItem("What's eating my headroom?",5);
+    promptDropdown.addItem("Give me a master chain for this",6);
+    promptDropdown.addItem("Diagnose my overall mix balance",7);
+    promptDropdown.addItem("Are my vocals sitting right?",8);
+    promptDropdown.setSelectedId(1);
+    promptDropdown.onChange=[this]{
+        int id=promptDropdown.getSelectedId();
+        if(id>1){chatComponent.setInputText(promptDropdown.getText());promptDropdown.setSelectedId(1);}
+    };
+    addAndMakeVisible(promptDropdown);
+
     // Spectrum
     addAndMakeVisible (analyzer);
 
@@ -73,6 +92,8 @@ void MixMindEditor::resized()
     auto b = getLocalBounds();
     auto header = b.removeFromTop (JP::headerH);
     titleLabel.setBounds (header.withLeft (14).withWidth (300));
+    promptLabel.setBounds (header.withLeft (320).withWidth (50).withHeight (26).withY (7));
+    promptDropdown.setBounds (header.withLeft (370).withWidth (160).withHeight (26).withY (7));
     licenseButton.setBounds (header.withLeft (getWidth() - 160).withWidth (130).withHeight (26).withY (7));
 
     auto sidebar = b.removeFromRight (JP::sidebarW);

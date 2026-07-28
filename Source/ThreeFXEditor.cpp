@@ -13,6 +13,9 @@ ThreeFXEditor::ThreeFXEditor(ThreeFXProcessor& p) : AudioProcessorEditor(&p), pr
     licenseButton.setColour(juce::TextButton::textColourOffId,JP::text);
     licenseButton.onClick=[this]{showLicenseDialog();}; updateLicenseDisplay(); addAndMakeVisible(licenseButton);
 
+    auto mkLabel=[&](juce::Label& l){l.setFont(juce::FontOptions("Helvetica Neue",9,juce::Font::bold));l.setColour(juce::Label::textColourId,JP::text);addAndMakeVisible(l);};
+    mkLabel(phaseLabel); mkLabel(flangeLabel); mkLabel(delayLabel);
+
     auto mk=[&](juce::Slider& s,juce::Label& l,const juce::String& n,float mn,float mx,float d,float st){
         s.setSliderStyle(juce::Slider::RotaryVerticalDrag); s.setTextBoxStyle(juce::Slider::TextBoxBelow,false,44,14);
         s.setRange(mn,mx,st); s.setValue(d);
@@ -56,9 +59,16 @@ void ThreeFXEditor::resized(){
     licenseButton.setBounds(h.withLeft(getWidth()-130).withWidth(110).withHeight(26).withY(7));
     auto a=getLocalBounds().withTrimmedTop(JP::headerH+8).reduced(12);
     int w=(a.getWidth()-48)/5;
-    auto pl=[&](int c,juce::Slider& s,juce::Label& l){int x=12+c*(w+12); s.setBounds(x,a.getY()+16,w,w); l.setBounds(x,a.getY()+w+16,w,14);};
-    pl(0,pRate,pRateL); pl(1,pDepth,pDepthL); pl(2,fRate,fRateL); pl(3,fDepth,fDepthL); pl(4,dTime,dTimeL);
-    pl(1,dFb,dFbL); pl(2,dMix,dMixL);
+    int rowH=(a.getHeight()-16)/3;
+    int y0=a.getY()+8;
+    auto pl=[&](int row,int c,juce::Slider& s,juce::Label& l){
+        int x=12+c*(w+12);
+        s.setBounds(x,y0+row*(rowH-4),w,w);
+        l.setBounds(x,y0+row*(rowH-4)+w+4,w,14);
+    };
+    pl(0,0,pRate,pRateL); pl(0,1,pDepth,pDepthL); phaseLabel.setBounds(12,y0,w,14);
+    pl(1,0,fRate,fRateL); pl(1,1,fDepth,fDepthL); flangeLabel.setBounds(12,y0+rowH-4,w,14);
+    pl(2,0,dTime,dTimeL); pl(2,1,dFb,dFbL); pl(2,2,dMix,dMixL); delayLabel.setBounds(12,y0+2*(rowH-4),w,14);
 }
 
 void ThreeFXEditor::showLicenseDialog(){

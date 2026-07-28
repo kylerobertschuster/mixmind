@@ -86,6 +86,7 @@ public:
     void           clear           ();
 
     void setInputEnabled (bool enabled);
+    void setInputText (const juce::String& text);
     void scrollToBottom  ();
 
 private:

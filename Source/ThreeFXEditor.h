@@ -17,6 +17,7 @@ private:
     ThreeFXProcessor& proc;
     JuicePipeLAF laf;
     juce::Label titleLabel;
+    juce::Label phaseLabel{{""},"PHASE"}, flangeLabel{{""},"FLANGE"}, delayLabel{{""},"DELAY"};
     juce::TextButton licenseButton{"LICENSE"};
     juce::Slider pRate,pDepth,fRate,fDepth,dTime,dFb,dMix;
     juce::Label pRateL,pDepthL,fRateL,fDepthL,dTimeL,dFbL,dMixL;
