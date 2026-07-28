@@ -26,9 +26,9 @@ void AnalyzerCanvas::updateBins (const float* bins, int numBins)
         {
             float val = bins[srcIdx];
             // Convert raw magnitude to dB
-            float db = val > 0.0001f ? 20.0f * std::log10 (val) : -120.0f;
+            float db = val > 0.00001f ? 20.0f * std::log10 (val) : -120.0f;
             targetBins[i] = juce::jlimit (0.0f, 1.0f, (db + 100.0f) / 100.0f);
-            if (db > -90.0f) hasSignal = true;
+            if (db > -96.0f) hasSignal = true;
         }
     }
 }
