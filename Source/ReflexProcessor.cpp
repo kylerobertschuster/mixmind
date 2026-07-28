@@ -115,6 +115,9 @@ void ReflexProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     {
         L[s] = L[s] * (1.0f - mix) + wet.getSample (0, s) * mix;
         if (buffer.getNumChannels() > 1) R[s] = R[s] * (1.0f - mix) + wet.getSample (1, s) * mix;
+        // Brickwall limiter
+        L[s] = std::tanh (L[s] * 0.85f);
+        if (buffer.getNumChannels() > 1) R[s] = std::tanh (R[s] * 0.85f);
     }
 }
 

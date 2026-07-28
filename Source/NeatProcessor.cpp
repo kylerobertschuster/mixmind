@@ -58,6 +58,10 @@ void NeatProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
             L[s] = L[s] * (1.0f-mix) + (sumL * 0.3f + pL * 0.7f) * mix;
             R[s] = R[s] * (1.0f-mix) + (sumR * 0.3f + pR * 0.7f) * mix;
 
+            // Brickwall limiter — prevent hearing damage
+            L[s] = std::tanh (L[s] * 0.85f);
+            R[s] = std::tanh (R[s] * 0.85f);
+
             delayPos[e] = (delayPos[e]+1) % delaySize[e];
         }
     }

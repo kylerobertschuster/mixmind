@@ -61,6 +61,9 @@ void ThreeFXProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
         // Mix
         L[s] = dryL * (1.0f - mix) + wetL * mix;
         R[s] = dryR * (1.0f - mix) + wetR * mix;
+        // Brickwall — phase + flange + delay can spike
+        L[s] = std::tanh (L[s] * 0.85f);
+        R[s] = std::tanh (R[s] * 0.85f);
     }
 }
 
