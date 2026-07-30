@@ -9,10 +9,10 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     setResizable (true, true);
     setResizeLimits (700, 400, 1600, 1000);
 
-    // Header
-    titleLabel.setText ("JuicePipe - MixMind", juce::dontSendNotification);
-    titleLabel.setFont (juce::FontOptions ("Helvetica Neue", 12.0f, juce::Font::bold));
-    titleLabel.setColour (juce::Label::textColourId, JP::text.withAlpha (0.5f));
+    // Header — crisp, opaque text, no alpha
+    titleLabel.setText ("JuicePipe  —  MixMind", juce::dontSendNotification);
+    titleLabel.setFont (juce::FontOptions ("Helvetica Neue", 13.0f, juce::Font::bold));
+    titleLabel.setColour (juce::Label::textColourId, JP::text);
     addAndMakeVisible (titleLabel);
 
     licenseButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
@@ -21,24 +21,36 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     updateLicenseDisplay();
     addAndMakeVisible (licenseButton);
 
-    // Quick prompt dropdown
-    promptLabel.setFont(juce::FontOptions("Helvetica Neue",9,juce::Font::bold));
-    promptLabel.setColour(juce::Label::textColourId,JP::text.withAlpha(0.5f));
-    addAndMakeVisible(promptLabel);
-    promptDropdown.addItem("Select a prompt...",1);
-    promptDropdown.addItem("Is my low end balanced?",2);
-    promptDropdown.addItem("How's the stereo width?",3);
-    promptDropdown.addItem("Check my dynamics and crest factor",4);
-    promptDropdown.addItem("What's eating my headroom?",5);
-    promptDropdown.addItem("Give me a master chain for this",6);
-    promptDropdown.addItem("Diagnose my overall mix balance",7);
-    promptDropdown.addItem("Are my vocals sitting right?",8);
-    promptDropdown.setSelectedId(1);
-    promptDropdown.onChange=[this]{
-        int id=promptDropdown.getSelectedId();
-        if(id>1){chatComponent.setInputText(promptDropdown.getText());promptDropdown.setSelectedId(1);}
+    // Quick prompts — styled button opens popup
+    promptButton.setButtonText ("PROMPTS");
+    promptButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
+    promptButton.setColour (juce::TextButton::textColourOffId, JP::textMuted);
+    promptButton.onClick = [this]
+    {
+        juce::PopupMenu menu;
+        menu.addItem (2, "Is my low end balanced?");
+        menu.addItem (3, "How's the stereo width?");
+        menu.addItem (4, "Check my dynamics and crest factor");
+        menu.addItem (5, "What's eating my headroom?");
+        menu.addItem (6, "Give me a master chain for this");
+        menu.addItem (7, "Diagnose my overall mix balance");
+        menu.addItem (8, "Are my vocals sitting right?");
+
+        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&promptButton),
+            [this] (int result)
+            {
+                switch (result) {
+                    case 2: chatComponent.setInputText ("Is my low end balanced?"); break;
+                    case 3: chatComponent.setInputText ("How's the stereo width?"); break;
+                    case 4: chatComponent.setInputText ("Check my dynamics and crest factor"); break;
+                    case 5: chatComponent.setInputText ("What's eating my headroom?"); break;
+                    case 6: chatComponent.setInputText ("Give me a master chain for this"); break;
+                    case 7: chatComponent.setInputText ("Diagnose my overall mix balance"); break;
+                    case 8: chatComponent.setInputText ("Are my vocals sitting right?"); break;
+                }
+            });
     };
-    addAndMakeVisible(promptDropdown);
+    addAndMakeVisible (promptButton);
 
     // Spectrum
     addAndMakeVisible (analyzer);
@@ -92,8 +104,7 @@ void MixMindEditor::resized()
     auto b = getLocalBounds();
     auto header = b.removeFromTop (JP::headerH);
     titleLabel.setBounds (header.withLeft (14).withWidth (300));
-    promptLabel.setBounds (header.withLeft (320).withWidth (50).withHeight (26).withY (7));
-    promptDropdown.setBounds (header.withLeft (370).withWidth (160).withHeight (26).withY (7));
+    promptButton.setBounds (header.withLeft (320).withWidth (90).withHeight (26).withY (7));
     licenseButton.setBounds (header.withLeft (getWidth() - 160).withWidth (130).withHeight (26).withY (7));
 
     auto sidebar = b.removeFromRight (JP::sidebarW);

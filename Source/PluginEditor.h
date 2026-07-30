@@ -29,8 +29,7 @@ private:
     // Header
     juce::Label      titleLabel;
     juce::TextButton licenseButton { "LICENSE" };
-    juce::ComboBox promptDropdown;
-    juce::Label promptLabel {{""},"PROMPTS"};
+    juce::TextButton promptButton { "PROMPTS" };
 
     // Chat state
     std::vector<ChatMessage> history;
