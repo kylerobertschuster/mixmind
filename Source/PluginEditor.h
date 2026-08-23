@@ -32,7 +32,7 @@ private:
     // Header
     juce::Label      titleLabel;
     juce::TextButton licenseButton { "LICENSE" };
-    juce::TextButton promptButton { "PROMPTS" };
+    juce::TextButton aiButton { "AI" };
     juce::TextButton loadRefButton { "LOAD REF" };
     juce::ComboBox   focusBox;
     ColorSwatch      colorSwatch;
@@ -41,8 +41,10 @@ private:
     std::vector<ChatMessage> history;
     MessageBubble*           thinkingBubble { nullptr };
     bool                     waitingForReply { false };
+    bool                     chatVisible { false };   // AI is demoted: collapsed by default
 
     void handleUserMessage (const juce::String& text);
+    void setChatVisible (bool visible);
     void showLicenseDialog();
     void updateLicenseDisplay();
     void loadReference();

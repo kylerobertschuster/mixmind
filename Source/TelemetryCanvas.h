@@ -1,6 +1,5 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
-#include <vector>
 #include "FocusModel.h"
 #include "LookAndFeel.h"
 #include "AudioAnalyzer.h"
@@ -33,8 +32,9 @@ private:
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  TelemetryCanvas — dual-signal spectrum.
-//    · Master focus  → full range, user spectrum rendered as cow print,
-//                      reference as a pastel-pink overlay.
+//    · Master focus  → full range, the user spectrum is coloured per band by
+//                      each focus group's hue (a "rainbow" where a bass peak
+//                      is blue, a vocal peak is violet, etc.).
 //    · Group focus   → zooms to the group's band, reference = pastel hue,
 //                      user = saturated hue (same colour family).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -68,9 +68,9 @@ private:
     void drawFocused (juce::Graphics& g);
 
     juce::Path buildCurve (const float* bins) const;
+    juce::Path buildBandCurve (const float* bins, float loHz, float hiHz) const;
     float xForFreq (float hz) const;
     float yForValue (float v) const;
-    float curveYAt (float nx, const float* bins) const;
 
     void drawLegend (juce::Graphics& g);
     void drawMasterLegend (juce::Graphics& g);
@@ -78,10 +78,6 @@ private:
     void drawGroupMeter (juce::Graphics& g);
     void drawHint (juce::Graphics& g, const juce::String& text);
     float groupEnergy (FocusModel::Group g, const float* bins) const;
-
-    struct CowSpot { float nx, ny, r; int seed; };
-    void generateSpots();
-    juce::Path buildBlob (float cx, float cy, float r, int seed) const;
 
     // Smoothed display values (0..1) for user + reference.
     float smoothUser[kNumBins] { 0.0f };
@@ -102,7 +98,6 @@ private:
     FocusModel::Group focus { FocusModel::Group::Master };
 
     float axisMin { 20.0f }, axisMax { 20000.0f };
-    std::vector<CowSpot> spots;
 
     float plotLeft { 44.0f }, plotRight { 0.0f }, plotTop { 48.0f }, plotBottom { 0.0f };
 

@@ -44,7 +44,6 @@ void ColorSwatch::changeListenerCallback (juce::ChangeBroadcaster* src)
 
 TelemetryCanvas::TelemetryCanvas()
 {
-    generateSpots();
     startTimerHz (60);
 }
 
@@ -139,12 +138,20 @@ juce::Path TelemetryCanvas::buildCurve (const float* bins) const
     return p;
 }
 
-float TelemetryCanvas::curveYAt (float nx, const float* bins) const
+juce::Path TelemetryCanvas::buildBandCurve (const float* bins, float loHz, float hiHz) const
 {
-    const float hz = axisMin * std::pow (axisMax / axisMin, nx);
-    int bin = (int) (hz / (float) sampleRate * (float) AudioAnalyzer::fftSize);
-    bin = juce::jlimit (0, kNumBins - 1, bin);
-    return yForValue (bins[bin]);
+    juce::Path p;
+    bool started = false;
+    for (int i = 0; i < kNumBins; ++i)
+    {
+        const float hz = (float) i * (float) sampleRate / (float) AudioAnalyzer::fftSize;
+        if (hz < loHz || hz > hiHz) continue;
+        const float x = xForFreq (hz);
+        const float y = yForValue (bins[i]);
+        if (!started) { p.startNewSubPath (x, y); started = true; }
+        else          p.lineTo (x, y);
+    }
+    return p;
 }
 
 // ── Paint ───────────────────────────────────────────────────────────────────
@@ -208,36 +215,30 @@ void TelemetryCanvas::drawMaster (juce::Graphics& g)
 {
     if (!hasUser) { drawHint (g, "No signal — play audio through this track"); return; }
 
-    const juce::Path curve = buildCurve (smoothUser);
-    juce::Path fill = curve;
-    fill.lineTo (plotRight, plotBottom);
-    fill.lineTo (plotLeft, plotBottom);
-    fill.closeSubPath();
-
-    // White base (the "hide").
-    g.setColour (juce::Colour (0xfff6f2ec));
-    g.fillPath (fill);
-
-    // Black blotches, clipped inside the spectrum area.
-    g.saveState();
-    g.reduceClipRegion (fill);
-    for (const auto& s : spots)
+    // User spectrum coloured per focus-group band: each region of the graph
+    // takes its group's saturated hue (bass peak = blue, vocals = violet, …).
+    for (auto grp : FocusModel::defaultGroups())
     {
-        const float cx = plotLeft + (plotRight - plotLeft) * s.nx;
-        const float curveY = curveYAt (s.nx, smoothUser);
-        const float cy = curveY + (plotBottom - curveY) * s.ny;
-        const juce::Path blob = buildBlob (cx, cy, s.r, s.seed);
-        g.setColour (juce::Colour (0xff17171a).withAlpha (0.92f));
-        g.fillPath (blob);
-    }
-    g.restoreState();
+        const auto range = FocusModel::bandRange (grp);
+        const auto col   = FocusModel::colorFor (grp).saturated;
 
-    // Curve outline for legibility.
-    g.setColour (juce::Colour (0xff17171a).withAlpha (0.85f));
-    g.strokePath (curve, juce::PathStrokeType (1.6f));
+        const juce::Path curve = buildBandCurve (smoothUser, range.getStart(), range.getEnd());
+
+        juce::Path fill = curve;
+        fill.lineTo (xForFreq (range.getEnd()),   plotBottom);
+        fill.lineTo (xForFreq (range.getStart()), plotBottom);
+        fill.closeSubPath();
+
+        g.setGradientFill (juce::ColourGradient (col.withAlpha (0.18f), 0.0f, plotTop,
+                                                 col.withAlpha (0.03f), 0.0f, plotBottom, false));
+        g.fillPath (fill);
+
+        g.setColour (col.withAlpha (0.95f));
+        g.strokePath (curve, juce::PathStrokeType (2.0f));
+    }
 
     // Peak-hold envelope (subtle) — recent maximum per bin.
-    g.setColour (juce::Colour (0xff17171a).withAlpha (0.22f));
+    g.setColour (juce::Colours::white.withAlpha (0.20f));
     g.strokePath (buildCurve (peakHold), juce::PathStrokeType (1.0f));
 
     // Reference overlay (pastel pink) if loaded.
@@ -324,21 +325,21 @@ void TelemetryCanvas::drawLegend (juce::Graphics& g)
 void TelemetryCanvas::drawMasterLegend (juce::Graphics& g)
 {
     const float y = 6.0f;
-
-    // Cow-print swatch (YOU).
-    float x = plotLeft;
-    g.setColour (juce::Colour (0xfff6f2ec));
-    g.fillRoundedRectangle (x, y, 12.0f, 10.0f, 2.0f);
-    g.setColour (juce::Colour (0xff17171a));
-    g.fillEllipse (x + 3.0f,  y + 2.0f, 3.0f, 3.0f);
-    g.fillEllipse (x + 7.0f,  y + 5.0f, 2.5f, 2.5f);
-    g.fillEllipse (x + 6.0f,  y + 1.5f, 2.0f, 2.0f);
-    g.setColour (JP::textDim);
     g.setFont (juce::FontOptions ("Helvetica Neue", 9.0f, juce::Font::plain));
-    g.drawText ("YOU", juce::Rectangle<float> (x + 16.0f, y, 40.0f, 12.0f), juce::Justification::left, false);
 
-    // Reference swatch (pink).
-    x += 58.0f;
+    // YOU = band-coloured spectrum (one chip per focus group).
+    float x = plotLeft;
+    for (auto grp : FocusModel::defaultGroups())
+    {
+        g.setColour (FocusModel::colorFor (grp).saturated);
+        g.fillRoundedRectangle (x, y, 7.0f, 10.0f, 1.5f);
+        x += 9.0f;
+    }
+    g.setColour (JP::textDim);
+    g.drawText ("YOU", juce::Rectangle<float> (x + 2.0f, y, 34.0f, 12.0f), juce::Justification::left, false);
+    x += 38.0f;
+
+    // REF = pink overlay.
     g.setColour (FocusModel::masterReferenceColour());
     g.fillRoundedRectangle (x, y, 12.0f, 10.0f, 2.0f);
     g.setColour (JP::textDim);
@@ -464,42 +465,4 @@ void TelemetryCanvas::drawGroupMeter (juce::Graphics& g)
 
         x += segW + gap;
     }
-}
-
-// ── Cow-print blotches ──────────────────────────────────────────────────────
-
-void TelemetryCanvas::generateSpots()
-{
-    uint32_t s = 0x1234abcd;
-    auto rnd = [&]() { s = s * 1664525u + 1013904223u; return (s >> 8) & 0xffff; };
-
-    spots.clear();
-    for (int i = 0; i < 22; ++i)
-    {
-        CowSpot spot;
-        spot.nx   = rnd() / 65536.0f;
-        spot.ny   = 0.15f + 0.8f * (rnd() / 65536.0f);
-        spot.r    = 5.0f + 20.0f * (rnd() / 65536.0f);
-        spot.seed = (int) rnd();
-        spots.push_back (spot);
-    }
-}
-
-juce::Path TelemetryCanvas::buildBlob (float cx, float cy, float r, int seed) const
-{
-    constexpr int N = 26;
-    const float a0 = (float)(seed % 360) * (float) (juce::MathConstants<float>::pi / 180.0);
-    const float a1 = (float)((seed >> 3) % 360) * (float) (juce::MathConstants<float>::pi / 180.0);
-
-    juce::Path p;
-    p.startNewSubPath (cx + r, cy);
-    for (int i = 1; i <= N; ++i)
-    {
-        const float ang = juce::MathConstants<float>::twoPi * (float) i / (float) N;
-        const float wob = 0.78f + 0.28f * std::sin (3.0f * ang + a0) * std::sin (2.0f * ang + a1);
-        const float rr = r * wob;
-        p.lineTo (cx + rr * std::cos (ang), cy + rr * std::sin (ang));
-    }
-    p.closeSubPath();
-    return p;
 }

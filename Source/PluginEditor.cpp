@@ -21,38 +21,13 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     updateLicenseDisplay();
     addAndMakeVisible (licenseButton);
 
-    // Quick prompts — styled button opens popup
-    promptButton.setButtonText ("PROMPTS");
-    promptButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
-    promptButton.setColour (juce::TextButton::textColourOffId, JP::textMuted);
-    promptButton.onClick = [this]
-    {
-        juce::PopupMenu menu;
-        menu.addItem (2, "Is my low end balanced?");
-        menu.addItem (3, "How's the stereo width?");
-        menu.addItem (4, "Check my dynamics and crest factor");
-        menu.addItem (5, "What's eating my headroom?");
-        menu.addItem (6, "Give me a master chain for this");
-        menu.addItem (7, "Diagnose my overall mix balance");
-        menu.addItem (8, "Are my vocals sitting right?");
+    // AI — demoted to an optional panel behind a single toggle.
+    aiButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
+    aiButton.setColour (juce::TextButton::textColourOffId, JP::textMuted);
+    aiButton.onClick = [this] { setChatVisible (!chatVisible); };
+    addAndMakeVisible (aiButton);
 
-        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&promptButton),
-            [this] (int result)
-            {
-                switch (result) {
-                    case 2: chatComponent.setInputText ("Is my low end balanced?"); break;
-                    case 3: chatComponent.setInputText ("How's the stereo width?"); break;
-                    case 4: chatComponent.setInputText ("Check my dynamics and crest factor"); break;
-                    case 5: chatComponent.setInputText ("What's eating my headroom?"); break;
-                    case 6: chatComponent.setInputText ("Give me a master chain for this"); break;
-                    case 7: chatComponent.setInputText ("Diagnose my overall mix balance"); break;
-                    case 8: chatComponent.setInputText ("Are my vocals sitting right?"); break;
-                }
-            });
-    };
-    addAndMakeVisible (promptButton);
-
-    // Focus dropdown — Master (cow print) + colour-coded sound groups
+    // Focus dropdown — Master (band-coloured rainbow) + colour-coded sound groups
     for (auto g : FocusModel::selectableGroups())
         focusBox.addItem (FocusModel::groupName (g), (int) g + 1);
     focusBox.setSelectedId ((int) FocusModel::Group::Master + 1, juce::dontSendNotification);
@@ -83,12 +58,13 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     strawPanel.onQuickPrompt = [this] { handleUserMessage (strawPanel.quickPromptText); };
     addAndMakeVisible (strawPanel);
 
-    // Chat
+    // Chat (collapsed by default — AI is secondary to the reference telemetry).
     chatComponent.onSendMessage = [this] (const juce::String& t) { handleUserMessage (t); };
     addAndMakeVisible (chatComponent);
 
     // Sync initial focus state (hides colour swatch for the default Master view).
     applyFocusSelection();
+    setChatVisible (false);
 
     startTimerHz (60);
 
@@ -134,15 +110,25 @@ void MixMindEditor::resized()
     loadRefButton.setBounds (header.withLeft (198).withWidth (82).withHeight (26).withY (7));
     focusBox.setBounds (header.withLeft (288).withWidth (104).withHeight (26).withY (7));
     colorSwatch.setBounds (header.withLeft (400).withWidth (24).withHeight (24).withY (8));
-    promptButton.setBounds (header.withLeft (432).withWidth (80).withHeight (26).withY (7));
+    aiButton.setBounds (header.withLeft (432).withWidth (46).withHeight (26).withY (7));
     licenseButton.setBounds (header.withLeft (getWidth() - 160).withWidth (130).withHeight (26).withY (7));
 
     auto sidebar = b.removeFromRight (JP::sidebarW);
     strawPanel.setBounds (sidebar);
 
-    auto chatArea = b.removeFromBottom ((int)(b.getHeight() * 0.42f));
+    auto chatArea = b.removeFromBottom (chatVisible ? (int)(b.getHeight() * 0.42f) : 0);
     telemetry.setBounds (b);
     chatComponent.setBounds (chatArea);
+}
+
+// ── AI panel (demoted) ───────────────────────────────────────────────────
+void MixMindEditor::setChatVisible (bool visible)
+{
+    chatVisible = visible;
+    chatComponent.setVisible (visible);
+    aiButton.setButtonText (visible ? "HIDE AI" : "AI");
+    aiButton.setColour (juce::TextButton::textColourOffId, visible ? JP::accent : JP::textMuted);
+    resized();
 }
 
 void MixMindEditor::timerCallback()
@@ -237,7 +223,7 @@ void MixMindEditor::applyFocusSelection()
     const auto g = static_cast<FocusModel::Group> (focusBox.getSelectedId() - 1);
     telemetry.setFocusGroup (g);
 
-    // The colour swatch only applies to hue-based groups (not Master/cow-print).
+    // The colour swatch only applies to hue-based groups (not Master/band view).
     const bool isMaster = (g == FocusModel::Group::Master);
     colorSwatch.setVisible (!isMaster);
     if (!isMaster)
@@ -248,6 +234,8 @@ void MixMindEditor::applyFocusSelection()
 void MixMindEditor::handleUserMessage (const juce::String& text)
 {
     if (waitingForReply || text.trim().isEmpty()) return;
+
+    if (!chatVisible) setChatVisible (true);
 
     auto& lm = audioProcessor.getLicenseManager();
     if (!lm.canPrompt()) { showLicenseDialog(); return; }

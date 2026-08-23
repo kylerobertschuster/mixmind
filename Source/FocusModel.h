@@ -12,14 +12,15 @@
 //  pastel reference colour is always derived automatically from the saturated
 //  one (lightened toward white).
 //
-//  The Master group is special: it renders the full-range spectrum as
-//  "cow print" (white fill + black blotches) instead of a hue pair.
+//  The Master group is special: it renders the full-range spectrum as a
+//  band-coloured "rainbow" — each frequency region takes its group's saturated
+//  hue (a bass peak is blue, a vocal peak is violet, etc.).
 // ─────────────────────────────────────────────────────────────────────────────
 namespace FocusModel
 {
     enum class Group
     {
-        Master = 0,   // full range — cow print
+        Master = 0,   // full range — band-coloured rainbow
         Bass,         // 20–250 Hz      — blue
         Guitar,       // 250 Hz–2 kHz   — green
         Vocals,       // 2–8 kHz        — violet
@@ -87,7 +88,7 @@ namespace FocusModel
     inline std::array<FocusColor, groupCount> defaultPalette()
     {
         std::array<FocusColor, groupCount> p;
-        p[(int) Group::Master] = makePair (juce::Colour (0xffff8a80));  // coral (unused — master is cow print)
+        p[(int) Group::Master] = makePair (juce::Colour (0xffff8a80));  // coral (unused — master is band-coloured)
         p[(int) Group::Bass]   = makePair (juce::Colour (0xff2979ff));  // blue
         p[(int) Group::Guitar] = makePair (juce::Colour (0xff00c853));  // green
         p[(int) Group::Vocals] = makePair (juce::Colour (0xff8b5cf6));  // violet
@@ -107,6 +108,6 @@ namespace FocusModel
     inline void      setColor  (Group g, juce::Colour saturated) { palette()[(int) g] = makePair (saturated); }
     inline void      resetColor (Group g) { palette()[(int) g] = defaultPalette()[(int) g]; }
 
-    // Reference overlay colour used in Master (cow print) mode.
+    // Reference overlay colour used in Master (band-coloured) mode.
     inline juce::Colour masterReferenceColour() { return juce::Colour (0xffff9db0); }
 }
