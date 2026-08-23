@@ -24,6 +24,7 @@ public:
     float getLufs()        const { return currentLufs.get(); }
     float getStereoWidth() const { return stereoWidth.get(); }
     float getPhaseCorr()   const { return phaseCorrelation.get(); }
+    double getSampleRate() const { return sampleRate; }
 
 private:
     void pushNextSample (float l, float r);

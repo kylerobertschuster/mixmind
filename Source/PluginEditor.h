@@ -4,7 +4,9 @@
 #include "PluginProcessor.h"
 #include "ChatComponent.h"
 #include "ContextPanel.h"
-#include "AnalyzerCanvas.h"
+#include "TelemetryCanvas.h"
+#include "ReferenceAnalyzer.h"
+#include "FocusModel.h"
 #include "LookAndFeel.h"
 
 class MixMindEditor : public juce::AudioProcessorEditor,
@@ -22,14 +24,18 @@ private:
     JuicePipeLAF      laf;
 
     // Layout
-    AnalyzerCanvas analyzer;
-    ChatComponent  chatComponent;
-    StrawPanel     strawPanel;
+    TelemetryCanvas   telemetry;
+    ChatComponent     chatComponent;
+    StrawPanel        strawPanel;
+    ReferenceAnalyzer referenceAnalyzer;
 
     // Header
     juce::Label      titleLabel;
     juce::TextButton licenseButton { "LICENSE" };
     juce::TextButton promptButton { "PROMPTS" };
+    juce::TextButton loadRefButton { "LOAD REF" };
+    juce::ComboBox   focusBox;
+    ColorSwatch      colorSwatch;
 
     // Chat state
     std::vector<ChatMessage> history;
@@ -39,6 +45,8 @@ private:
     void handleUserMessage (const juce::String& text);
     void showLicenseDialog();
     void updateLicenseDisplay();
+    void loadReference();
+    void applyFocusSelection();
     void timerCallback() override;
 
     int dotPhase { 0 };

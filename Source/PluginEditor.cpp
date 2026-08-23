@@ -52,8 +52,32 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     };
     addAndMakeVisible (promptButton);
 
+    // Focus dropdown — Master (cow print) + colour-coded sound groups
+    for (auto g : FocusModel::selectableGroups())
+        focusBox.addItem (FocusModel::groupName (g), (int) g + 1);
+    focusBox.setSelectedId ((int) FocusModel::Group::Master + 1, juce::dontSendNotification);
+    focusBox.onChange = [this] { applyFocusSelection(); };
+    addAndMakeVisible (focusBox);
+
+    // Reference loader
+    loadRefButton.setColour (juce::TextButton::buttonColourId, JP::surfaceRaised);
+    loadRefButton.setColour (juce::TextButton::textColourOffId, JP::textMuted);
+    loadRefButton.onClick = [this] { loadReference(); };
+    addAndMakeVisible (loadRefButton);
+
+    // Colour swatch — remaps the current focus group's colour
+    colorSwatch.setSwatchColour (FocusModel::colorFor (FocusModel::Group::Master).saturated);
+    colorSwatch.onColourPicked = [this] (juce::Colour c)
+    {
+        auto g = telemetry.getFocusGroup();
+        if (g == FocusModel::Group::Master) return;
+        FocusModel::setColor (g, c);
+        telemetry.repaint();
+    };
+    addAndMakeVisible (colorSwatch);
+
     // Spectrum
-    addAndMakeVisible (analyzer);
+    addAndMakeVisible (telemetry);
 
     // Presets sidebar
     strawPanel.onQuickPrompt = [this] { handleUserMessage (strawPanel.quickPromptText); };
@@ -62,6 +86,9 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     // Chat
     chatComponent.onSendMessage = [this] (const juce::String& t) { handleUserMessage (t); };
     addAndMakeVisible (chatComponent);
+
+    // Sync initial focus state (hides colour swatch for the default Master view).
+    applyFocusSelection();
 
     startTimerHz (60);
 
@@ -103,23 +130,27 @@ void MixMindEditor::resized()
 {
     auto b = getLocalBounds();
     auto header = b.removeFromTop (JP::headerH);
-    titleLabel.setBounds (header.withLeft (14).withWidth (300));
-    promptButton.setBounds (header.withLeft (320).withWidth (90).withHeight (26).withY (7));
+    titleLabel.setBounds (header.withLeft (14).withWidth (176));
+    loadRefButton.setBounds (header.withLeft (198).withWidth (82).withHeight (26).withY (7));
+    focusBox.setBounds (header.withLeft (288).withWidth (104).withHeight (26).withY (7));
+    colorSwatch.setBounds (header.withLeft (400).withWidth (24).withHeight (24).withY (8));
+    promptButton.setBounds (header.withLeft (432).withWidth (80).withHeight (26).withY (7));
     licenseButton.setBounds (header.withLeft (getWidth() - 160).withWidth (130).withHeight (26).withY (7));
 
     auto sidebar = b.removeFromRight (JP::sidebarW);
     strawPanel.setBounds (sidebar);
 
     auto chatArea = b.removeFromBottom ((int)(b.getHeight() * 0.42f));
-    analyzer.setBounds (b);
+    telemetry.setBounds (b);
     chatComponent.setBounds (chatArea);
 }
 
 void MixMindEditor::timerCallback()
 {
     ++dotPhase;
-    analyzer.updateBins (audioProcessor.audioAnalyzer.getFFTBins(),
-                         AudioAnalyzer::numBins);
+    telemetry.setUserBins (audioProcessor.audioAnalyzer.getFFTBins(),
+                           AudioAnalyzer::numBins,
+                           audioProcessor.audioAnalyzer.getSampleRate());
     if (waitingForReply) repaint();
 }
 
@@ -164,6 +195,49 @@ void MixMindEditor::updateLicenseDisplay()
         licenseButton.setButtonText (juce::String(r) + " FREE - ENTER KEY");
         licenseButton.setColour (juce::TextButton::textColourOffId, JP::warning);
     }
+}
+
+// ── Reference + Focus ──────────────────────────────────────────────────────
+
+void MixMindEditor::loadReference()
+{
+    auto chooser = std::make_shared<juce::FileChooser> (
+        "Load reference track", juce::File(), "*.wav;*.aiff;*.flac;*.ogg");
+    juce::Component::SafePointer<MixMindEditor> safeThis (this);
+
+    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        [safeThis, chooser] (const juce::FileChooser& fc)
+        {
+            if (safeThis == nullptr) return;
+            const auto results = fc.getResults();
+            if (results.isEmpty()) return;
+
+            const auto file = results.getReference (0);
+            juce::String error;
+            if (safeThis->referenceAnalyzer.loadFile (file, safeThis->audioProcessor.audioAnalyzer.getSampleRate(), error))
+            {
+                safeThis->telemetry.setReference (safeThis->referenceAnalyzer.getBins(), ReferenceAnalyzer::numBins);
+                safeThis->loadRefButton.setButtonText (safeThis->referenceAnalyzer.getFileName());
+                safeThis->loadRefButton.setColour (juce::TextButton::textColourOffId, JP::text);
+            }
+            else
+            {
+                juce::AlertWindow::showMessageBoxAsync (juce::AlertWindow::WarningIcon,
+                                                        "Load reference", error);
+            }
+        });
+}
+
+void MixMindEditor::applyFocusSelection()
+{
+    const auto g = static_cast<FocusModel::Group> (focusBox.getSelectedId() - 1);
+    telemetry.setFocusGroup (g);
+
+    // The colour swatch only applies to hue-based groups (not Master/cow-print).
+    const bool isMaster = (g == FocusModel::Group::Master);
+    colorSwatch.setVisible (!isMaster);
+    if (!isMaster)
+        colorSwatch.setSwatchColour (FocusModel::colorFor (g).saturated);
 }
 
 // ── Chat ─────────────────────────────────────────────────────────────────
