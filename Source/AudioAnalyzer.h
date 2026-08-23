@@ -24,6 +24,14 @@ public:
     float getLufs()        const { return currentLufs.get(); }
     float getStereoWidth() const { return stereoWidth.get(); }
     float getPhaseCorr()   const { return phaseCorrelation.get(); }
+    float getPeakDb()      const { return juce::Decibels::gainToDecibels (currentPeak.get()); }
+    float getCrestFactor() const
+    {
+        const float pk  = getPeakDb();
+        const float rms = currentLufs.get() + 3.0f;  // undo the LUFS offset
+        if (pk <= -180.0f || rms <= -180.0f) return 0.0f;
+        return juce::jmax (0.0f, pk - rms);
+    }
     double getSampleRate() const { return sampleRate; }
 
 private:
@@ -50,6 +58,7 @@ private:
     juce::Atomic<float> currentLufs { -60 };
     juce::Atomic<float> stereoWidth { 0.5f };
     juce::Atomic<float> phaseCorrelation { 1 };
+    juce::Atomic<float> currentPeak { 0 };
 
     double sampleRate { 44100 };
 

@@ -31,6 +31,13 @@ public:
     float getLufs()         const { return lufs; }
     float getStereoWidth()  const { return stereoWidth; }
     float getPhaseCorr()    const { return phaseCorr; }
+    float getPeakDb()       const { return peakDb; }
+    float getCrestFactor()  const
+    {
+        const float rms = lufs + 3.0f;  // undo the LUFS offset
+        if (peakDb <= -180.0f || rms <= -180.0f) return 0.0f;
+        return juce::jmax (0.0f, peakDb - rms);
+    }
 
 private:
     juce::AudioFormatManager formatManager;
@@ -40,6 +47,7 @@ private:
     float lufs        { -60.0f };
     float stereoWidth { 0.5f };
     float phaseCorr   { 1.0f };
+    float peakDb      { -180.0f };
     juce::String fileName;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ReferenceAnalyzer)

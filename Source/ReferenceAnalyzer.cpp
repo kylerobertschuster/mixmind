@@ -15,6 +15,7 @@ void ReferenceAnalyzer::clear()
     lufs = -60.0f;
     stereoWidth = 0.5f;
     phaseCorr = 1.0f;
+    peakDb = -180.0f;
     fileName = {};
 }
 
@@ -29,7 +30,7 @@ bool ReferenceAnalyzer::loadFile (const juce::File& file, double liveSampleRate,
     std::unique_ptr<juce::AudioFormatReader> reader (formatManager.createReaderFor (file));
     if (reader == nullptr)
     {
-        errorMessage = "Unsupported format (use WAV, AIFF, FLAC, or Ogg).";
+        errorMessage = "Unsupported format (use WAV, AIFF, FLAC, Ogg, or MP3).";
         return false;
     }
 
@@ -49,6 +50,7 @@ bool ReferenceAnalyzer::loadFile (const juce::File& file, double liveSampleRate,
 
     // ── Scalar telemetry from the stereo source ──────────────────────────
     double sumL2 = 0, sumR2 = 0, sumLR = 0, sumMid = 0, sumSide = 0;
+    float peak = 0.0f;
     for (int i = 0; i < maxSamples; ++i)
     {
         const float l = buffer.getSample (0, i);
@@ -59,15 +61,18 @@ bool ReferenceAnalyzer::loadFile (const juce::File& file, double liveSampleRate,
         const float m = (l + r) * 0.5f, s = (l - r) * 0.5f;
         sumMid += (double) m * m;
         sumSide += (double) s * s;
+        peak = juce::jmax (peak, std::abs (l), std::abs (r));
     }
 
     const double denom = std::sqrt (sumL2 * sumR2);
     phaseCorr   = (denom > 1e-12) ? juce::jlimit (-1.0f, 1.0f, (float)(sumLR / denom)) : 1.0f;
     stereoWidth = (sumMid > 0) ? (float) std::sqrt (sumSide / sumMid) : 0.0f;
 
-    // Approximate integrated loudness: RMS in dB, minus the ~0.7 dB K-weighting offset.
+    // Approximate integrated loudness (same −3 dB offset as AudioAnalyzer so
+    // REF and YOU readouts are directly comparable).
     const float rms = (float) std::sqrt ((sumL2 + sumR2) / (2.0 * maxSamples));
-    lufs = juce::Decibels::gainToDecibels (rms) - 0.7f;
+    lufs   = juce::Decibels::gainToDecibels (rms) - 3.0f;
+    peakDb = juce::Decibels::gainToDecibels (peak);
 
     // ── Mono mix for the spectrum ─────────────────────────────────────────
     std::vector<float> mono ((size_t) maxSamples);

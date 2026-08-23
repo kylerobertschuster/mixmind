@@ -2,6 +2,7 @@ import 'dotenv/config';
 import OpenAI from "openai";
 import express from "express";
 import { randomUUID } from "crypto";
+import crypto from "crypto";
 import fs from "fs";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -33,12 +34,18 @@ const deepseek = DEEPSEEK_KEY
 // ─────────────────────────────────────────────────────────────────────────────
 //  License store
 // ─────────────────────────────────────────────────────────────────────────────
+let licensesCache = null;
+
 function loadLicenses() {
-    if (!fs.existsSync(LICENSES_FILE)) fs.writeFileSync(LICENSES_FILE, "{}");
-    return JSON.parse(fs.readFileSync(LICENSES_FILE, "utf8"));
+    if (licensesCache === null) {
+        if (!fs.existsSync(LICENSES_FILE)) fs.writeFileSync(LICENSES_FILE, "{}");
+        licensesCache = JSON.parse(fs.readFileSync(LICENSES_FILE, "utf8"));
+    }
+    return licensesCache;
 }
 
 function saveLicenses(data) {
+    licensesCache = data;
     fs.writeFileSync(LICENSES_FILE, JSON.stringify(data, null, 2));
 }
 
@@ -94,7 +101,10 @@ setInterval(() => {
 //  App
 // ─────────────────────────────────────────────────────────────────────────────
 const app = express();
-app.use(express.json({ limit: "100kb" }));
+app.use(express.json({
+    limit: "100kb",
+    verify: (req, res, buf) => { req.rawBody = buf; },
+}));
 app.use(rateLimit);
 
 // ── Health check (lightweight) ───────────────────────────────────────────────
@@ -279,14 +289,43 @@ app.post("/api/chat", async (req, res) => {
 // Until Stripe is configured, purchase requires x-admin-secret.
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
 
+function verifyStripeSignature(req) {
+    if (!STRIPE_WEBHOOK_SECRET) return false;
+    const sig = req.headers["stripe-signature"];
+    const raw = req.rawBody;
+    if (!sig || !raw) return false;
+
+    // Stripe sends: t=1234567890,v1=<hmac>,v0=<hmac> (comma-separated)
+    const parts = Object.fromEntries(
+        sig.split(",").map((pair) => {
+            const idx = pair.indexOf("=");
+            return [pair.slice(0, idx), pair.slice(idx + 1)];
+        })
+    );
+    const timestamp = parts["t"];
+    const provided = parts["v1"];
+    if (!timestamp || !provided) return false;
+
+    const signedPayload = `${timestamp}.${raw.toString("utf8")}`;
+    const expected = crypto
+        .createHmac("sha256", STRIPE_WEBHOOK_SECRET)
+        .update(signedPayload, "utf8")
+        .digest("hex");
+
+    const a = Buffer.from(expected, "utf8");
+    const b = Buffer.from(provided, "utf8");
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 app.post("/purchase", (req, res) => {
-    // If Stripe is configured, verify the webhook signature
+    // Verify the request is authorized before minting any license:
+    //  - Stripe webhook (if configured): require a valid signature.
+    //  - Otherwise: require the admin secret (manual license issuance).
     if (STRIPE_WEBHOOK_SECRET) {
-        // TODO: verify Stripe signature here when Stripe is set up
-        // const sig = req.headers["stripe-signature"];
-        // const event = stripe.webhooks.constructEvent(req.rawBody, sig, STRIPE_WEBHOOK_SECRET);
+        if (!verifyStripeSignature(req)) {
+            return res.status(401).json({ error: "Invalid Stripe signature" });
+        }
     } else {
-        // No payment provider: require admin key to generate licenses manually
         const secret = req.headers["x-admin-secret"];
         if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
             return res.status(402).json({

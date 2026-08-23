@@ -26,6 +26,11 @@ void AudioAnalyzer::process (const juce::AudioBuffer<float>& buffer)
     // RMS / LUFS
     currentLufs = juce::Decibels::gainToDecibels (buffer.getRMSLevel (0, 0, n)) - 3.0f;
 
+    // Peak (fast attack, ~1.5s release) for crest factor / true-peak readouts.
+    const float blockPeak = buffer.getMagnitude (0, 0, n);
+    const float release   = std::exp (-(float) n / ((float) sampleRate * 1.5f));
+    currentPeak = juce::jmax (blockPeak, currentPeak.get() * release);
+
     // Phase correlation
     if (buffer.getNumChannels() >= 2)
     {

@@ -56,7 +56,7 @@ TelemetryCanvas::~TelemetryCanvas()
 void TelemetryCanvas::resized()
 {
     plotRight  = (float) getWidth() - 12.0f;
-    plotBottom = (float) getHeight() - 26.0f;
+    plotBottom = (float) getHeight() - 44.0f;   // room for freq labels + group meter
 }
 
 void TelemetryCanvas::setUserBins (const float* bins, int n, double sr)
@@ -86,6 +86,16 @@ void TelemetryCanvas::setReference (const float* bins, int n)
     }
 }
 
+void TelemetryCanvas::setUserScalars (float lufs, float width, float phase, float crest)
+{
+    userLufs = lufs; userWidth = width; userPhase = phase; userCrest = crest;
+}
+
+void TelemetryCanvas::setRefScalars (float lufs, float width, float phase, float crest)
+{
+    refLufs = lufs; refWidth = width; refPhase = phase; refCrest = crest;
+}
+
 void TelemetryCanvas::timerCallback()
 {
     const float k = 0.12f;
@@ -93,6 +103,7 @@ void TelemetryCanvas::timerCallback()
     {
         smoothUser[i] += (targetUser[i] - smoothUser[i]) * k;
         smoothRef [i] += (targetRef [i] - smoothRef [i]) * k;
+        peakHold[i] = juce::jmax (peakHold[i] * 0.996f, smoothUser[i]);
     }
     repaint();
 }
@@ -155,6 +166,9 @@ void TelemetryCanvas::paint (juce::Graphics& g)
 
     if (focus == FocusModel::Group::Master) drawMaster (g);
     else                                    drawFocused (g);
+
+    drawReadout (g);
+    drawGroupMeter (g);
 }
 
 void TelemetryCanvas::drawGrid (juce::Graphics& g)
@@ -222,6 +236,10 @@ void TelemetryCanvas::drawMaster (juce::Graphics& g)
     g.setColour (juce::Colour (0xff17171a).withAlpha (0.85f));
     g.strokePath (curve, juce::PathStrokeType (1.6f));
 
+    // Peak-hold envelope (subtle) — recent maximum per bin.
+    g.setColour (juce::Colour (0xff17171a).withAlpha (0.22f));
+    g.strokePath (buildCurve (peakHold), juce::PathStrokeType (1.0f));
+
     // Reference overlay (pastel pink) if loaded.
     if (hasRef)
     {
@@ -264,6 +282,10 @@ void TelemetryCanvas::drawFocused (juce::Graphics& g)
         g.fillPath (fill);
         g.setColour (col.saturated.withAlpha (0.95f));
         g.strokePath (curve, juce::PathStrokeType (2.2f));
+
+        // Peak-hold envelope (subtle) — recent maximum per bin.
+        g.setColour (col.saturated.withAlpha (0.26f));
+        g.strokePath (buildCurve (peakHold), juce::PathStrokeType (1.0f));
     }
 
     if (!hasRef)
@@ -335,6 +357,113 @@ void TelemetryCanvas::drawHint (juce::Graphics& g, const juce::String& text)
     g.drawText (text,
                 juce::Rectangle<float> (plotLeft, plotTop, plotRight - plotLeft, plotBottom - plotTop),
                 juce::Justification::centred, false);
+}
+
+// ── Scalar readout (LUFS / width / phase) ──────────────────────────────────
+
+void TelemetryCanvas::drawReadout (juce::Graphics& g)
+{
+    const bool master = (focus == FocusModel::Group::Master);
+    const juce::Colour refCol = master ? FocusModel::masterReferenceColour()
+                                       : FocusModel::colorFor (focus).pastel;
+    const juce::Colour youCol = master ? juce::Colour (0xffeeeeee)
+                                       : FocusModel::colorFor (focus).saturated;
+
+    g.setFont (juce::FontOptions ("Helvetica Neue", 9.0f, juce::Font::plain));
+
+    const auto fmtLufs  = [] (float v) { return juce::String (v, 1) + " LU"; };
+    const auto fmtWidth = [] (float v) { return juce::String (v, 2) + " WID"; };
+    const auto fmtPhase = [] (float v)
+    {
+        juce::String s = (v >= 0.0f ? "+" : "") + juce::String (v, 2);
+        return s + " PH";
+    };
+    const auto fmtCrest = [] (float v) { return juce::String (v, 1) + " CR"; };
+
+    const auto row = [&] (float y, const juce::String& who, juce::Colour whoCol,
+                          float l, float w, float p, float c)
+    {
+        g.setColour (whoCol);
+        g.drawText (who, juce::Rectangle<float> (plotLeft, y, 34.0f, 12.0f),
+                    juce::Justification::left, false);
+
+        g.setColour (JP::textDim);
+        float x = plotLeft + 34.0f;
+        const float w1 = 66.0f, w2 = 64.0f, w3 = 64.0f, w4 = 54.0f;
+        g.drawText (fmtLufs  (l), juce::Rectangle<float> (x, y, w1, 12.0f), juce::Justification::left, false);
+        x += w1;
+        g.drawText (fmtWidth (w), juce::Rectangle<float> (x, y, w2, 12.0f), juce::Justification::left, false);
+        x += w2;
+        g.drawText (fmtPhase (p), juce::Rectangle<float> (x, y, w3, 12.0f), juce::Justification::left, false);
+        x += w3;
+        g.drawText (fmtCrest (c), juce::Rectangle<float> (x, y, w4, 12.0f), juce::Justification::left, false);
+    };
+
+    if (hasRef) row (20.0f, "REF", refCol, refLufs, refWidth, refPhase, refCrest);
+    row (33.0f, "YOU", youCol, userLufs, userWidth, userPhase, userCrest);
+}
+
+// ── Per-focus-group energy meter ───────────────────────────────────────────
+
+float TelemetryCanvas::groupEnergy (FocusModel::Group g, const float* bins) const
+{
+    const auto range = FocusModel::bandRange (g);
+    float sum = 0.0f;
+    int count = 0;
+    for (int i = 0; i < kNumBins; ++i)
+    {
+        const float hz = (float) i * (float) sampleRate / (float) AudioAnalyzer::fftSize;
+        if (hz >= range.getStart() && hz < range.getEnd())
+        {
+            sum += bins[i];
+            ++count;
+        }
+    }
+    if (count == 0) return 0.0f;
+    const float avg = sum / (float) count;
+    return juce::jlimit (0.0f, 1.0f, avg * 2.5f);
+}
+
+void TelemetryCanvas::drawGroupMeter (juce::Graphics& g)
+{
+    const auto groups = FocusModel::defaultGroups();
+    const int n = groups.size();
+    const float y = (float) getHeight() - 16.0f;
+    const float h = 10.0f;
+    const float gap = 4.0f;
+    const float segW = ((plotRight - plotLeft) - gap * (n - 1)) / (float) n;
+    float x = plotLeft;
+
+    for (auto grp : groups)
+    {
+        const float e  = groupEnergy (grp, smoothUser);
+        const float re = hasRef ? groupEnergy (grp, smoothRef) : -1.0f;
+        const auto col = FocusModel::colorFor (grp).saturated;
+
+        g.setColour (JP::surfaceRaised);
+        g.fillRoundedRectangle (x, y, segW, h, 2.0f);
+
+        if (e > 0.002f)
+        {
+            g.setColour (col);
+            g.fillRoundedRectangle (x, y, segW * e, h, 2.0f);
+        }
+
+        if (re >= 0.0f)
+        {
+            g.setColour (FocusModel::colorFor (grp).pastel);
+            const float mx = x + segW * re;
+            g.drawLine (mx, y - 3.0f, mx, y + h + 3.0f, 1.5f);
+        }
+
+        if (grp == focus)
+        {
+            g.setColour (juce::Colours::white.withAlpha (0.7f));
+            g.drawRoundedRectangle (x - 1.0f, y - 1.0f, segW + 2.0f, h + 2.0f, 3.0f, 1.0f);
+        }
+
+        x += segW + gap;
+    }
 }
 
 // ── Cow-print blotches ──────────────────────────────────────────────────────

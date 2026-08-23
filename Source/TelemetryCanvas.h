@@ -52,6 +52,9 @@ public:
     void setReference (const float* bins, int n);   // nullptr clears
     bool hasReference() const { return hasRef; }
 
+    void setUserScalars (float lufs, float width, float phase, float crest);
+    void setRefScalars  (float lufs, float width, float phase, float crest);
+
     void setFocusGroup (FocusModel::Group g) { focus = g; repaint(); }
     FocusModel::Group getFocusGroup() const { return focus; }
 
@@ -71,7 +74,10 @@ private:
 
     void drawLegend (juce::Graphics& g);
     void drawMasterLegend (juce::Graphics& g);
+    void drawReadout (juce::Graphics& g);
+    void drawGroupMeter (juce::Graphics& g);
     void drawHint (juce::Graphics& g, const juce::String& text);
+    float groupEnergy (FocusModel::Group g, const float* bins) const;
 
     struct CowSpot { float nx, ny, r; int seed; };
     void generateSpots();
@@ -85,13 +91,20 @@ private:
     bool  hasUser { false };
     bool  hasRef  { false };
 
+    // Scalar telemetry (LUFS / stereo width / phase / crest) for the readout.
+    float userLufs  { -60.0f }, userWidth { 0.5f }, userPhase { 1.0f }, userCrest { 0.0f };
+    float refLufs   { -60.0f }, refWidth  { 0.5f }, refPhase  { 1.0f }, refCrest  { 0.0f };
+
+    // Peak-hold envelope (slow release) drawn as a faint line above the curve.
+    float peakHold[kNumBins] { 0.0f };
+
     double sampleRate { 44100.0 };
     FocusModel::Group focus { FocusModel::Group::Master };
 
     float axisMin { 20.0f }, axisMax { 20000.0f };
     std::vector<CowSpot> spots;
 
-    float plotLeft { 44.0f }, plotRight { 0.0f }, plotTop { 30.0f }, plotBottom { 0.0f };
+    float plotLeft { 44.0f }, plotRight { 0.0f }, plotTop { 48.0f }, plotBottom { 0.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TelemetryCanvas)
 };

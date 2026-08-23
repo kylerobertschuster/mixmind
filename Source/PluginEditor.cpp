@@ -148,9 +148,9 @@ void MixMindEditor::resized()
 void MixMindEditor::timerCallback()
 {
     ++dotPhase;
-    telemetry.setUserBins (audioProcessor.audioAnalyzer.getFFTBins(),
-                           AudioAnalyzer::numBins,
-                           audioProcessor.audioAnalyzer.getSampleRate());
+    const auto& aa = audioProcessor.audioAnalyzer;
+    telemetry.setUserBins (aa.getFFTBins(), AudioAnalyzer::numBins, aa.getSampleRate());
+    telemetry.setUserScalars (aa.getLufs(), aa.getStereoWidth(), aa.getPhaseCorr(), aa.getCrestFactor());
     if (waitingForReply) repaint();
 }
 
@@ -202,7 +202,7 @@ void MixMindEditor::updateLicenseDisplay()
 void MixMindEditor::loadReference()
 {
     auto chooser = std::make_shared<juce::FileChooser> (
-        "Load reference track", juce::File(), "*.wav;*.aiff;*.flac;*.ogg");
+        "Load reference track", juce::File(), "*.wav;*.aiff;*.flac;*.ogg;*.mp3");
     juce::Component::SafePointer<MixMindEditor> safeThis (this);
 
     chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
@@ -217,6 +217,10 @@ void MixMindEditor::loadReference()
             if (safeThis->referenceAnalyzer.loadFile (file, safeThis->audioProcessor.audioAnalyzer.getSampleRate(), error))
             {
                 safeThis->telemetry.setReference (safeThis->referenceAnalyzer.getBins(), ReferenceAnalyzer::numBins);
+                safeThis->telemetry.setRefScalars (safeThis->referenceAnalyzer.getLufs(),
+                                                  safeThis->referenceAnalyzer.getStereoWidth(),
+                                                  safeThis->referenceAnalyzer.getPhaseCorr(),
+                                                  safeThis->referenceAnalyzer.getCrestFactor());
                 safeThis->loadRefButton.setButtonText (safeThis->referenceAnalyzer.getFileName());
                 safeThis->loadRefButton.setColour (juce::TextButton::textColourOffId, JP::text);
             }
