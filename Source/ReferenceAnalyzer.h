@@ -34,9 +34,8 @@ public:
     float getPeakDb()       const { return peakDb; }
     float getCrestFactor()  const
     {
-        const float rms = lufs + 3.0f;  // undo the LUFS offset
-        if (peakDb <= -180.0f || rms <= -180.0f) return 0.0f;
-        return juce::jmax (0.0f, peakDb - rms);
+        if (peakDb <= -180.0f || rmsDb <= -180.0f) return 0.0f;
+        return juce::jmax (0.0f, peakDb - rmsDb);
     }
 
 private:
@@ -44,10 +43,11 @@ private:
 
     bool loaded { false };
     float refBins[AudioAnalyzer::numBins] { 0.0f };
-    float lufs        { -60.0f };
+    float lufs        { -60.0f };   // honest BS.1770 integrated (fallback: short-term)
     float stereoWidth { 0.5f };
     float phaseCorr   { 1.0f };
-    float peakDb      { -180.0f };
+    float peakDb      { -180.0f };  // 4x-oversampled true peak
+    float rmsDb       { -180.0f };
     juce::String fileName;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ReferenceAnalyzer)

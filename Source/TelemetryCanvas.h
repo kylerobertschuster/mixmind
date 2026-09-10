@@ -58,6 +58,31 @@ public:
     void setFocusGroup (FocusModel::Group g) { focus = g; repaint(); }
     FocusModel::Group getFocusGroup() const { return focus; }
 
+    // ── Reference layer — an image ghost (e.g. a screenshot of a target
+    //    spectrum curve) composited behind the live FFT. ──────────────────
+    void setRefImage (const juce::Image& img);
+    void setRefImageOpacity (float v) { imageOpacity = juce::jlimit (0.05f, 1.0f, v); repaint(); }
+    void setRefImageVisible (bool v)  { imageVisible = v; repaint(); }
+    bool hasRefImage() const          { return imageLoaded; }
+    bool getRefImageVisible() const   { return imageVisible; }
+    void clearRefImage();
+
+    // ── Trace — a hand-drawn target curve the user clicks onto the plot. ─
+    void setTraceMode (bool on);
+    bool getTraceMode() const { return traceMode; }
+    bool hasTrace() const     { return tracePoints.size() >= 2; }
+    void clearTrace()         { tracePoints.clear(); repaint(); }
+
+    // Returns the trace as (freqHz, value01) points, sorted by frequency.
+    juce::Array<std::pair<float, float>> getTraceCurve() const;
+
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseDrag (const juce::MouseEvent&) override;
+    void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
+    void mouseDoubleClick (const juce::MouseEvent&) override;
+    void mouseMove (const juce::MouseEvent&) override;
+    void mouseExit (const juce::MouseEvent&) override;
+
     static constexpr int kNumBins = AudioAnalyzer::numBins;
 
 private:
@@ -77,7 +102,13 @@ private:
     void drawReadout (juce::Graphics& g);
     void drawGroupMeter (juce::Graphics& g);
     void drawHint (juce::Graphics& g, const juce::String& text);
+    void drawRefImage (juce::Graphics& g);
+    void drawTrace (juce::Graphics& g);
     float groupEnergy (FocusModel::Group g, const float* bins) const;
+
+    juce::Path smoothTrace() const;
+    void fitImageToPlot();
+    juce::Rectangle<float> plotRect() const { return { plotLeft, plotTop, plotRight - plotLeft, plotBottom - plotTop }; }
 
     // Smoothed display values (0..1) for user + reference.
     float smoothUser[kNumBins] { 0.0f };
@@ -93,6 +124,19 @@ private:
 
     // Peak-hold envelope (slow release) drawn as a faint line above the curve.
     float peakHold[kNumBins] { 0.0f };
+
+    // Reference image layer (screenshot ghost).
+    juce::Image refImage;
+    bool imageLoaded { false };
+    bool imageVisible { true };
+    float imageOpacity { 0.5f };
+    juce::Rectangle<float> imageBounds;
+    bool mouseHover { false };
+    juce::Point<float> lastMouse;
+
+    // Hand-drawn trace curve (plot-space points).
+    bool traceMode { false };
+    juce::Array<juce::Point<float>> tracePoints;
 
     double sampleRate { 44100.0 };
     FocusModel::Group focus { FocusModel::Group::Master };

@@ -48,24 +48,18 @@ target_sources(MixMind PRIVATE
     Source/PluginProcessor.h
     Source/PluginEditor.cpp
     Source/PluginEditor.h
-    Source/ApiClient.cpp
-    Source/ApiClient.h
     Source/AudioAnalyzer.cpp
     Source/AudioAnalyzer.h
-    Source/ChatComponent.cpp
-    Source/ChatComponent.h
-    Source/ContextPanel.cpp
-    Source/ContextPanel.h
+    Source/LoudnessMeter.cpp
+    Source/LoudnessMeter.h
+    Source/ShaperProcessor.cpp
+    Source/ShaperProcessor.h
     Source/LookAndFeel.h
     Source/LookAndFeel.cpp
-    Source/LicenseManager.cpp
-    Source/LicenseManager.h
     Source/PresetManager.cpp
     Source/PresetManager.h
     Source/HostTheme.cpp
     Source/HostTheme.h
-    Source/AIAnalysis.cpp
-    Source/AIAnalysis.h
     Source/AnalyzerCanvas.cpp
     Source/AnalyzerCanvas.h
     Source/FocusModel.h
@@ -125,6 +119,7 @@ target_sources(Scope PRIVATE
     Source/ScopeProcessor.cpp Source/ScopeProcessor.h
     Source/ScopeEditor.cpp Source/ScopeEditor.h
     Source/AudioAnalyzer.cpp Source/AudioAnalyzer.h
+    Source/LoudnessMeter.cpp Source/LoudnessMeter.h
     Source/LookAndFeel.h Source/LookAndFeel.cpp
     Source/LicenseManager.cpp Source/LicenseManager.h
     Source/HostTheme.cpp Source/HostTheme.h
@@ -167,6 +162,7 @@ target_sources(Meter PRIVATE
     Source/MeterProcessor.cpp Source/MeterProcessor.h
     Source/MeterEditor.cpp Source/MeterEditor.h
     Source/AudioAnalyzer.cpp Source/AudioAnalyzer.h
+    Source/LoudnessMeter.cpp Source/LoudnessMeter.h
     Source/LookAndFeel.h Source/LookAndFeel.cpp
     Source/LicenseManager.cpp Source/LicenseManager.h
     Source/HostTheme.cpp Source/HostTheme.h
@@ -209,6 +205,7 @@ target_sources(EQT PRIVATE
     Source/EQTProcessor.cpp Source/EQTProcessor.h
     Source/EQTEditor.cpp Source/EQTEditor.h
     Source/AudioAnalyzer.cpp Source/AudioAnalyzer.h
+    Source/LoudnessMeter.cpp Source/LoudnessMeter.h
     Source/LookAndFeel.h Source/LookAndFeel.cpp
     Source/LicenseManager.cpp Source/LicenseManager.h
     Source/HostTheme.cpp Source/HostTheme.h

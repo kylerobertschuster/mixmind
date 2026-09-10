@@ -1,5 +1,6 @@
 #include "TelemetryCanvas.h"
 #include <cmath>
+#include <algorithm>
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  ColorSwatch
@@ -154,6 +155,201 @@ juce::Path TelemetryCanvas::buildBandCurve (const float* bins, float loHz, float
     return p;
 }
 
+// ── Reference layer (image ghost) + trace ──────────────────────────────────
+
+void TelemetryCanvas::setRefImage (const juce::Image& img)
+{
+    if (img.isNull()) { clearRefImage(); return; }
+    refImage = img;
+    imageLoaded = true;
+    imageVisible = true;
+    fitImageToPlot();
+    repaint();
+}
+
+void TelemetryCanvas::clearRefImage()
+{
+    refImage = juce::Image();
+    imageLoaded = false;
+    imageVisible = true;
+    repaint();
+}
+
+void TelemetryCanvas::setTraceMode (bool on)
+{
+    traceMode = on;
+    setMouseCursor (on ? juce::MouseCursor::CrosshairCursor : juce::MouseCursor::NormalCursor);
+    repaint();
+}
+
+juce::Array<std::pair<float, float>> TelemetryCanvas::getTraceCurve() const
+{
+    juce::Array<std::pair<float, float>> out;
+    if (tracePoints.size() < 2) return out;
+
+    const float lo   = std::log10 (axisMin);
+    const float hi   = std::log10 (axisMax);
+    const float span = plotRight - plotLeft;
+    const float yspan = plotBottom - plotTop;
+
+    for (const auto& p : tracePoints)
+    {
+        // Invert xForFreq() and yForValue().
+        const float t = juce::jlimit (0.0f, 1.0f, (p.x - plotLeft) / span);
+        const float freq = axisMin * std::pow (axisMax / axisMin, t);
+        const float val  = juce::jlimit (0.0f, 1.0f, (plotBottom - p.y) / yspan);
+        out.add ({ freq, val });
+    }
+
+    std::sort (out.begin(), out.end(),
+               [] (const auto& a, const auto& b) { return a.first < b.first; });
+    return out;
+}
+
+void TelemetryCanvas::fitImageToPlot()
+{
+    imageBounds = plotRect();
+}
+
+juce::Path TelemetryCanvas::smoothTrace() const
+{
+    juce::Path p;
+    const int n = tracePoints.size();
+    if (n == 0) return p;
+
+    p.startNewSubPath (tracePoints[0].x, tracePoints[0].y);
+    if (n == 1) return p;
+    if (n == 2) { p.lineTo (tracePoints[1].x, tracePoints[1].y); return p; }
+
+    for (int i = 1; i < n - 1; ++i)
+    {
+        const auto& a = tracePoints[i];
+        const auto& b = tracePoints[i + 1];
+        p.quadraticTo (a.x, a.y, (a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f);
+    }
+    const auto& last = tracePoints[n - 1];
+    p.lineTo (last.x, last.y);
+    return p;
+}
+
+void TelemetryCanvas::drawRefImage (juce::Graphics& g)
+{
+    if (!imageLoaded || !imageVisible) return;
+
+    g.saveState();
+    g.reduceClipRegion (plotRect().toNearestInt());
+    g.setOpacity (imageOpacity);
+    g.drawImage (refImage, imageBounds, juce::RectanglePlacement::stretchToFit);
+    g.setOpacity (1.0f);
+
+    // Dashed bounds so the layer is visible and alignable.
+    const float dash[2] = { 4.0f, 4.0f };
+    g.setColour (juce::Colours::white.withAlpha (mouseHover ? 0.55f : 0.22f));
+    const auto& r = imageBounds;
+    g.drawDashedLine (juce::Line<float> (r.getX(), r.getY(), r.getRight(), r.getY()), dash, 2, 1.0f);
+    g.drawDashedLine (juce::Line<float> (r.getX(), r.getBottom(), r.getRight(), r.getBottom()), dash, 2, 1.0f);
+    g.drawDashedLine (juce::Line<float> (r.getX(), r.getY(), r.getX(), r.getBottom()), dash, 2, 1.0f);
+    g.drawDashedLine (juce::Line<float> (r.getRight(), r.getY(), r.getRight(), r.getBottom()), dash, 2, 1.0f);
+    g.restoreState();
+
+    // Interaction hint.
+    g.setFont (juce::FontOptions ("Helvetica Neue", 8.0f, juce::Font::plain));
+    g.setColour (JP::textDim.withAlpha (0.45f));
+    g.drawText ("drag move · scroll zoom · ⌥drag stretch · double-click fit",
+                juce::Rectangle<float> (plotLeft + 4.0f, plotBottom - 16.0f, plotRight - plotLeft - 8.0f, 14.0f),
+                juce::Justification::left, false);
+}
+
+void TelemetryCanvas::drawTrace (juce::Graphics& g)
+{
+    if (tracePoints.isEmpty()) return;
+
+    g.setColour (juce::Colours::white.withAlpha (0.9f));
+    for (const auto& p : tracePoints)
+        g.fillEllipse (p.x - 3.0f, p.y - 3.0f, 6.0f, 6.0f);
+
+    if (tracePoints.size() >= 2)
+    {
+        juce::Path dashed;
+        const float dash[2] = { 6.0f, 4.0f };
+        juce::PathStrokeType (2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded)
+            .createDashedStroke (dashed, smoothTrace(), dash, 2);
+        g.setColour (juce::Colours::white.withAlpha (0.85f));
+        g.fillPath (dashed);
+    }
+}
+
+// ── Mouse interaction (image layer / trace) ────────────────────────────────
+
+void TelemetryCanvas::mouseDown (const juce::MouseEvent& e)
+{
+    if (traceMode)
+    {
+        if (e.mods.isRightButtonDown())
+        {
+            if (!tracePoints.isEmpty()) tracePoints.removeLast();
+        }
+        else if (plotRect().contains (e.position))
+        {
+            tracePoints.add (e.position);
+        }
+        repaint();
+        return;
+    }
+
+    if (imageLoaded && imageVisible && imageBounds.contains (e.position))
+        lastMouse = e.position;
+}
+
+void TelemetryCanvas::mouseDrag (const juce::MouseEvent& e)
+{
+    if (traceMode || !imageLoaded || !imageVisible) return;
+
+    const float dx = e.position.x - lastMouse.x;
+    const float dy = e.position.y - lastMouse.y;
+
+    if (e.mods.isAltDown())
+    {
+        imageBounds.setSize (juce::jmax (8.0f, imageBounds.getWidth()  + dx),
+                             juce::jmax (8.0f, imageBounds.getHeight() + dy));
+    }
+    else
+    {
+        imageBounds.translate (dx, dy);
+    }
+    lastMouse = e.position;
+    repaint();
+}
+
+void TelemetryCanvas::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel)
+{
+    if (traceMode || !imageLoaded || !imageVisible) return;
+
+    const float factor = (wheel.deltaY > 0.0f) ? 1.1f : 1.0f / 1.1f;
+    const float cx = e.position.x, cy = e.position.y;
+    const float w = imageBounds.getWidth(), h = imageBounds.getHeight();
+    imageBounds.setBounds (cx - (cx - imageBounds.getX()) * factor,
+                           cy - (cy - imageBounds.getY()) * factor,
+                           w * factor, h * factor);
+    repaint();
+}
+
+void TelemetryCanvas::mouseDoubleClick (const juce::MouseEvent&)
+{
+    if (!traceMode && imageLoaded) { fitImageToPlot(); repaint(); }
+}
+
+void TelemetryCanvas::mouseMove (const juce::MouseEvent& e)
+{
+    const bool over = imageLoaded && imageVisible && imageBounds.contains (e.position);
+    if (over != mouseHover) { mouseHover = over; repaint(); }
+}
+
+void TelemetryCanvas::mouseExit (const juce::MouseEvent&)
+{
+    if (mouseHover) { mouseHover = false; repaint(); }
+}
+
 // ── Paint ───────────────────────────────────────────────────────────────────
 
 void TelemetryCanvas::paint (juce::Graphics& g)
@@ -169,11 +365,13 @@ void TelemetryCanvas::paint (juce::Graphics& g)
         axisMax = juce::jmin (20000.0f, r.getEnd() + pad);
     }
 
+    drawRefImage (g);   // screenshot ghost behind everything
     drawGrid (g);
 
     if (focus == FocusModel::Group::Master) drawMaster (g);
     else                                    drawFocused (g);
 
+    drawTrace (g);       // hand-drawn target curve on top
     drawReadout (g);
     drawGroupMeter (g);
 }
@@ -315,6 +513,15 @@ void TelemetryCanvas::drawLegend (juce::Graphics& g)
     g.setColour (JP::textDim);
     g.drawText ("YOU", juce::Rectangle<float> (x + 16.0f, y, 40.0f, 12.0f), juce::Justification::left, false);
 
+    if (hasTrace())
+    {
+        x += 58.0f;
+        g.setColour (juce::Colours::white);
+        g.fillRoundedRectangle (x, y, 12.0f, 10.0f, 2.0f);
+        g.setColour (JP::textDim);
+        g.drawText ("TRACE", juce::Rectangle<float> (x + 16.0f, y, 52.0f, 12.0f), juce::Justification::left, false);
+    }
+
     g.setColour (JP::text);
     g.setFont (juce::FontOptions ("Helvetica Neue", 10.0f, juce::Font::bold));
     g.drawText (FocusModel::groupName (focus),
@@ -344,6 +551,15 @@ void TelemetryCanvas::drawMasterLegend (juce::Graphics& g)
     g.fillRoundedRectangle (x, y, 12.0f, 10.0f, 2.0f);
     g.setColour (JP::textDim);
     g.drawText ("REF", juce::Rectangle<float> (x + 16.0f, y, 40.0f, 12.0f), juce::Justification::left, false);
+
+    if (hasTrace())
+    {
+        x += 58.0f;
+        g.setColour (juce::Colours::white);
+        g.fillRoundedRectangle (x, y, 12.0f, 10.0f, 2.0f);
+        g.setColour (JP::textDim);
+        g.drawText ("TRACE", juce::Rectangle<float> (x + 16.0f, y, 52.0f, 12.0f), juce::Justification::left, false);
+    }
 
     g.setColour (JP::text);
     g.setFont (juce::FontOptions ("Helvetica Neue", 10.0f, juce::Font::bold));

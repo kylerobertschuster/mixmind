@@ -3,7 +3,7 @@
 
 AudioAnalyzer::AudioAnalyzer() = default;
 
-void AudioAnalyzer::prepare (double sr, int)
+void AudioAnalyzer::prepare (double sr, int blockSize)
 {
     sampleRate = sr;
     juce::zeromem (fifoL, sizeof (fifoL));
@@ -11,8 +11,10 @@ void AudioAnalyzer::prepare (double sr, int)
     juce::zeromem (fftDataL, sizeof (fftDataL));
     juce::zeromem (fftDataR, sizeof (fftDataR));
     juce::zeromem (fftOutput, sizeof (fftOutput));
+    juce::zeromem (fftAvg, sizeof (fftAvg));
     fifoIdx = 0;
     fftReady = false;
+    loudnessMeter.prepare (sr, blockSize);
 }
 
 void AudioAnalyzer::process (const juce::AudioBuffer<float>& buffer)
@@ -23,15 +25,10 @@ void AudioAnalyzer::process (const juce::AudioBuffer<float>& buffer)
     auto* R = buffer.getNumChannels() >= 2 ? buffer.getReadPointer (1) : L;
     int n = buffer.getNumSamples();
 
-    // RMS / LUFS
-    currentLufs = juce::Decibels::gainToDecibels (buffer.getRMSLevel (0, 0, n)) - 3.0f;
+    // Honest loudness + true-peak (BS.1770 K-weighted, gated).
+    loudnessMeter.process (L, R, n);
 
-    // Peak (fast attack, ~1.5s release) for crest factor / true-peak readouts.
-    const float blockPeak = buffer.getMagnitude (0, 0, n);
-    const float release   = std::exp (-(float) n / ((float) sampleRate * 1.5f));
-    currentPeak = juce::jmax (blockPeak, currentPeak.get() * release);
-
-    // Phase correlation
+    // Phase correlation + stereo width (instantaneous per block).
     if (buffer.getNumChannels() >= 2)
     {
         double sumLR = 0, sumL2 = 0, sumR2 = 0;
@@ -54,7 +51,6 @@ void AudioAnalyzer::process (const juce::AudioBuffer<float>& buffer)
     }
     else { phaseCorrelation = 1; stereoWidth = 0; }
 
-    // Feed FIFO for FFT
     for (int i = 0; i < n; ++i)
         pushNextSample (L[i], R[i]);
 }
@@ -84,16 +80,18 @@ void AudioAnalyzer::performFFT()
     window.multiplyWithWindowingTable (fftDataL, fftSize);
     forwardFFT.performFrequencyOnlyForwardTransform (fftDataL);
 
-    float b = 0, m = 0, h = 0;
-    const float k = 0.15f;
+    const float k   = 0.15f;   // energy-band smoothing
+    const float avg = 0.2f;    // spectral averaging time constant
 
+    float b = 0, m = 0, h = 0;
     for (int i = 0; i < numBins; ++i)
     {
-        float hz = (float)i * (float)sampleRate / (float)fftSize;
+        float hz  = (float) i * (float) sampleRate / (float) fftSize;
         float mag = fftDataL[i];
-        fftOutput[i] = mag * (2.0f / (float)fftSize);  // normalize to 0-1
+        fftOutput[i] = mag * (2.0f / (float) fftSize);   // normalise to 0..1
 
-        // Smooth for display
+        // Time-average the spectrum (SPAN-style) so the curve is stable.
+        fftAvg[i] += (fftOutput[i] - fftAvg[i]) * avg;
 
         if (hz < 250)       b += mag;
         else if (hz < 2000) m += mag;

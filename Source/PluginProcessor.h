@@ -1,9 +1,15 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
-#include "ApiClient.h"
 #include "AudioAnalyzer.h"
-#include "LicenseManager.h"
+#include "ShaperProcessor.h"
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  MixMind — reference-matching spectrum shaper + analyzer.
+//    · AUTO   mode: reshapes the live spectrum toward the uploaded reference.
+//    · MANUAL mode: reshapes toward the hand-drawn trace curve.
+//  Analysis (honest BS.1770 metering + averaged FFT) runs continuously; the
+//  shaper is the insert path (latency-compensated, bypass = transparent).
+// ─────────────────────────────────────────────────────────────────────────────
 class MixMindProcessor : public juce::AudioProcessor
 {
 public:
@@ -26,16 +32,16 @@ public:
     void setCurrentProgram (int) override {}
     const juce::String getProgramName (int) override { return {}; }
     void changeProgramName (int, const juce::String&) override {}
-    void getStateInformation (juce::MemoryBlock&) override {}
-    void setStateInformation (const void*, int) override {}
+    void getStateInformation (juce::MemoryBlock&) override;
+    void setStateInformation (const void*, int) override;
 
-    ApiClient& getApiClient() { return apiClient; }
-    LicenseManager& getLicenseManager() { return licenseManager; }
-    AudioAnalyzer audioAnalyzer;
+    juce::AudioProcessorValueTreeState parameters;
+    AudioAnalyzer   audioAnalyzer;
+    ShaperProcessor shaper;
 
 private:
-    ApiClient apiClient;
-    LicenseManager licenseManager;
+    static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    int reportedLatency { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixMindProcessor)
 };
