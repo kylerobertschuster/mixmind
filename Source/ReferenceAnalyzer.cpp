@@ -118,7 +118,11 @@ bool ReferenceAnalyzer::loadFile (const juce::File& file, double liveSampleRate,
     juce::dsp::WindowingFunction<float> window (AudioAnalyzer::fftSize, juce::dsp::WindowingFunction<float>::hann);
 
     std::vector<float> accum (numBins, 0.0f);
-    float fftBuf[AudioAnalyzer::fftSize];
+    // performFrequencyOnlyForwardTransform writes 2 * fftSize floats, so the
+    // buffer must be that long. Allocating only fftSize overran the stack by
+    // 8 KB on every reference load. AudioAnalyzer's own buffers (fftDataL/R)
+    // are sized 2 * fftSize for the same reason.
+    float fftBuf[2 * AudioAnalyzer::fftSize];
     int frames = 0;
 
     for (size_t start = 0; start + AudioAnalyzer::fftSize <= mono.size(); start += AudioAnalyzer::fftSize / 2)
