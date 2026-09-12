@@ -57,8 +57,19 @@ void ShaperProcessor::process (const float* inL, const float* inR, float* outL, 
 
     if (M <= 0)
     {
-        if (outL != inL) juce::FloatVectorOperations::copy (outL, inL, n);
-        if (outR != inR) juce::FloatVectorOperations::copy (outR, inR, n);
+        // Enabled but not designed yet (the editor publishes taps a tick later).
+        // Delay the signal anyway: the host has already been told to compensate
+        // kLatency, so passing through dry here would shift the mix by 512
+        // samples for the first ~250 ms after the plugin is switched on.
+        for (int i = 0; i < n; ++i)
+        {
+            delayL[writeIdx] = inL[i];
+            delayR[writeIdx] = inR[i];
+            outL[i] = delayL[(writeIdx - kLatency) & kDelayMask];
+            outR[i] = delayR[(writeIdx - kLatency) & kDelayMask];
+            writeIdx = (writeIdx + 1) & kDelayMask;
+        }
+
         return;
     }
 

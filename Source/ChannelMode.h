@@ -1,5 +1,6 @@
 #pragma once
 #include <juce_core/juce_core.h>
+#include <array>
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ChannelMode — which part of a stereo signal the shaper analyzes and
@@ -13,8 +14,23 @@
 //
 //  The analysis side uses the same signal mix so the displayed spectrum and
 //  the match target always describe the channel the EQ is applied to.
+//
+//  The ordering of the enum is a persisted file format: the selected index is
+//  saved in project state as an APVTS choice parameter. Append new modes, never
+//  reorder or renumber the existing ones.
 // ─────────────────────────────────────────────────────────────────────────────
 enum class ChannelMode { Stereo = 0, Left, Right, Mid, Side };
+
+// Every mode, in enum order. Sized from Side so adding an enumerator without
+// listing it here fails to compile.
+inline const std::array<ChannelMode, (size_t) ChannelMode::Side + 1>& allChannelModes()
+{
+    static const std::array<ChannelMode, (size_t) ChannelMode::Side + 1> modes
+    {
+        ChannelMode::Stereo, ChannelMode::Left, ChannelMode::Right, ChannelMode::Mid, ChannelMode::Side
+    };
+    return modes;
+}
 
 inline juce::String channelModeName (ChannelMode m)
 {
@@ -27,6 +43,16 @@ inline juce::String channelModeName (ChannelMode m)
         case ChannelMode::Stereo:
         default:                  return "STEREO";
     }
+}
+
+// Choice strings for the APVTS parameter and the editor's dropdown — one source
+// of truth, so the saved index can never mean different things in each.
+inline juce::StringArray channelModeChoices()
+{
+    juce::StringArray a;
+    for (auto m : allChannelModes())
+        a.add (channelModeName (m));
+    return a;
 }
 
 // Mono analysis signal for a mode, given a stereo sample pair.

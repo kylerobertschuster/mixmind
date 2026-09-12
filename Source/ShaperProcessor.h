@@ -43,8 +43,10 @@ public:
     // set is allowed and is treated as transparent.
     void setFilter (const float* taps, int count);
 
-    // True latency of the currently-active filter (0 when bypassed).
-    int getLatencySamples() const             { return (enabled.load() && activeTaps.load() > 0) ? kLatency : 0; }
+    // True latency of the currently-active engine (0 when bypassed). While
+    // enabled the signal is delayed by kLatency even before a filter arrives, so
+    // this never disagrees with what process() actually does.
+    int getLatencySamples() const             { return enabled.load() ? kLatency : 0; }
 
     // Processes one stereo block in-place. When bypassed, in == out (unchanged).
     // The channel mode selects whether the FIR hits both channels (Stereo),

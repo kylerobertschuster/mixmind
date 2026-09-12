@@ -109,14 +109,18 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     // drives the FIR, the live FFT and the reference spectrum together, so all
     // three always describe the same signal.
     chanBox.setTooltip ("Which part of the stereo signal the shaper analyzes and matches.\nSIDE is the difference signal (L-R) — useful for taming a wide reverb tail.");
+    for (auto m : allChannelModes())
+        chanBox.addItem (channelModeName (m), (int) m + 1);
+    chanBox.onChange = [this]
     {
-        const ChannelMode modes[] = { ChannelMode::Stereo, ChannelMode::Left, ChannelMode::Right,
-                                      ChannelMode::Mid,    ChannelMode::Side };
-        for (auto m : modes)
-            chanBox.addItem (channelModeName (m), (int) m + 1);
-    }
-    chanBox.setSelectedId ((int) ChannelMode::Stereo + 1, juce::dontSendNotification);
-    chanBox.onChange = [this] { applyChannelMode(); };
+        // The parameter (not the box) is the state: it is what the processor
+        // reads and what gets saved with the project.
+        const int idx = chanBox.getSelectedId() - 1;
+        if (auto* choice = dynamic_cast<juce::AudioParameterChoice*> (audioProcessor.parameters.getParameter ("channelMode")))
+            *choice = idx;
+
+        applyChannelMode();
+    };
     addAndMakeVisible (chanBox);
 
     // Colour swatch — remaps the current focus group's colour
@@ -185,6 +189,13 @@ void MixMindEditor::resized()
 void MixMindEditor::timerCallback()
 {
     ++dotPhase;
+
+    // Pick up channel-mode changes that didn't come from the dropdown (session
+    // reload, preset load, the host's generic parameter view).
+    const int chanIdx = currentChannelModeIndex();
+    if (chanIdx != lastChannelIdx)
+        applyChannelMode();
+
     const auto& aa = audioProcessor.audioAnalyzer;
     telemetry.setUserBins (aa.getFFTBins(), AudioAnalyzer::numBins, aa.getSampleRate());
     telemetry.setUserScalars (aa.getLufs(), aa.getStereoWidth(), aa.getPhaseCorr(), aa.getCrestFactor());
@@ -265,18 +276,27 @@ void MixMindEditor::loadReference()
         });
 }
 
+// The channel mode lives in the parameter, so index and enum can't drift. Clamped
+// because a host may hand us a value between steps.
+int MixMindEditor::currentChannelModeIndex() const
+{
+    const float raw = audioProcessor.parameters.getRawParameterValue ("channelMode")->load();
+    return juce::jlimit (0, (int) allChannelModes().size() - 1, juce::roundToInt (raw));
+}
+
 void MixMindEditor::applyChannelMode()
 {
-    const auto m = static_cast<ChannelMode> (chanBox.getSelectedId() - 1);
+    const int idx = currentChannelModeIndex();
+    lastChannelIdx = idx;
+    chanBox.setSelectedId (idx + 1, juce::dontSendNotification);
 
-    audioProcessor.shaper.setChannelMode (m);
-    audioProcessor.audioAnalyzer.setChannelMode (m);
-
-    // ReferenceAnalyzer pre-computed all four spectra at load; this only
-    // selects which one getBins() hands out.
+    // The processor applies the mode to the live analyzer and the shaper itself
+    // (it must work with no editor open). What's left here is the reference: it
+    // pre-computed all four spectra at load, so this only selects which one
+    // getBins() hands out.
     if (referenceAnalyzer.hasReference())
     {
-        referenceAnalyzer.setChannelMode (m);
+        referenceAnalyzer.setChannelMode (allChannelModes()[(size_t) idx]);
         telemetry.setReference (referenceAnalyzer.getBins(), ReferenceAnalyzer::numBins);
     }
 

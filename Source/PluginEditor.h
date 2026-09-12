@@ -44,6 +44,7 @@ private:
     void loadImageLayer();
     void applyFocusSelection();
     void applyChannelMode();
+    int  currentChannelModeIndex() const;
     void updateShaper();
     void timerCallback() override;
     void mouseDown (const juce::MouseEvent&) override;
@@ -52,6 +53,7 @@ private:
     bool wasShapeOn { false };
     int  firThrottle { 0 };
     int  dotPhase { 0 };
+    int  lastChannelIdx { -1 };   // mirrors the channelMode parameter into the dropdown
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixMindEditor)
 };
