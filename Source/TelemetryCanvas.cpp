@@ -182,28 +182,113 @@ void TelemetryCanvas::setTraceMode (bool on)
     repaint();
 }
 
-juce::Array<std::pair<float, float>> TelemetryCanvas::getTraceCurve() const
+// ── Trace point ↔ pixel mapping ─────────────────────────────────────────────
+// Control points are stored as (freqHz, value01), so they keep their musical
+// meaning when the plot re-zooms to a focus band; pixels are recomputed each
+// paint and only used for hit-testing + drawing.
+
+juce::Point<float> TelemetryCanvas::pointToPixel (float freq, float value) const
+{
+    return { xForFreq (freq), yForValue (value) };
+}
+
+std::pair<float, float> TelemetryCanvas::pixelToPoint (juce::Point<float> p) const
+{
+    return { freqForX (p.x), valueForY (p.y) };
+}
+
+float TelemetryCanvas::freqForX (float x) const
+{
+    const float span = plotRight - plotLeft;
+    if (span <= 0.0f) return axisMin;
+    const float t = juce::jlimit (0.0f, 1.0f, (x - plotLeft) / span);
+    return axisMin * std::pow (axisMax / axisMin, t);
+}
+
+float TelemetryCanvas::valueForY (float y) const
+{
+    const float span = plotBottom - plotTop;
+    if (span <= 0.0f) return 0.0f;
+    return juce::jlimit (0.0f, 1.0f, (plotBottom - y) / span);
+}
+
+int TelemetryCanvas::hitTestPoint (juce::Point<float> p) const
+{
+    constexpr float radius = 9.0f;
+    int best = -1;
+    float bestDist = radius;
+
+    for (int i = 0; i < tracePoints.size(); ++i)
+    {
+        const auto px = pointToPixel (tracePoints.getReference (i).first,
+                                      tracePoints.getReference (i).second);
+        const float d = px.getDistanceFrom (p);
+        if (d <= bestDist) { bestDist = d; best = i; }
+    }
+    return best;
+}
+
+void TelemetryCanvas::sortTracePoints()
+{
+    std::sort (tracePoints.begin(), tracePoints.end(),
+               [] (const auto& a, const auto& b) { return a.first < b.first; });
+}
+
+// Densifies the control points into the smooth curve the plot draws and the
+// shaper matches: a quadratic through each interior point, ending at the
+// midpoints of the gaps. Evaluated in (log10 f, value) space — pixel x is an
+// affine image of log10 f, so this is the same shape on screen, but the result
+// no longer depends on the current zoom.
+juce::Array<std::pair<float, float>> TelemetryCanvas::sampleSpline() const
 {
     juce::Array<std::pair<float, float>> out;
-    if (tracePoints.size() < 2) return out;
+    const int n = tracePoints.size();
+    if (n < 2) return out;
 
-    const float lo   = std::log10 (axisMin);
-    const float hi   = std::log10 (axisMax);
-    const float span = plotRight - plotLeft;
-    const float yspan = plotBottom - plotTop;
+    // Sorted copy — the stored array keeps its click order until mouseUp.
+    juce::Array<std::pair<float, float>> pts (tracePoints);
+    std::sort (pts.begin(), pts.end(),
+               [] (const auto& a, const auto& b) { return a.first < b.first; });
 
-    for (const auto& p : tracePoints)
+    const auto u = [] (float f) { return std::log10 (juce::jmax (1.0f, f)); };
+    const auto emit = [&out] (float uu, float v)
     {
-        // Invert xForFreq() and yForValue().
-        const float t = juce::jlimit (0.0f, 1.0f, (p.x - plotLeft) / span);
-        const float freq = axisMin * std::pow (axisMax / axisMin, t);
-        const float val  = juce::jlimit (0.0f, 1.0f, (plotBottom - p.y) / yspan);
-        out.add ({ freq, val });
+        out.add ({ std::pow (10.0f, uu), juce::jlimit (0.0f, 1.0f, v) });
+    };
+
+    constexpr int stepsPerSegment = 8;
+
+    float u0 = u (pts.getReference (0).first);
+    float v0 = pts.getReference (0).second;
+    emit (u0, v0);
+
+    for (int i = 1; i < n - 1; ++i)
+    {
+        const auto& c  = pts.getReference (i);
+        const auto& nx = pts.getReference (i + 1);
+        const float uc = u (c.first),  vc = c.second;
+        const float u1 = 0.5f * (uc + u (nx.first));
+        const float v1 = 0.5f * (vc + nx.second);
+
+        for (int s = 1; s <= stepsPerSegment; ++s)
+        {
+            const float t  = (float) s / (float) stepsPerSegment;
+            const float mt = 1.0f - t;
+            emit (mt * mt * u0 + 2.0f * mt * t * uc + t * t * u1,
+                  mt * mt * v0 + 2.0f * mt * t * vc + t * t * v1);
+        }
+
+        u0 = u1; v0 = v1;
     }
 
-    std::sort (out.begin(), out.end(),
-               [] (const auto& a, const auto& b) { return a.first < b.first; });
+    const auto& last = pts.getReference (n - 1);
+    emit (u (last.first), last.second);
     return out;
+}
+
+juce::Array<std::pair<float, float>> TelemetryCanvas::getTraceCurve() const
+{
+    return sampleSpline();   // already sorted by frequency
 }
 
 void TelemetryCanvas::fitImageToPlot()
@@ -214,21 +299,28 @@ void TelemetryCanvas::fitImageToPlot()
 juce::Path TelemetryCanvas::smoothTrace() const
 {
     juce::Path p;
-    const int n = tracePoints.size();
-    if (n == 0) return p;
 
-    p.startNewSubPath (tracePoints[0].x, tracePoints[0].y);
-    if (n == 1) return p;
-    if (n == 2) { p.lineTo (tracePoints[1].x, tracePoints[1].y); return p; }
+    // Same samples the shaper sees, drawn as a polyline (they're dense enough
+    // that the curve reads as smooth).
+    const auto pts = sampleSpline();
 
-    for (int i = 1; i < n - 1; ++i)
+    if (pts.isEmpty())
     {
-        const auto& a = tracePoints[i];
-        const auto& b = tracePoints[i + 1];
-        p.quadraticTo (a.x, a.y, (a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f);
+        if (tracePoints.size() == 1)
+        {
+            const auto& pt = tracePoints.getReference (0);
+            p.startNewSubPath (pointToPixel (pt.first, pt.second));
+        }
+        return p;
     }
-    const auto& last = tracePoints[n - 1];
-    p.lineTo (last.x, last.y);
+
+    for (int i = 0; i < pts.size(); ++i)
+    {
+        const auto& pt = pts.getReference (i);
+        const auto px = pointToPixel (pt.first, pt.second);
+        if (i == 0) p.startNewSubPath (px);
+        else        p.lineTo (px);
+    }
     return p;
 }
 
@@ -264,9 +356,16 @@ void TelemetryCanvas::drawTrace (juce::Graphics& g)
 {
     if (tracePoints.isEmpty()) return;
 
+    const auto plot = plotRect();
     g.setColour (juce::Colours::white.withAlpha (0.9f));
-    for (const auto& p : tracePoints)
-        g.fillEllipse (p.x - 3.0f, p.y - 3.0f, 6.0f, 6.0f);
+    for (const auto& pt : tracePoints)
+    {
+        // Only the handles actually inside the current zoom are drawn; the
+        // curve itself clamps to the edges (see pointToPixel/xForFreq).
+        const auto px = pointToPixel (pt.first, pt.second);
+        if (plot.contains (px))
+            g.fillEllipse (px.x - 3.0f, px.y - 3.0f, 6.0f, 6.0f);
+    }
 
     if (tracePoints.size() >= 2)
     {
@@ -287,11 +386,18 @@ void TelemetryCanvas::mouseDown (const juce::MouseEvent& e)
     {
         if (e.mods.isRightButtonDown())
         {
-            if (!tracePoints.isEmpty()) tracePoints.removeLast();
+            const int hit = hitTestPoint (e.position);
+            if (hit >= 0)                                     tracePoints.remove (hit);
+            else if (! tracePoints.isEmpty())                 tracePoints.removeLast();
         }
         else if (plotRect().contains (e.position))
         {
-            tracePoints.add (e.position);
+            dragIndex = hitTestPoint (e.position);   // grab an existing handle…
+            if (dragIndex < 0)                       // …otherwise drop a new one
+            {
+                tracePoints.add (pixelToPoint (e.position));
+                dragIndex = tracePoints.size() - 1;
+            }
         }
         repaint();
         return;
@@ -303,7 +409,17 @@ void TelemetryCanvas::mouseDown (const juce::MouseEvent& e)
 
 void TelemetryCanvas::mouseDrag (const juce::MouseEvent& e)
 {
-    if (traceMode || !imageLoaded || !imageVisible) return;
+    if (traceMode)
+    {
+        if (dragIndex >= 0 && dragIndex < tracePoints.size())
+        {
+            tracePoints.setUnchecked (dragIndex, pixelToPoint (e.position));
+            repaint();
+        }
+        return;
+    }
+
+    if (!imageLoaded || !imageVisible) return;
 
     const float dx = e.position.x - lastMouse.x;
     const float dy = e.position.y - lastMouse.y;
@@ -318,6 +434,17 @@ void TelemetryCanvas::mouseDrag (const juce::MouseEvent& e)
         imageBounds.translate (dx, dy);
     }
     lastMouse = e.position;
+    repaint();
+}
+
+void TelemetryCanvas::mouseUp (const juce::MouseEvent&)
+{
+    if (! traceMode || dragIndex < 0) return;
+
+    // Re-sort once the drag ends, not during it — indices must stay stable
+    // while a handle is being moved past its neighbours.
+    sortTracePoints();
+    dragIndex = -1;
     repaint();
 }
 

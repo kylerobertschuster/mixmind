@@ -71,13 +71,15 @@ public:
     void setTraceMode (bool on);
     bool getTraceMode() const { return traceMode; }
     bool hasTrace() const     { return tracePoints.size() >= 2; }
-    void clearTrace()         { tracePoints.clear(); repaint(); }
+    void clearTrace()         { tracePoints.clear(); dragIndex = -1; repaint(); }
 
-    // Returns the trace as (freqHz, value01) points, sorted by frequency.
+    // Returns the smoothed trace as (freqHz, value01) points, sorted by
+    // frequency. value01 is the plot's dB-mapped scale (0..1 ↔ −100..0 dBFS).
     juce::Array<std::pair<float, float>> getTraceCurve() const;
 
     void mouseDown (const juce::MouseEvent&) override;
     void mouseDrag (const juce::MouseEvent&) override;
+    void mouseUp   (const juce::MouseEvent&) override;
     void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
     void mouseDoubleClick (const juce::MouseEvent&) override;
     void mouseMove (const juce::MouseEvent&) override;
@@ -107,6 +109,13 @@ private:
     float groupEnergy (FocusModel::Group g, const float* bins) const;
 
     juce::Path smoothTrace() const;
+    juce::Array<std::pair<float,float>> sampleSpline() const;
+    void sortTracePoints();
+    int  hitTestPoint (juce::Point<float> p) const;
+    juce::Point<float> pointToPixel (float freq, float value) const;
+    std::pair<float,float> pixelToPoint (juce::Point<float> p) const;
+    float freqForX (float x) const;
+    float valueForY (float y) const;
     void fitImageToPlot();
     juce::Rectangle<float> plotRect() const { return { plotLeft, plotTop, plotRight - plotLeft, plotBottom - plotTop }; }
 
@@ -134,9 +143,11 @@ private:
     bool mouseHover { false };
     juce::Point<float> lastMouse;
 
-    // Hand-drawn trace curve (plot-space points).
+    // Hand-drawn trace control points in (freqHz, value01) space, so the
+    // curve survives focus zooming. value01 is the plot's dB-mapped scale.
     bool traceMode { false };
-    juce::Array<juce::Point<float>> tracePoints;
+    juce::Array<std::pair<float, float>> tracePoints;
+    int dragIndex { -1 };
 
     double sampleRate { 44100.0 };
     FocusModel::Group focus { FocusModel::Group::Master };
