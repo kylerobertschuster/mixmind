@@ -2,6 +2,8 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "AudioAnalyzer.h"
 #include "ShaperProcessor.h"
+#include "ReferenceAnalyzer.h"
+#include "MatchState.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  MixMind — reference-matching spectrum shaper + analyzer.
@@ -9,12 +11,18 @@
 //    · MANUAL mode: reshapes toward the hand-drawn trace curve.
 //  Analysis (honest BS.1770 metering + averaged FFT) runs continuously; the
 //  shaper is the insert path (latency-compensated, bypass = transparent).
+//
+//  The reference and the drawn curve are owned here rather than by the editor.
+//  The editor is destroyed whenever the host closes the window — which is the
+//  whole of an offline bounce — so anything it owned could neither be saved nor
+//  keep working.
 // ─────────────────────────────────────────────────────────────────────────────
-class MixMindProcessor : public juce::AudioProcessor
+class MixMindProcessor : public juce::AudioProcessor,
+                         private juce::Timer
 {
 public:
     MixMindProcessor();
-    ~MixMindProcessor() override = default;
+    ~MixMindProcessor() override;
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
@@ -26,7 +34,7 @@ public:
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; }
+    double getTailLengthSeconds() const override;
     int  getNumPrograms() override { return 1; }
     int  getCurrentProgram() override { return 0; }
     void setCurrentProgram (int) override {}
@@ -38,10 +46,28 @@ public:
     juce::AudioProcessorValueTreeState parameters;
     AudioAnalyzer   audioAnalyzer;
     ShaperProcessor shaper;
+    ReferenceAnalyzer referenceAnalyzer;
+
+    // ── Session-recallable match state ──────────────────────────────────────
+    // The drawn curve in normalised (frequencyHz, value01) space, sorted.
+    MixMindState::TraceCurve getTraceCurve() const;
+    void setTraceCurve (MixMindState::TraceCurve curve);
+    bool hasTrace() const;
+    void clearTrace();
 
 private:
+    void timerCallback() override;
+    void designMatchFilter();
+
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     int reportedLatency { 0 };
+
+    MixMindState::TraceCurve traceCurve;
+
+    // setStateInformation() is not guaranteed to arrive on the message thread,
+    // so the curve is guarded rather than assumed single-threaded.
+    mutable juce::SpinLock traceLock;
+    bool prepared { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixMindProcessor)
 };

@@ -8,6 +8,14 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     setResizable (true, true);
     setResizeLimits (900, 400, 1600, 1000);
 
+    // Recall whatever the session restored. The processor owns the match state
+    // now, and it was loaded before this editor was ever constructed.
+    if (audioProcessor.referenceAnalyzer.hasReference())
+        adoptReferenceIntoUi();
+
+    telemetry.setTraceCurve (audioProcessor.getTraceCurve());
+    lastSyncedTrace = audioProcessor.getTraceCurve();
+
     // Header — crisp, opaque text, no alpha
     titleLabel.setText ("JuicePipe  —  MixMind", juce::dontSendNotification);
     titleLabel.setFont (juce::FontOptions ("Helvetica Neue", 13.0f, juce::Font::bold));
@@ -168,45 +176,31 @@ void MixMindEditor::timerCallback()
     const auto& aa = audioProcessor.audioAnalyzer;
     telemetry.setUserBins (aa.getFFTBins(), AudioAnalyzer::numBins, aa.getSampleRate());
     telemetry.setUserScalars (aa.getLufs(), aa.getStereoWidth(), aa.getPhaseCorr(), aa.getCrestFactor());
-    updateShaper();
+    syncTraceToProcessor();
 }
 
-// ── Shaper ────────────────────────────────────────────────────────────────
-void MixMindEditor::updateShaper()
+// ── Trace → processor ─────────────────────────────────────────────────────
+// The editor no longer designs the match filter. The processor owns the match
+// state and its own redesign timer, so the match keeps working — and keeps
+// being saved — with no window open. This only hands over what was drawn.
+void MixMindEditor::syncTraceToProcessor()
 {
-    auto& apvts = audioProcessor.parameters;
-    const bool shapeOn = apvts.getRawParameterValue ("shapeEnable")->load() > 0.5f;
+    const auto drawn = telemetry.getTraceCurve();
 
-    if (shapeOn && !wasShapeOn)
-        firThrottle = 14;   // design immediately on enable
-    wasShapeOn = shapeOn;
-
-    if (!shapeOn) return;
-
-    if (++firThrottle < 15) return;   // ~4 Hz redesign
-    firThrottle = 0;
-
-    const auto& aa = audioProcessor.audioAnalyzer;
-    const int n = AudioAnalyzer::numBins;
-    const float amount    = apvts.getRawParameterValue ("shapeAmount")->load();
-    const bool  autoMode  = apvts.getRawParameterValue ("shapeMode")->load() < 0.5f;
-
-    std::vector<float> target ((size_t) n);
-
-    if (autoMode)
+    // Both sides are the same normalised representation, so an unedited curve
+    // compares bit-identical and costs nothing across the ~30 Hz UI timer.
+    if (drawn.size() == lastSyncedTrace.size())
     {
-        if (!referenceAnalyzer.hasReference()) return;
-        std::copy (referenceAnalyzer.getBins(), referenceAnalyzer.getBins() + n, target.begin());
-    }
-    else
-    {
-        if (!telemetry.hasTrace()) return;
-        ShaperProcessor::buildTargetFromCurve (telemetry.getTraceCurve(), n, aa.getSampleRate(), target);
+        bool same = true;
+        for (int i = 0; i < drawn.size() && same; ++i)
+            same = drawn[i].first  == lastSyncedTrace[i].first
+                && drawn[i].second == lastSyncedTrace[i].second;
+
+        if (same) return;
     }
 
-    std::vector<float> taps;
-    ShaperProcessor::buildMatchFilter (target.data(), aa.getFFTBins(), n, amount, taps);
-    audioProcessor.shaper.setFilter (taps.data(), (int) taps.size());
+    lastSyncedTrace = drawn;
+    audioProcessor.setTraceCurve (drawn);
 }
 
 // ── Reference + Focus ──────────────────────────────────────────────────────
@@ -226,16 +220,9 @@ void MixMindEditor::loadReference()
 
             const auto file = results.getReference (0);
             juce::String error;
-            if (safeThis->referenceAnalyzer.loadFile (file, safeThis->audioProcessor.audioAnalyzer.getSampleRate(), error))
+            if (safeThis->audioProcessor.referenceAnalyzer.loadFile (file, safeThis->audioProcessor.audioAnalyzer.getSampleRate(), error))
             {
-                safeThis->telemetry.setReference (safeThis->referenceAnalyzer.getBins(), ReferenceAnalyzer::numBins);
-                safeThis->telemetry.setRefScalars (safeThis->referenceAnalyzer.getLufs(),
-                                                  safeThis->referenceAnalyzer.getStereoWidth(),
-                                                  safeThis->referenceAnalyzer.getPhaseCorr(),
-                                                  safeThis->referenceAnalyzer.getCrestFactor());
-                safeThis->loadRefButton.setButtonText (safeThis->referenceAnalyzer.getFileName());
-                safeThis->loadRefButton.setColour (juce::TextButton::textColourOffId, JP::text);
-                safeThis->firThrottle = 14;   // refresh the match filter with the new reference
+                safeThis->adoptReferenceIntoUi();
             }
             else
             {
@@ -243,6 +230,19 @@ void MixMindEditor::loadReference()
                                                         "Load reference", error);
             }
         });
+}
+
+// Single place that pushes the (possibly recalled) reference into the UI, so a
+// session load and a fresh file pick cannot drift apart.
+void MixMindEditor::adoptReferenceIntoUi()
+{
+    auto& ref = audioProcessor.referenceAnalyzer;
+
+    telemetry.setReference (ref.getBins(), AudioAnalyzer::numBins);
+    telemetry.setRefScalars (ref.getLufs(), ref.getStereoWidth(), ref.getPhaseCorr(), ref.getCrestFactor());
+
+    loadRefButton.setButtonText (ref.getFileName());
+    loadRefButton.setColour (juce::TextButton::textColourOffId, JP::text);
 }
 
 void MixMindEditor::applyFocusSelection()
@@ -299,5 +299,7 @@ void MixMindEditor::mouseDown (const juce::MouseEvent& e)
     else if (e.eventComponent == &traceButton)
     {
         telemetry.clearTrace();
+        audioProcessor.clearTrace();   // the processor owns it now, so clear both
+        lastSyncedTrace.clear();
     }
 }

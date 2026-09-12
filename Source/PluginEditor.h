@@ -3,7 +3,6 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
 #include "TelemetryCanvas.h"
-#include "ReferenceAnalyzer.h"
 #include "FocusModel.h"
 #include "LookAndFeel.h"
 
@@ -22,7 +21,6 @@ private:
     JuicePipeLAF      laf;
 
     TelemetryCanvas   telemetry;
-    ReferenceAnalyzer referenceAnalyzer;
 
     // Header
     juce::Label      titleLabel;
@@ -42,14 +40,14 @@ private:
     void loadReference();
     void loadImageLayer();
     void applyFocusSelection();
-    void updateShaper();
+    void adoptReferenceIntoUi();
+    void syncTraceToProcessor();
     void timerCallback() override;
     void mouseDown (const juce::MouseEvent&) override;
 
     bool manualMode { false };
-    bool wasShapeOn { false };
-    int  firThrottle { 0 };
     int  dotPhase { 0 };
+    MixMindState::TraceCurve lastSyncedTrace;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixMindEditor)
 };

@@ -289,3 +289,41 @@ TEST_CASE ("a trace and a reference coexist in one session", "[state][match]")
     REQUIRE (restoredRef.hasReference());
     REQUIRE (restoredRef.getBins()[0] == Catch::Approx (0.375f));
 }
+
+// ── The processor's own contract ──────────────────────────────────────────
+
+// getStateInformation() appends the match to the APVTS tree rather than
+// replacing it, so a recall must still yield both. This mirrors that assembly
+// exactly, without dragging an AudioProcessor into the test binary.
+TEST_CASE ("a session keeps its parameters alongside the match", "[state][match]")
+{
+    juce::ValueTree state ("MixMindParams");
+    state.appendChild (juce::ValueTree ("PARAM"), nullptr);
+    state.appendChild (juce::ValueTree ("PARAM"), nullptr);
+
+    juce::ValueTree match (MixMindState::matchTree);
+    match.appendChild (MixMindState::traceToTree (makeCurve ({ { 50.0f, 0.1f }, { 5000.0f, 0.9f } })), nullptr);
+
+    ReferenceAnalyzer source;
+    REQUIRE (source.readFromTree (makeReferenceTree (std::vector<float> ((size_t) ReferenceAnalyzer::numBins, 0.25f))));
+    source.writeToTree (match);
+
+    state.appendChild (match, nullptr);
+
+    const auto restored = throughXml (state);
+
+    // The match must ride along without evicting the parameter children.
+    REQUIRE (restored.getNumChildren() == 3);
+
+    const auto restoredMatch = restored.getChildWithName (MixMindState::matchTree);
+    REQUIRE (restoredMatch.isValid());
+
+    const auto curve = MixMindState::treeToTrace (restoredMatch.getChildWithName (MixMindState::traceTree));
+    REQUIRE (curve.size() == 2);
+    REQUIRE (curve[0].first == Catch::Approx (50.0f));
+    REQUIRE (curve[1].second == Catch::Approx (0.9f));
+
+    ReferenceAnalyzer restoredRef;
+    REQUIRE (restoredRef.readFromTree (restoredMatch));
+    REQUIRE (restoredRef.getBins()[10] == Catch::Approx (0.25f));
+}

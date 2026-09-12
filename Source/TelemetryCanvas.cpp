@@ -182,28 +182,14 @@ void TelemetryCanvas::setTraceMode (bool on)
     repaint();
 }
 
-juce::Array<std::pair<float, float>> TelemetryCanvas::getTraceCurve() const
+void TelemetryCanvas::setTraceCurve (const MixMindState::TraceCurve& curve)
 {
-    juce::Array<std::pair<float, float>> out;
-    if (tracePoints.size() < 2) return out;
+    traceCurve = curve;
 
-    const float lo   = std::log10 (axisMin);
-    const float hi   = std::log10 (axisMax);
-    const float span = plotRight - plotLeft;
-    const float yspan = plotBottom - plotTop;
-
-    for (const auto& p : tracePoints)
-    {
-        // Invert xForFreq() and yForValue().
-        const float t = juce::jlimit (0.0f, 1.0f, (p.x - plotLeft) / span);
-        const float freq = axisMin * std::pow (axisMax / axisMin, t);
-        const float val  = juce::jlimit (0.0f, 1.0f, (plotBottom - p.y) / yspan);
-        out.add ({ freq, val });
-    }
-
-    std::sort (out.begin(), out.end(),
+    std::sort (traceCurve.begin(), traceCurve.end(),
                [] (const auto& a, const auto& b) { return a.first < b.first; });
-    return out;
+
+    repaint();
 }
 
 void TelemetryCanvas::fitImageToPlot()
@@ -214,20 +200,26 @@ void TelemetryCanvas::fitImageToPlot()
 juce::Path TelemetryCanvas::smoothTrace() const
 {
     juce::Path p;
-    const int n = tracePoints.size();
+    const int n = traceCurve.size();
     if (n == 0) return p;
 
-    p.startNewSubPath (tracePoints[0].x, tracePoints[0].y);
+    const auto toPixel = [this] (const std::pair<float, float>& pt)
+    {
+        return juce::Point<float> (xForFreq (pt.first), yForValue (pt.second));
+    };
+
+    auto a = toPixel (traceCurve[0]);
+    p.startNewSubPath (a.x, a.y);
     if (n == 1) return p;
-    if (n == 2) { p.lineTo (tracePoints[1].x, tracePoints[1].y); return p; }
+    if (n == 2) { auto b = toPixel (traceCurve[1]); p.lineTo (b.x, b.y); return p; }
 
     for (int i = 1; i < n - 1; ++i)
     {
-        const auto& a = tracePoints[i];
-        const auto& b = tracePoints[i + 1];
-        p.quadraticTo (a.x, a.y, (a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f);
+        const auto p0 = toPixel (traceCurve[i]);
+        const auto p1 = toPixel (traceCurve[i + 1]);
+        p.quadraticTo (p0.x, p0.y, (p0.x + p1.x) * 0.5f, (p0.y + p1.y) * 0.5f);
     }
-    const auto& last = tracePoints[n - 1];
+    const auto last = toPixel (traceCurve[n - 1]);
     p.lineTo (last.x, last.y);
     return p;
 }
@@ -262,13 +254,17 @@ void TelemetryCanvas::drawRefImage (juce::Graphics& g)
 
 void TelemetryCanvas::drawTrace (juce::Graphics& g)
 {
-    if (tracePoints.isEmpty()) return;
+    if (traceCurve.isEmpty()) return;
 
     g.setColour (juce::Colours::white.withAlpha (0.9f));
-    for (const auto& p : tracePoints)
-        g.fillEllipse (p.x - 3.0f, p.y - 3.0f, 6.0f, 6.0f);
+    for (const auto& pt : traceCurve)
+    {
+        const float x = xForFreq (pt.first);
+        const float y = yForValue (pt.second);
+        g.fillEllipse (x - 3.0f, y - 3.0f, 6.0f, 6.0f);
+    }
 
-    if (tracePoints.size() >= 2)
+    if (traceCurve.size() >= 2)
     {
         juce::Path dashed;
         const float dash[2] = { 6.0f, 4.0f };
@@ -287,11 +283,26 @@ void TelemetryCanvas::mouseDown (const juce::MouseEvent& e)
     {
         if (e.mods.isRightButtonDown())
         {
-            if (!tracePoints.isEmpty()) tracePoints.removeLast();
+            // The curve is stored in frequency order, so the last entry is the
+            // rightmost point. Clicking left-to-right (the usual way) makes that
+            // the point just added.
+            if (! traceCurve.isEmpty()) traceCurve.removeLast();
         }
         else if (plotRect().contains (e.position))
         {
-            tracePoints.add (e.position);
+            const float span  = plotRight - plotLeft;
+            const float yspan = plotBottom - plotTop;
+
+            if (span > 0.0f && yspan > 0.0f)
+            {
+                const float t = juce::jlimit (0.0f, 1.0f, (e.position.x - plotLeft) / span);
+
+                traceCurve.add ({ axisMin * std::pow (axisMax / axisMin, t),
+                                  juce::jlimit (0.0f, 1.0f, (plotBottom - e.position.y) / yspan) });
+
+                std::sort (traceCurve.begin(), traceCurve.end(),
+                           [] (const auto& a, const auto& b) { return a.first < b.first; });
+            }
         }
         repaint();
         return;

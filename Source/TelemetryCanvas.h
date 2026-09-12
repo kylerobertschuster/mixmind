@@ -3,6 +3,7 @@
 #include "FocusModel.h"
 #include "LookAndFeel.h"
 #include "AudioAnalyzer.h"
+#include "MatchState.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ColorSwatch — a clickable swatch that opens a ColourSelector popup.
@@ -70,11 +71,17 @@ public:
     // ── Trace — a hand-drawn target curve the user clicks onto the plot. ─
     void setTraceMode (bool on);
     bool getTraceMode() const { return traceMode; }
-    bool hasTrace() const     { return tracePoints.size() >= 2; }
-    void clearTrace()         { tracePoints.clear(); repaint(); }
+    bool hasTrace() const     { return traceCurve.size() >= 2; }
+    void clearTrace()         { traceCurve.clear(); repaint(); }
+    int  getTracePointCount() const { return traceCurve.size(); }
 
-    // Returns the trace as (freqHz, value01) points, sorted by frequency.
-    juce::Array<std::pair<float, float>> getTraceCurve() const;
+    // The trace in normalised (frequencyHz, value01) space, sorted. This — not
+    // the pixels — is the stored form: the pixels depend on the window size and
+    // on axisMin/axisMax, which move with the selected focus band.
+    MixMindState::TraceCurve getTraceCurve() const { return traceCurve; }
+
+    // Restores a curve recalled from a session.
+    void setTraceCurve (const MixMindState::TraceCurve& curve);
 
     void mouseDown (const juce::MouseEvent&) override;
     void mouseDrag (const juce::MouseEvent&) override;
@@ -134,9 +141,11 @@ private:
     bool mouseHover { false };
     juce::Point<float> lastMouse;
 
-    // Hand-drawn trace curve (plot-space points).
+    // Hand-drawn target curve, held in normalised (frequencyHz, value01) space
+    // and kept sorted. Pixels are derived at draw time, so a window resize or a
+    // focus-band change cannot silently change what the curve means.
     bool traceMode { false };
-    juce::Array<juce::Point<float>> tracePoints;
+    MixMindState::TraceCurve traceCurve;
 
     double sampleRate { 44100.0 };
     FocusModel::Group focus { FocusModel::Group::Master };
