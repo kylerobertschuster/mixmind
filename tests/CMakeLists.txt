@@ -1,7 +1,7 @@
 # ── MixMind test suite (Catch2) ───────────────────────────────────────────
 # Runtime verification for the parts that are pure data-in/data-out: the
-# meters, the FIR designer, the per-channel routing and its latency, and the
-# trace→target map.
+# meters, the FIR designer, the per-channel routing and its latency, the
+# trace→target map, and session recall of the match data.
 #
 # The tests build the plugin's own .cpp files rather than copies, so they cannot
 # drift from what ships. Anything needing an editor or a window is tested
@@ -13,9 +13,11 @@ target_sources(MixMind_Tests PRIVATE
     TestSignals.h
     LoudnessTests.cpp
     ShaperTests.cpp
+    MatchStateTests.cpp
 
     ${CMAKE_SOURCE_DIR}/Source/LoudnessMeter.cpp
     ${CMAKE_SOURCE_DIR}/Source/ShaperProcessor.cpp
+    ${CMAKE_SOURCE_DIR}/Source/ReferenceAnalyzer.cpp
 )
 
 target_include_directories(MixMind_Tests PRIVATE ${CMAKE_SOURCE_DIR}/Source)
@@ -31,8 +33,11 @@ target_compile_definitions(MixMind_Tests PRIVATE
 target_link_libraries(MixMind_Tests PRIVATE
     Catch2::Catch2WithMain
     juce::juce_audio_basics
+    juce::juce_audio_formats
     juce::juce_dsp
     juce::juce_core
+    juce::juce_data_structures
+    juce::juce_graphics
     juce::juce_recommended_config_flags
     juce::juce_recommended_warning_flags
 )

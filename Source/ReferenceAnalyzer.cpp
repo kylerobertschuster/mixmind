@@ -1,5 +1,6 @@
 #include "ReferenceAnalyzer.h"
 #include <cmath>
+#include <cstring>
 #include <vector>
 
 ReferenceAnalyzer::ReferenceAnalyzer()
@@ -18,6 +19,51 @@ void ReferenceAnalyzer::clear()
     peakDb = -180.0f;
     rmsDb = -180.0f;
     fileName = {};
+}
+
+void ReferenceAnalyzer::writeToTree (juce::ValueTree& tree) const
+{
+    tree.setProperty ("refLoaded", loaded, nullptr);
+
+    if (! loaded)
+        return;
+
+    tree.setProperty ("refName",   fileName,       nullptr);
+    tree.setProperty ("refLufs",   (double) lufs,  nullptr);
+    tree.setProperty ("refWidth",  (double) stereoWidth, nullptr);
+    tree.setProperty ("refPhase",  (double) phaseCorr,   nullptr);
+    tree.setProperty ("refPeakDb", (double) peakDb,      nullptr);
+    tree.setProperty ("refRmsDb",  (double) rmsDb,       nullptr);
+
+    const juce::MemoryBlock bins (refBins, sizeof (refBins));
+    tree.setProperty ("refBins", juce::var (bins), nullptr);
+}
+
+bool ReferenceAnalyzer::readFromTree (const juce::ValueTree& tree)
+{
+    clear();
+
+    if (! tree.isValid() || ! (bool) tree.getProperty ("refLoaded", false))
+        return false;
+
+    const auto* bins = tree.getProperty ("refBins").getBinaryData();
+
+    // A truncated or foreign session must fail closed to "no reference" rather
+    // than half-populate the bins, which would quietly skew the match EQ.
+    if (bins == nullptr || bins->getSize() != sizeof (refBins))
+        return false;
+
+    std::memcpy (refBins, bins->getData(), sizeof (refBins));
+
+    fileName    = tree.getProperty ("refName", "").toString();
+    lufs        = (float) (double) tree.getProperty ("refLufs",   -60.0);
+    stereoWidth = (float) (double) tree.getProperty ("refWidth",   0.5);
+    phaseCorr   = (float) (double) tree.getProperty ("refPhase",   1.0);
+    peakDb      = (float) (double) tree.getProperty ("refPeakDb", -180.0);
+    rmsDb       = (float) (double) tree.getProperty ("refRmsDb",  -180.0);
+
+    loaded = true;
+    return true;
 }
 
 bool ReferenceAnalyzer::loadFile (const juce::File& file, double liveSampleRate, juce::String& errorMessage)

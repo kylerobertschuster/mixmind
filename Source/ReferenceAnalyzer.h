@@ -38,6 +38,17 @@ public:
         return juce::jmax (0.0f, peakDb - rmsDb);
     }
 
+    // ── Session recall ──────────────────────────────────────────────────────
+    // A reference is not an automatable parameter, so it rides along as a
+    // child of the plugin state tree. The 1024 bins go in as one base64 blob —
+    // as individual XML elements they would add ~40 KB to every saved session.
+    //
+    // The analysed bins are stored rather than the file path on purpose: the
+    // session then recalls identically even if the reference file has since
+    // been moved, re-encoded, or deleted.
+    void writeToTree (juce::ValueTree& tree) const;
+    bool readFromTree (const juce::ValueTree& tree);
+
 private:
     juce::AudioFormatManager formatManager;
 
