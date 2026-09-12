@@ -12,8 +12,10 @@ juce_add_console_app(MixMind_Tests PRODUCT_NAME "MixMind Tests")
 target_sources(MixMind_Tests PRIVATE
     TestSignals.h
     LoudnessTests.cpp
+    ShaperTests.cpp
 
     ${CMAKE_SOURCE_DIR}/Source/LoudnessMeter.cpp
+    ${CMAKE_SOURCE_DIR}/Source/ShaperProcessor.cpp
 )
 
 target_include_directories(MixMind_Tests PRIVATE ${CMAKE_SOURCE_DIR}/Source)
