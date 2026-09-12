@@ -252,3 +252,22 @@ juce_add_plugin(Neat VERSION 1.0.0 COMPANY_NAME "${MIXMIND_COMPANY}" PLUGIN_MANU
 target_sources(Neat PRIVATE Source/NeatProcessor.cpp Source/NeatProcessor.h Source/NeatEditor.cpp Source/NeatEditor.h Source/LookAndFeel.h Source/LookAndFeel.cpp Source/LicenseManager.cpp Source/LicenseManager.h Source/HostTheme.cpp Source/HostTheme.h)
 target_compile_definitions(Neat PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0 JUCE_DISPLAY_SPLASH_SCREEN=0 JUCE_REPORT_APP_USAGE=0)
 target_link_libraries(Neat PRIVATE juce::juce_audio_utils juce::juce_audio_processors juce::juce_gui_extra juce::juce_core juce::juce_dsp juce::juce_recommended_config_flags juce::juce_recommended_lto_flags juce::juce_recommended_warning_flags)
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Tests — runtime verification for MixMind's DSP and target math.
+#  Configure with -DMIXMIND_BUILD_TESTS=OFF to skip (and skip the Catch2 fetch).
+#  Run with: ctest --test-dir build --output-on-failure
+# ═══════════════════════════════════════════════════════════════════════════
+option(MIXMIND_BUILD_TESTS "Build the MixMind test suite (fetches Catch2)" ON)
+
+if(MIXMIND_BUILD_TESTS)
+    FetchContent_Declare(Catch2
+        GIT_REPOSITORY  https://github.com/catchorg/Catch2.git
+        GIT_TAG         v3.5.2
+        GIT_SHALLOW     TRUE
+    )
+    FetchContent_MakeAvailable(Catch2)
+
+    enable_testing()
+    add_subdirectory(tests)
+endif()
