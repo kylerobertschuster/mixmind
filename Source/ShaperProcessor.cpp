@@ -182,6 +182,16 @@ void ShaperProcessor::buildTargetFromCurve (const juce::Array<std::pair<float, f
 
     const float nyquist = (float) sampleRate * 0.5f;
 
+    // The analysis grid starts at DC, but the trace is only drawn from its first
+    // point upward — 20 Hz by default, and higher when a focus band is selected
+    // (TelemetryCanvas raises axisMin to the band start). Outside the drawn
+    // range, hold the nearest endpoint flat, so a bin below the trace inherits
+    // the LOWEST point's value rather than the highest. Bin 0 matters most:
+    // buildMatchFilter DC-normalises by dividing the taps by their sum, and
+    // sum(taps) == H(0) == mag[0], so a wrong DC value mis-scales every tap.
+    const float firstLf = std::log10 (juce::jmax (1.0f, curve.getReference (0).first));
+    const float lastLf  = std::log10 (juce::jmax (1.0f, curve.getReference (curve.size() - 1).first));
+
     // The trace lives in the same space as the spectrum plot: y is LINEAR
     // magnitude (0..1), identical to the reference/live bins. Interpolate the
     // trace points (freqHz, magnitude01) onto the analysis bins directly.
@@ -190,28 +200,33 @@ void ShaperProcessor::buildTargetFromCurve (const juce::Array<std::pair<float, f
         const float f  = (float) i * nyquist / (float) n;
         const float lf = f > 1.0f ? std::log10 (f) : 0.0f;
 
-        int k = 0;
-        while (k < curve.size() - 1)
-        {
-            const float lo = std::log10 (juce::jmax (1.0f, curve.getReference (k).first));
-            const float hi = std::log10 (juce::jmax (1.0f, curve.getReference (k + 1).first));
-            if (lf >= lo && lf <= hi) break;
-            ++k;
-        }
-
         float mag;
-        if (k >= curve.size() - 1)
-            mag = juce::jlimit (0.0f, 1.0f, curve.getReference (curve.size() - 1).second);
+
+        if (lf <= firstLf)
+            mag = curve.getReference (0).second;
+        else if (lf >= lastLf)
+            mag = curve.getReference (curve.size() - 1).second;
         else
         {
+            // The guards above mean a containing segment exists; the walk is
+            // kept as a safety net for an unsorted curve.
+            int k = 0;
+            while (k < curve.size() - 1)
+            {
+                const float lo = std::log10 (juce::jmax (1.0f, curve.getReference (k).first));
+                const float hi = std::log10 (juce::jmax (1.0f, curve.getReference (k + 1).first));
+                if (lf >= lo && lf <= hi) break;
+                ++k;
+            }
+
             const auto& a = curve.getReference (k);
-            const auto& b = curve.getReference (k + 1);
+            const auto& b = curve.getReference (juce::jmin (k + 1, curve.size() - 1));
             const float lo = std::log10 (juce::jmax (1.0f, a.first));
             const float hi = std::log10 (juce::jmax (1.0f, b.first));
             const float t  = (hi > lo) ? juce::jlimit (0.0f, 1.0f, (lf - lo) / (hi - lo)) : 0.0f;
-            mag = juce::jlimit (0.0f, 1.0f, a.second + (b.second - a.second) * t);
+            mag = a.second + (b.second - a.second) * t;
         }
 
-        outTarget[(size_t) i] = mag;
+        outTarget[(size_t) i] = juce::jlimit (0.0f, 1.0f, mag);
     }
 }
