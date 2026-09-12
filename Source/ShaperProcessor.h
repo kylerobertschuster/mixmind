@@ -81,6 +81,13 @@ private:
     static constexpr int kDelayLen = 2048;
     static constexpr int kDelayMask = kDelayLen - 1;
     std::vector<float> delayL, delayR;
+
+    // The matched component comes out of the FIR kLatency samples late. Any
+    // component left dry (the unselected side, or the untouched half of a
+    // mid/side split) has to be delayed by the same amount, or it would arrive
+    // ahead of the filtered part and skew the stereo image. These hold the raw
+    // input, so the dry read is independent of what the FIR delay lines hold.
+    std::vector<float> dryL, dryR;
     int writeIdx { 0 };
 
     // Audio-thread snapshot of the active taps (taken once per block).

@@ -6,6 +6,8 @@ void ShaperProcessor::prepare (double sr, int)
     sampleRate = sr;
     delayL.assign (kDelayLen, 0.0f);
     delayR.assign (kDelayLen, 0.0f);
+    dryL.assign (kDelayLen, 0.0f);
+    dryR.assign (kDelayLen, 0.0f);
     curTaps.assign (kTapCount, 0.0f);
     writeIdx = 0;
 }
@@ -14,6 +16,8 @@ void ShaperProcessor::reset()
 {
     juce::zeromem (delayL.data(), sizeof (float) * delayL.size());
     juce::zeromem (delayR.data(), sizeof (float) * delayR.size());
+    juce::zeromem (dryL.data(),   sizeof (float) * dryL.size());
+    juce::zeromem (dryR.data(),   sizeof (float) * dryR.size());
     writeIdx = 0;
 }
 
@@ -69,6 +73,13 @@ void ShaperProcessor::process (const float* inL, const float* inR, float* outL, 
         const float r = inR[i];
         dl[writeIdx] = l;
         dr[writeIdx] = r;
+        dryL[writeIdx] = l;
+        dryR[writeIdx] = r;
+
+        // Raw input kLatency samples ago — the dry-path counterpart of the
+        // FIR's (linear-phase) group delay.
+        const float dL = dryL[(writeIdx - kLatency) & kDelayMask];
+        const float dR = dryR[(writeIdx - kLatency) & kDelayMask];
 
         switch (m)
         {
@@ -79,33 +90,33 @@ void ShaperProcessor::process (const float* inL, const float* inR, float* outL, 
 
             case ChannelMode::Left:
                 outL[i] = applyFir (h, M, dl, writeIdx);
-                outR[i] = r;
+                outR[i] = dR;
                 break;
 
             case ChannelMode::Right:
-                outL[i] = l;
+                outL[i] = dL;
                 outR[i] = applyFir (h, M, dr, writeIdx);
                 break;
 
             case ChannelMode::Mid:
             {
-                const float mid  = (l + r) * 0.5f;
-                const float side = (l - r) * 0.5f;
-                dl[writeIdx] = mid;                    // reuse the L delay line for mid
-                const float meq = applyFir (h, M, dl, writeIdx);
-                outL[i] = meq + side;
-                outR[i] = meq - side;
+                // FIR runs on mid; side stays dry (already delayed above).
+                dl[writeIdx] = (l + r) * 0.5f;
+                const float meq   = applyFir (h, M, dl, writeIdx);
+                const float dSide = (dL - dR) * 0.5f;
+                outL[i] = meq + dSide;
+                outR[i] = meq - dSide;
                 break;
             }
 
             case ChannelMode::Side:
             {
-                const float mid  = (l + r) * 0.5f;
-                const float side = (l - r) * 0.5f;
-                dl[writeIdx] = side;                   // reuse the L delay line for side
-                const float seq = applyFir (h, M, dl, writeIdx);
-                outL[i] = mid + seq;
-                outR[i] = mid - seq;
+                // FIR runs on side; mid stays dry (already delayed above).
+                dl[writeIdx] = (l - r) * 0.5f;
+                const float seq  = applyFir (h, M, dl, writeIdx);
+                const float dMid = (dL + dR) * 0.5f;
+                outL[i] = dMid + seq;
+                outR[i] = dMid - seq;
                 break;
             }
         }
