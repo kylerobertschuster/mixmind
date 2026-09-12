@@ -118,13 +118,15 @@ bool ReferenceAnalyzer::loadFile (const juce::File& file, double liveSampleRate,
     juce::dsp::WindowingFunction<float> window (AudioAnalyzer::fftSize, juce::dsp::WindowingFunction<float>::hann);
 
     std::vector<float> accum (numBins, 0.0f);
-    float fftBuf[AudioAnalyzer::fftSize];
+    float fftBuf[2 * AudioAnalyzer::fftSize];   // FFT needs 2*size (interleaved real/imag)
     int frames = 0;
 
     for (size_t start = 0; start + AudioAnalyzer::fftSize <= mono.size(); start += AudioAnalyzer::fftSize / 2)
     {
         for (int i = 0; i < AudioAnalyzer::fftSize; ++i)
             fftBuf[i] = mono[start + i];
+        for (int i = AudioAnalyzer::fftSize; i < 2 * AudioAnalyzer::fftSize; ++i)
+            fftBuf[i] = 0.0f;
 
         window.multiplyWithWindowingTable (fftBuf, AudioAnalyzer::fftSize);
         fft.performFrequencyOnlyForwardTransform (fftBuf);
