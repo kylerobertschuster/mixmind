@@ -225,6 +225,11 @@ void ShaperProcessor::buildTargetFromCurve (const juce::Array<std::pair<float, f
 
     const float nyquist = (float) sampleRate * 0.5f;
 
+    // Below the lowest drawn point the target holds that point's value. Without
+    // this clamp the scan below walks off the end of the curve, and the DC/low
+    // bins inherit the *highest* point's value instead of the lowest.
+    const float curveLo = std::log10 (juce::jmax (1.0f, curve.getReference (0).first));
+
     // The trace is drawn on the spectrum plot, whose vertical axis is a
     // dB-mapped magnitude (0..1 ↔ −100..0 dBFS). Convert the drawn value to
     // dB, then to linear magnitude, so buildMatchFilter() subtracts it (in dB)
@@ -232,7 +237,7 @@ void ShaperProcessor::buildTargetFromCurve (const juce::Array<std::pair<float, f
     for (int i = 0; i < n; ++i)
     {
         const float f  = (float) i * nyquist / (float) n;
-        const float lf = f > 1.0f ? std::log10 (f) : 0.0f;
+        const float lf = juce::jmax (f > 1.0f ? std::log10 (f) : 0.0f, curveLo);
 
         int k = 0;
         while (k < curve.size() - 1)
