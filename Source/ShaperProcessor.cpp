@@ -59,28 +59,71 @@ void ShaperProcessor::process (const float* inL, const float* inR, float* outL, 
     }
 
     const float* h = curTaps.data();
+    const ChannelMode m = (ChannelMode) mode.load();
     auto& dl = delayL;
     auto& dr = delayR;
 
     for (int i = 0; i < n; ++i)
     {
-        dl[writeIdx] = inL[i];
-        dr[writeIdx] = inR[i];
+        const float l = inL[i];
+        const float r = inR[i];
+        dl[writeIdx] = l;
+        dr[writeIdx] = r;
 
-        float aL = 0.0f, aR = 0.0f;
-        int j = writeIdx;
-        for (int k = 0; k < M; ++k)
+        switch (m)
         {
-            const float c = h[k];
-            aL += c * dl[j];
-            aR += c * dr[j];
-            j = (j - 1) & kDelayMask;
+            case ChannelMode::Stereo:
+                outL[i] = applyFir (h, M, dl, writeIdx);
+                outR[i] = applyFir (h, M, dr, writeIdx);
+                break;
+
+            case ChannelMode::Left:
+                outL[i] = applyFir (h, M, dl, writeIdx);
+                outR[i] = r;
+                break;
+
+            case ChannelMode::Right:
+                outL[i] = l;
+                outR[i] = applyFir (h, M, dr, writeIdx);
+                break;
+
+            case ChannelMode::Mid:
+            {
+                const float mid  = (l + r) * 0.5f;
+                const float side = (l - r) * 0.5f;
+                dl[writeIdx] = mid;                    // reuse the L delay line for mid
+                const float meq = applyFir (h, M, dl, writeIdx);
+                outL[i] = meq + side;
+                outR[i] = meq - side;
+                break;
+            }
+
+            case ChannelMode::Side:
+            {
+                const float mid  = (l + r) * 0.5f;
+                const float side = (l - r) * 0.5f;
+                dl[writeIdx] = side;                   // reuse the L delay line for side
+                const float seq = applyFir (h, M, dl, writeIdx);
+                outL[i] = mid + seq;
+                outR[i] = mid - seq;
+                break;
+            }
         }
 
-        outL[i] = aL;
-        outR[i] = aR;
         writeIdx = (writeIdx + 1) & kDelayMask;
     }
+}
+
+float ShaperProcessor::applyFir (const float* h, int M, const std::vector<float>& delay, int writeIdx)
+{
+    float acc = 0.0f;
+    int j = writeIdx;
+    for (int k = 0; k < M; ++k)
+    {
+        acc += h[k] * delay[(size_t) j];
+        j = (j - 1) & kDelayMask;
+    }
+    return acc;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -182,9 +225,10 @@ void ShaperProcessor::buildTargetFromCurve (const juce::Array<std::pair<float, f
 
     const float nyquist = (float) sampleRate * 0.5f;
 
-    // The trace lives in the same space as the spectrum plot: y is LINEAR
-    // magnitude (0..1), identical to the reference/live bins. Interpolate the
-    // trace points (freqHz, magnitude01) onto the analysis bins directly.
+    // The trace is drawn on the spectrum plot, whose vertical axis is a
+    // dB-mapped magnitude (0..1 ↔ −100..0 dBFS). Convert the drawn value to
+    // dB, then to linear magnitude, so buildMatchFilter() subtracts it (in dB)
+    // from the live spectrum correctly.
     for (int i = 0; i < n; ++i)
     {
         const float f  = (float) i * nyquist / (float) n;
@@ -199,9 +243,9 @@ void ShaperProcessor::buildTargetFromCurve (const juce::Array<std::pair<float, f
             ++k;
         }
 
-        float mag;
+        float display;
         if (k >= curve.size() - 1)
-            mag = juce::jlimit (0.0f, 1.0f, curve.getReference (curve.size() - 1).second);
+            display = juce::jlimit (0.0f, 1.0f, curve.getReference (curve.size() - 1).second);
         else
         {
             const auto& a = curve.getReference (k);
@@ -209,9 +253,10 @@ void ShaperProcessor::buildTargetFromCurve (const juce::Array<std::pair<float, f
             const float lo = std::log10 (juce::jmax (1.0f, a.first));
             const float hi = std::log10 (juce::jmax (1.0f, b.first));
             const float t  = (hi > lo) ? juce::jlimit (0.0f, 1.0f, (lf - lo) / (hi - lo)) : 0.0f;
-            mag = juce::jlimit (0.0f, 1.0f, a.second + (b.second - a.second) * t);
+            display = juce::jlimit (0.0f, 1.0f, a.second + (b.second - a.second) * t);
         }
 
-        outTarget[(size_t) i] = mag;
+        const float db = display * 100.0f - 100.0f;   // display 0..1 → −100..0 dB
+        outTarget[(size_t) i] = std::pow (10.0f, db / 20.0f);
     }
 }

@@ -6,7 +6,7 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     setLookAndFeel (&laf); JP::setAccent(juce::Colour(0xffff8a80));
     setSize (1050, 680);
     setResizable (true, true);
-    setResizeLimits (900, 400, 1600, 1000);
+    setResizeLimits (980, 400, 1600, 1000);   // header row needs ~980 to stay uncramped
 
     // Header — crisp, opaque text, no alpha
     titleLabel.setText ("JuicePipe  —  MixMind", juce::dontSendNotification);
@@ -105,6 +105,20 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     };
     addAndMakeVisible (amountSlider);
 
+    // Channel mode — which part of the stereo signal the shaper matches. This
+    // drives the FIR, the live FFT and the reference spectrum together, so all
+    // three always describe the same signal.
+    chanBox.setTooltip ("Which part of the stereo signal the shaper analyzes and matches.\nSIDE is the difference signal (L-R) — useful for taming a wide reverb tail.");
+    {
+        const ChannelMode modes[] = { ChannelMode::Stereo, ChannelMode::Left, ChannelMode::Right,
+                                      ChannelMode::Mid,    ChannelMode::Side };
+        for (auto m : modes)
+            chanBox.addItem (channelModeName (m), (int) m + 1);
+    }
+    chanBox.setSelectedId ((int) ChannelMode::Stereo + 1, juce::dontSendNotification);
+    chanBox.onChange = [this] { applyChannelMode(); };
+    addAndMakeVisible (chanBox);
+
     // Colour swatch — remaps the current focus group's colour
     colorSwatch.setSwatchColour (FocusModel::colorFor (FocusModel::Group::Master).saturated);
     colorSwatch.onColourPicked = [this] (juce::Colour c)
@@ -148,16 +162,22 @@ void MixMindEditor::resized()
 {
     auto b = getLocalBounds();
     auto header = b.removeFromTop (JP::headerH);
-    titleLabel.setBounds  (header.withLeft (14).withWidth (176));
-    loadRefButton.setBounds (header.withLeft (198).withWidth (80).withHeight (26).withY (7));
-    layerButton.setBounds  (header.withLeft (284).withWidth (60).withHeight (26).withY (7));
-    traceButton.setBounds  (header.withLeft (350).withWidth (64).withHeight (26).withY (7));
-    opacitySlider.setBounds (header.withLeft (420).withWidth (76).withHeight (26).withY (7));
-    focusBox.setBounds      (header.withLeft (502).withWidth (100).withHeight (26).withY (7));
-    colorSwatch.setBounds   (header.withLeft (610).withWidth (24).withHeight (24).withY (8));
-    shapeButton.setBounds   (header.withLeft (644).withWidth (68).withHeight (26).withY (7));
-    modeButton.setBounds    (header.withLeft (718).withWidth (76).withHeight (26).withY (7));
-    amountSlider.setBounds  (header.withLeft (800).withWidth (110).withHeight (26).withY (7));
+    const int h = 26, y = 7;
+
+    // One flowing row. The amount slider absorbs the leftover width, and the
+    // right margin leaves room for the signal dot.
+    int x = 14;
+    titleLabel.setBounds    (header.withLeft (x).withWidth (140));                                        x += 146;
+    loadRefButton.setBounds (header.withLeft (x).withWidth (76).withHeight (h).withY (y));                x += 82;
+    layerButton.setBounds   (header.withLeft (x).withWidth (56).withHeight (h).withY (y));                x += 62;
+    traceButton.setBounds   (header.withLeft (x).withWidth (60).withHeight (h).withY (y));                x += 66;
+    opacitySlider.setBounds (header.withLeft (x).withWidth (64).withHeight (h).withY (y));                x += 70;
+    chanBox.setBounds       (header.withLeft (x).withWidth (84).withHeight (h).withY (y));                x += 90;
+    focusBox.setBounds      (header.withLeft (x).withWidth (96).withHeight (h).withY (y));                x += 102;
+    colorSwatch.setBounds   (header.withLeft (x).withWidth (24).withHeight (24).withY (8));               x += 30;
+    shapeButton.setBounds   (header.withLeft (x).withWidth (64).withHeight (h).withY (y));                x += 70;
+    modeButton.setBounds    (header.withLeft (x).withWidth (72).withHeight (h).withY (y));                x += 78;
+    amountSlider.setBounds  (juce::Rectangle<int> (x, y, juce::jmax (90, getWidth() - 46 - x), h));
 
     telemetry.setBounds (b);
 }
@@ -243,6 +263,24 @@ void MixMindEditor::loadReference()
                                                         "Load reference", error);
             }
         });
+}
+
+void MixMindEditor::applyChannelMode()
+{
+    const auto m = static_cast<ChannelMode> (chanBox.getSelectedId() - 1);
+
+    audioProcessor.shaper.setChannelMode (m);
+    audioProcessor.audioAnalyzer.setChannelMode (m);
+
+    // ReferenceAnalyzer pre-computed all four spectra at load; this only
+    // selects which one getBins() hands out.
+    if (referenceAnalyzer.hasReference())
+    {
+        referenceAnalyzer.setChannelMode (m);
+        telemetry.setReference (referenceAnalyzer.getBins(), ReferenceAnalyzer::numBins);
+    }
+
+    firThrottle = 14;   // target changed — redesign on the next shaper tick
 }
 
 void MixMindEditor::applyFocusSelection()

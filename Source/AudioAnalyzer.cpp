@@ -7,9 +7,7 @@ void AudioAnalyzer::prepare (double sr, int blockSize)
 {
     sampleRate = sr;
     juce::zeromem (fifoL, sizeof (fifoL));
-    juce::zeromem (fifoR, sizeof (fifoR));
     juce::zeromem (fftDataL, sizeof (fftDataL));
-    juce::zeromem (fftDataR, sizeof (fftDataR));
     juce::zeromem (fftOutput, sizeof (fftOutput));
     juce::zeromem (fftAvg, sizeof (fftAvg));
     fifoIdx = 0;
@@ -52,26 +50,23 @@ void AudioAnalyzer::process (const juce::AudioBuffer<float>& buffer)
     else { phaseCorrelation = 1; stereoWidth = 0; }
 
     for (int i = 0; i < n; ++i)
-        pushNextSample (L[i], R[i]);
+        pushNextSample (channelAnalysisSample ((ChannelMode) channelMode.load(), L[i], R[i]));
 }
 
-void AudioAnalyzer::pushNextSample (float l, float r)
+void AudioAnalyzer::pushNextSample (float a)
 {
     if (fifoIdx == fftSize)
     {
         if (!fftReady)
         {
             juce::zeromem (fftDataL, sizeof (fftDataL));
-            juce::zeromem (fftDataR, sizeof (fftDataR));
             memcpy (fftDataL, fifoL, sizeof (fifoL));
-            memcpy (fftDataR, fifoR, sizeof (fifoR));
             fftReady = true;
             performFFT();
         }
         fifoIdx = 0;
     }
-    fifoL[fifoIdx] = l;
-    fifoR[fifoIdx] = r;
+    fifoL[fifoIdx] = a;
     fifoIdx++;
 }
 

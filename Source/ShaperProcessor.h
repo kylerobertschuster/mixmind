@@ -3,6 +3,7 @@
 #include <juce_core/juce_core.h>
 #include <vector>
 #include <atomic>
+#include "ChannelMode.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ShaperProcessor — the reference-matching EQ ("the shaper").
@@ -34,6 +35,10 @@ public:
     void setEnabled (bool on)                 { enabled.store (on); }
     bool isEnabled() const                    { return enabled.load(); }
 
+    // Which part of the stereo signal the FIR is applied to.
+    void setChannelMode (ChannelMode m)       { mode.store ((int) m); }
+    ChannelMode getChannelMode() const        { return (ChannelMode) mode.load(); }
+
     // Publish a freshly-designed impulse response (GUI thread). A null/empty
     // set is allowed and is treated as transparent.
     void setFilter (const float* taps, int count);
@@ -42,6 +47,8 @@ public:
     int getLatencySamples() const             { return (enabled.load() && activeTaps.load() > 0) ? kLatency : 0; }
 
     // Processes one stereo block in-place. When bypassed, in == out (unchanged).
+    // The channel mode selects whether the FIR hits both channels (Stereo),
+    // one side (Left/Right), or the mid/side component.
     void process (const float* inL, const float* inR, float* outL, float* outR, int numSamples);
 
     // ── FIR design (GUI-thread safe) ────────────────────────────────────────
@@ -52,8 +59,10 @@ public:
                                   int numBins, float amount,
                                   std::vector<float>& outTaps);
 
-    // Builds a target magnitude spectrum from a hand-drawn curve (freqHz, value01)
-    // using piecewise-linear interpolation in log-frequency. Mirrors the trace UI.
+    // Builds a target magnitude spectrum from a hand-drawn curve (freqHz, value01).
+    // value01 is the trace's Y in the plot's dB-mapped scale (0..1 ↔ −100..0 dBFS
+    // magnitude); it is converted to linear magnitude here so buildMatchFilter()
+    // can subtract it (in dB) from the live spectrum.
     static void buildTargetFromCurve (const juce::Array<std::pair<float, float>>& curve,
                                       int numBins, double sampleRate,
                                       std::vector<float>& outTarget);
@@ -65,6 +74,7 @@ private:
     std::atomic<int>   activeIdx  { 0 };
     std::atomic<int>   activeTaps { 0 };
     std::atomic<bool>  enabled    { false };
+    std::atomic<int>   mode       { (int) ChannelMode::Stereo };
     juce::SpinLock     lock;
 
     // Delay lines (power-of-two length ≥ 2·kTapCount for cheap masking).
@@ -75,6 +85,10 @@ private:
 
     // Audio-thread snapshot of the active taps (taken once per block).
     std::vector<float> curTaps;
+
+    // Single-sample FIR convolution over one delay line (read at writeIdx,
+    // walking backwards).
+    static float applyFir (const float* h, int M, const std::vector<float>& delay, int writeIdx);
 
     double sampleRate { 44100.0 };
 

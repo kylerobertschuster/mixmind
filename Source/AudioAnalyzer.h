@@ -3,6 +3,8 @@
 #include <juce_dsp/juce_dsp.h>
 #include <juce_core/juce_core.h>
 #include "LoudnessMeter.h"
+#include "ChannelMode.h"
+#include <atomic>
 
 class AudioAnalyzer
 {
@@ -44,8 +46,14 @@ public:
 
     double getSampleRate() const { return sampleRate; }
 
+    // Which channel's signal the FFT spectrum describes (Stereo/Mid = the
+    // mono downmix). Loudness + width/phase always measure the full stereo
+    // signal regardless of this setting.
+    void setChannelMode (ChannelMode m) { channelMode.store ((int) m); }
+    ChannelMode getChannelMode() const  { return (ChannelMode) channelMode.load(); }
+
 private:
-    void pushNextSample (float l, float r);
+    void pushNextSample (float a);
     void performFFT();
 
     static constexpr int fftOrder = 11;
@@ -54,9 +62,7 @@ private:
     juce::dsp::WindowingFunction<float> window { fftSize, juce::dsp::WindowingFunction<float>::hann };
 
     float fifoL[fftSize] { 0 };
-    float fifoR[fftSize] { 0 };
     float fftDataL[2 * fftSize] { 0 };
-    float fftDataR[2 * fftSize] { 0 };
     int   fifoIdx { 0 };
     bool  fftReady { false };
 
@@ -70,6 +76,9 @@ private:
     juce::Atomic<float> highEnergy  { 0 };
     juce::Atomic<float> stereoWidth { 0.5f };
     juce::Atomic<float> phaseCorrelation { 1 };
+
+    // Set from the GUI thread, read once per sample on the audio thread.
+    std::atomic<int> channelMode { (int) ChannelMode::Stereo };
 
     LoudnessMeter loudnessMeter;
     double sampleRate { 44100 };

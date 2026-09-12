@@ -37,11 +37,13 @@ private:
     juce::Slider     amountSlider;
 
     juce::ComboBox   focusBox;
+    juce::ComboBox   chanBox;      // which channel the shaper matches (Stereo/Left/Right/Mid/Side)
     ColorSwatch      colorSwatch;
 
     void loadReference();
     void loadImageLayer();
     void applyFocusSelection();
+    void applyChannelMode();
     void updateShaper();
     void timerCallback() override;
     void mouseDown (const juce::MouseEvent&) override;

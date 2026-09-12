@@ -4,6 +4,7 @@
 #include <juce_dsp/juce_dsp.h>
 #include <juce_core/juce_core.h>
 #include "AudioAnalyzer.h"
+#include "ChannelMode.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ReferenceAnalyzer — loads a reference track and produces the same
@@ -26,7 +27,24 @@ public:
     juce::String getFileName() const { return fileName; }
 
     static constexpr int numBins = AudioAnalyzer::numBins;
-    const float* getBins() const { return refBins; }
+
+    // Spectrum of the currently-selected channel (linear magnitude 0..1).
+    // Stereo and Mid share the mid (mono-downmix) spectrum.
+    const float* getBins() const
+    {
+        switch (channelMode)
+        {
+            case ChannelMode::Left:  return leftBins;
+            case ChannelMode::Right: return rightBins;
+            case ChannelMode::Side:  return sideBins;
+            case ChannelMode::Mid:
+            case ChannelMode::Stereo:
+            default:                 return midBins;
+        }
+    }
+
+    void setChannelMode (ChannelMode m) { channelMode = m; }
+    ChannelMode getChannelMode() const { return channelMode; }
 
     float getLufs()         const { return lufs; }
     float getStereoWidth()  const { return stereoWidth; }
@@ -42,7 +60,11 @@ private:
     juce::AudioFormatManager formatManager;
 
     bool loaded { false };
-    float refBins[AudioAnalyzer::numBins] { 0.0f };
+    float midBins[AudioAnalyzer::numBins]   { 0.0f };
+    float sideBins[AudioAnalyzer::numBins]  { 0.0f };
+    float leftBins[AudioAnalyzer::numBins]  { 0.0f };
+    float rightBins[AudioAnalyzer::numBins] { 0.0f };
+    ChannelMode channelMode { ChannelMode::Stereo };
     float lufs        { -60.0f };   // honest BS.1770 integrated (fallback: short-term)
     float stereoWidth { 0.5f };
     float phaseCorr   { 1.0f };

@@ -2,6 +2,68 @@
 #include <cmath>
 #include <vector>
 
+namespace
+{
+    // Builds the same averaged Hann-windowed magnitude spectrum as
+    // AudioAnalyzer (linear 0..1, 2048-pt FFT), resampling to `liveRate` if
+    // the file's rate differs so bins line up with the live analyzer.
+    void analyzeSpectrum (const std::vector<float>& src, double srcRate,
+                          double liveRate, float* outBins)
+    {
+        const int numBins = ReferenceAnalyzer::numBins;
+        juce::zeromem (outBins, sizeof (float) * (size_t) numBins);
+        if (src.empty()) return;
+
+        const std::vector<float>* mono = &src;
+        std::vector<float> resampled;
+        if (std::abs (srcRate - liveRate) > 1.0)
+        {
+            const double ratio = srcRate / liveRate;
+            const size_t outN  = (size_t)(src.size() / ratio);
+            if (outN == 0) return;
+            resampled.resize (outN);
+            for (size_t i = 0; i < outN; ++i)
+            {
+                const double s = i * ratio;
+                const size_t s0 = (size_t) s;
+                const size_t s1 = juce::jmin (s0 + 1, src.size() - 1);
+                const float frac = (float)(s - s0);
+                resampled[i] = src[s0] + (src[s1] - src[s0]) * frac;
+            }
+            mono = &resampled;
+        }
+
+        juce::dsp::FFT fft (11);   // 2048-point, matches AudioAnalyzer::fftSize
+        juce::dsp::WindowingFunction<float> window (AudioAnalyzer::fftSize,
+                                                    juce::dsp::WindowingFunction<float>::hann);
+
+        std::vector<float> accum ((size_t) numBins, 0.0f);
+        float fftBuf[2 * AudioAnalyzer::fftSize];   // interleaved real/imag
+        int frames = 0;
+
+        for (size_t start = 0; start + AudioAnalyzer::fftSize <= mono->size();
+             start += AudioAnalyzer::fftSize / 2)
+        {
+            for (int i = 0; i < AudioAnalyzer::fftSize; ++i)
+                fftBuf[i] = (*mono)[start + i];
+            for (int i = AudioAnalyzer::fftSize; i < 2 * AudioAnalyzer::fftSize; ++i)
+                fftBuf[i] = 0.0f;
+
+            window.multiplyWithWindowingTable (fftBuf, AudioAnalyzer::fftSize);
+            fft.performFrequencyOnlyForwardTransform (fftBuf);
+
+            for (int i = 0; i < numBins; ++i)
+                accum[(size_t) i] += fftBuf[i];
+
+            ++frames;
+        }
+
+        if (frames > 0)
+            for (int i = 0; i < numBins; ++i)
+                outBins[i] = (accum[(size_t) i] / frames) * (2.0f / (float) AudioAnalyzer::fftSize);
+    }
+}
+
 ReferenceAnalyzer::ReferenceAnalyzer()
 {
     // WAV / AIFF / FLAC / Ogg Vorbis. (MP3 needs a separate decoder flag — later.)
@@ -11,7 +73,10 @@ ReferenceAnalyzer::ReferenceAnalyzer()
 void ReferenceAnalyzer::clear()
 {
     loaded = false;
-    juce::zeromem (refBins, sizeof (refBins));
+    juce::zeromem (midBins,   sizeof (midBins));
+    juce::zeromem (sideBins,  sizeof (sideBins));
+    juce::zeromem (leftBins,  sizeof (leftBins));
+    juce::zeromem (rightBins, sizeof (rightBins));
     lufs = -60.0f;
     stereoWidth = 0.5f;
     phaseCorr = 1.0f;
@@ -87,61 +152,29 @@ bool ReferenceAnalyzer::loadFile (const juce::File& file, double liveSampleRate,
         rmsDb  = lm.getRmsDb();
     }
 
-    // ── Mono mix for the spectrum ─────────────────────────────────────────
+    // ── Per-channel analysis spectra (Stereo/Mid share the downmix) ──────
+    // Built one at a time into `mono` so a long reference doesn't allocate
+    // four full-length buffers at once.
     std::vector<float> mono ((size_t) maxSamples);
-    for (int i = 0; i < maxSamples; ++i)
-    {
-        float v = buffer.getSample (0, i);
-        if (channels > 1) v = (v + buffer.getSample (1, i)) * 0.5f;
-        mono[(size_t) i] = v;
-    }
 
-    // ── Resample to the live sample rate (linear) so bins align ──────────
-    if (std::abs (reader->sampleRate - liveSampleRate) > 1.0)
+    auto fillMono = [&] (ChannelMode m)
     {
-        const double ratio = reader->sampleRate / liveSampleRate;
-        const size_t outN  = (size_t)(mono.size() / ratio);
-        std::vector<float> resampled (outN);
-        for (size_t i = 0; i < outN; ++i)
+        for (int i = 0; i < maxSamples; ++i)
         {
-            const double src = i * ratio;
-            const size_t s0  = (size_t) src;
-            const size_t s1  = juce::jmin (s0 + 1, mono.size() - 1);
-            const float frac = (float)(src - s0);
-            resampled[i] = mono[s0] + (mono[s1] - mono[s0]) * frac;
+            const float l = buffer.getSample (0, i);
+            const float r = channels > 1 ? buffer.getSample (1, i) : l;
+            mono[(size_t) i] = channelAnalysisSample (m, l, r);
         }
-        mono = std::move (resampled);
-    }
+    };
 
-    // ── Averaged magnitude spectrum (same normalization as AudioAnalyzer) ─
-    juce::dsp::FFT fft (11); // 2048-point, matches AudioAnalyzer::fftSize
-    juce::dsp::WindowingFunction<float> window (AudioAnalyzer::fftSize, juce::dsp::WindowingFunction<float>::hann);
-
-    std::vector<float> accum (numBins, 0.0f);
-    float fftBuf[2 * AudioAnalyzer::fftSize];   // FFT needs 2*size (interleaved real/imag)
-    int frames = 0;
-
-    for (size_t start = 0; start + AudioAnalyzer::fftSize <= mono.size(); start += AudioAnalyzer::fftSize / 2)
-    {
-        for (int i = 0; i < AudioAnalyzer::fftSize; ++i)
-            fftBuf[i] = mono[start + i];
-        for (int i = AudioAnalyzer::fftSize; i < 2 * AudioAnalyzer::fftSize; ++i)
-            fftBuf[i] = 0.0f;
-
-        window.multiplyWithWindowingTable (fftBuf, AudioAnalyzer::fftSize);
-        fft.performFrequencyOnlyForwardTransform (fftBuf);
-
-        for (int i = 0; i < numBins; ++i)
-            accum[i] += fftBuf[i];
-
-        ++frames;
-    }
-
-    if (frames > 0)
-        for (int i = 0; i < numBins; ++i)
-            refBins[i] = (accum[i] / frames) * (2.0f / (float) AudioAnalyzer::fftSize);
-    else
-        juce::zeromem (refBins, sizeof (refBins));
+    fillMono (ChannelMode::Mid);
+    analyzeSpectrum (mono, reader->sampleRate, liveSampleRate, midBins);
+    fillMono (ChannelMode::Side);
+    analyzeSpectrum (mono, reader->sampleRate, liveSampleRate, sideBins);
+    fillMono (ChannelMode::Left);
+    analyzeSpectrum (mono, reader->sampleRate, liveSampleRate, leftBins);
+    fillMono (ChannelMode::Right);
+    analyzeSpectrum (mono, reader->sampleRate, liveSampleRate, rightBins);
 
     loaded = true;
     fileName = file.getFileNameWithoutExtension();
