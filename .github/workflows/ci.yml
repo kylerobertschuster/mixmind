@@ -1,0 +1,71 @@
+name: ci
+
+# Everything here was previously run by hand at release time. The two most
+# recent defects both shipped from that gap: an uninitialised FFT half that
+# polluted every reference spectrum, and a trace stored in window-dependent
+# pixels. Both are pure data-in/data-out and both would have failed here.
+on:
+  push:
+    branches: [main, 'fix/**', 'feat/**', 'chore/**', 'consolidate/**']
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-validate:
+    # macOS only: auval and the AU build exist nowhere else, and the whole point
+    # of this job is to prove the shipped artefacts load in a host.
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    env:
+      BUILD_DIR: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # JUCE and Catch2 are both FetchContent, so this is the expensive part of
+      # a cold run (~20 min) and the entire cost of a warm one.
+      - name: Cache JUCE + Catch2
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.BUILD_DIR }}/_deps
+          key: deps-${{ runner.os }}-8.0.6-v3.5.2-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: deps-${{ runner.os }}-8.0.6-v3.5.2-
+
+      - name: Configure
+        run: cmake -B "$BUILD_DIR" -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build all targets
+        run: cmake --build "$BUILD_DIR"
+
+      - name: Run test suite
+        run: ./"$BUILD_DIR"/tests/MixMind_Tests_artefacts/Release/MixMind_Tests
+
+      # auval is the only check that proves the built bundle is loadable by a
+      # host, and it is why this job cannot be Linux.
+      - name: Validate Audio Units
+        run: |
+          # The AU registry can hold a stale entry for a bundle we just replaced.
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+
+          fail=0
+          for entry in Mxmn:MixMind Scop:Scope Metr:Meter Equt:EQT Rflx:Reflex Tfxf:3FX Nttt:Neat; do
+            code="${entry%%:*}"
+            name="${entry##*:}"
+
+            if auval -v aufx "$code" MXMN > "/tmp/auval-$code.log" 2>&1; then
+              echo "PASS  $name ($code)"
+            else
+              echo "FAIL  $name ($code)"
+              tail -30 "/tmp/auval-$code.log"
+              fail=1
+            fi
+          done
+
+          # Report every plugin before failing, so one broken AU does not hide
+          # the state of the other six.
+          exit $fail
