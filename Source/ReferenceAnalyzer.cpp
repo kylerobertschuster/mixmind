@@ -164,10 +164,8 @@ bool ReferenceAnalyzer::loadFile (const juce::File& file, double liveSampleRate,
     juce::dsp::WindowingFunction<float> window (AudioAnalyzer::fftSize, juce::dsp::WindowingFunction<float>::hann);
 
     std::vector<float> accum (numBins, 0.0f);
-    // performFrequencyOnlyForwardTransform writes 2 * fftSize floats, so the
-    // buffer must be that long. Allocating only fftSize overran the stack by
-    // 8 KB on every reference load. AudioAnalyzer's own buffers (fftDataL/R)
-    // are sized 2 * fftSize for the same reason.
+    // performFrequencyOnlyForwardTransform reads and writes 2 * fftSize floats.
+    // Allocating only fftSize overran the stack by 8 KB on every reference load.
     float fftBuf[2 * AudioAnalyzer::fftSize];
     int frames = 0;
 
@@ -175,6 +173,13 @@ bool ReferenceAnalyzer::loadFile (const juce::File& file, double liveSampleRate,
     {
         for (int i = 0; i < AudioAnalyzer::fftSize; ++i)
             fftBuf[i] = mono[start + i];
+
+        // A real-only transform reads the second half as the imaginary part, so
+        // it has to be zeroed. Sizing the buffer correctly but leaving this
+        // uninitialised folds stack garbage into every magnitude, and the match
+        // target then never describes the actual reference track.
+        for (int i = AudioAnalyzer::fftSize; i < 2 * AudioAnalyzer::fftSize; ++i)
+            fftBuf[i] = 0.0f;
 
         window.multiplyWithWindowingTable (fftBuf, AudioAnalyzer::fftSize);
         fft.performFrequencyOnlyForwardTransform (fftBuf);
