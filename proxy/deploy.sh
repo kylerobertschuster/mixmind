@@ -41,14 +41,13 @@ echo "[4/6] Setting up environment..."
 if [ ! -f "${JUICEPIPE_HOME}/proxy/.env" ]; then
     cat > "${JUICEPIPE_HOME}/proxy/.env" << 'EOF'
 # ⚠️  EDIT THIS BEFORE STARTING THE PROXY
-DEEPSEEK_API_KEY=your_deepseek_key_here
 ADMIN_SECRET=change_this_to_a_random_secret
 PORT=3000
 EOF
     chown ${JUICEPIPE_USER}:${JUICEPIPE_USER} "${JUICEPIPE_HOME}/proxy/.env"
     chmod 600 "${JUICEPIPE_HOME}/proxy/.env"
     echo "  ⚠️  Run: nano ${JUICEPIPE_HOME}/proxy/.env"
-    echo "  ⚠️  Set your DEEPSEEK_API_KEY and ADMIN_SECRET"
+    echo "  ⚠️  Set your ADMIN_SECRET"
 fi
 
 # ── 5. PM2 process manager ──────────────────────────────────────────
