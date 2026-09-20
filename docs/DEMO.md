@@ -48,7 +48,7 @@ auval -a | grep MXMN
 ctest --test-dir build --output-on-failure
 ```
 
-27 test cases, ~11,300 assertions, **all green**.
+39 test cases, ~11,400 assertions, **all green**.
 
 ```bash
 ./build/tests/MixMind_Tests_artefacts/Release/MixMind_Tests '[loudness]'
