@@ -41,6 +41,60 @@ namespace MixMindState
         return tree;
     }
 
+    // Resamples the control points onto a dense log-frequency grid, interpolating
+    // linearly in log-frequency between them and landing exactly on the control
+    // points. Two callers read the trace this way — the plot, to draw it, and the
+    // FIR designer, to map it onto the analysis bins — so the drawn curve and the
+    // matched curve cannot drift apart without one of them changing here.
+    //
+    // Any positive step count draws an identical polyline (the function is
+    // piecewise linear in log-frequency and the x axis is log-frequency), so the
+    // density exists for consumers that resample in linear frequency, not for the
+    // picture.
+    inline constexpr int kTraceSamplesPerOctave = 24;   // ≈1.4 % of an octave
+
+    inline TraceCurve densifyTrace (const TraceCurve& curve)
+    {
+        if (curve.size() < 2)
+            return curve;   // nothing to interpolate; callers handle 0 and 1 points
+
+        const float stepLf = std::log10 (2.0f) / (float) kTraceSamplesPerOctave;
+
+        TraceCurve out;
+
+        for (int i = 0; i < curve.size() - 1; ++i)
+        {
+            const auto& a = curve.getReference (i);
+            const auto& b = curve.getReference (i + 1);
+            const float lo = std::log10 (juce::jmax (1.0f, a.first));
+            const float hi = std::log10 (juce::jmax (1.0f, b.first));
+
+            // A zero-width segment (two points at the same frequency) keeps one
+            // sample rather than dividing by zero.
+            const float span = hi - lo;
+            const int steps = (span > 0.0f && std::isfinite (span))
+                                ? juce::jlimit (1, 128, (int) std::ceil (span / stepLf))
+                                : 1;
+
+            for (int j = 0; j < steps; ++j)
+            {
+                const float t = (float) j / (float) steps;
+
+                // The first sample is the control point itself, not a round trip
+                // through log10/pow, so a handle sits on the drawn line exactly.
+                const float hz = (j == 0) ? a.first  : std::pow (10.0f, lo + span * t);
+                const float v  = (j == 0) ? a.second : a.second + (b.second - a.second) * t;
+
+                // One non-finite sample would poison the whole path in JUCE.
+                if (std::isfinite (hz) && std::isfinite (v))
+                    out.add ({ hz, v });
+            }
+        }
+
+        out.add (curve.getReference (curve.size() - 1));
+        return out;
+    }
+
     inline TraceCurve treeToTrace (const juce::ValueTree& tree)
     {
         TraceCurve out;
