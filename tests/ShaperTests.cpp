@@ -16,13 +16,22 @@
 //    · the design path (buildMatchFilter) — DC-normalisation, the ±24 dB clamp,
 //      the "never boost below the noise floor" rule, and that the amount control
 //      scales the match from flat to full;
-//    · the trace→target map (buildTargetFromCurve) — log-frequency interpolation.
+//    · the trace→target map (buildTargetFromCurve) — log-frequency interpolation
+//      and the dB-mapped v-space it reads.
 //
 //  Response checks use TestDsp::firMagnitudeAt (direct evaluation of H(e^jw)),
 //  and are written as dB *differences between two frequencies*. That is
 //  deliberate: the designer DC-normalises its output, so absolute gain is not
 //  meaningful — only the shape is. A ratio also survives the unavoidable
 //  ripple from Hann-windowing and truncating the design impulse.
+//
+//  The trace's v-space IS dB, and that is the one place absolute numbers are
+//  well defined: a control point's value01 is the plot's dB-mapped Y
+//  (0..1 ↔ −100..0 dBFS), the same axis TelemetryCanvas draws. buildTargetFromCurve
+//  converts it to linear magnitude (10^(dB/20)) because buildMatchFilter takes
+//  linear-magnitude bins and does the 20·log10 itself. So v = 0.5 is −50 dBFS
+//  ≈ 0.00316 linear, NOT 0.5 linear — reading the trace as a magnitude was off
+//  by ~44 dB half-way up the axis.
 // ─────────────────────────────────────────────────────────────────────────────
 namespace
 {
@@ -107,35 +116,56 @@ TEST_CASE ("a bypassed shaper is bit-transparent and reports no latency", "[shap
     REQUIRE (TestDsp::maxAbsDiff (outR.data(), inR.data(), 4096) == 0.0f);
 }
 
-TEST_CASE ("latency is reported only while a filter is actually live", "[shaper][latency]")
+TEST_CASE ("latency tracks the enabled state, not whether taps have arrived", "[shaper][latency]")
 {
+    // The shaper is a linear-phase FIR with a kLatency group delay, and it runs
+    // that delay line from the moment it is enabled: before the editor pushes the
+    // first tap set (which lands a tick later), and again if the filter is
+    // cleared. Reporting 0 in that window made the host stop compensating while
+    // the signal was still 512 samples late, which shifts the track against
+    // everything else in the session. Reported latency and actual latency have to
+    // be the same thing.
     ShaperProcessor p;
     p.prepare (kSr, 512);
+
+    std::vector<float> taps ((size_t) kK, 0.0f);
+    taps[(size_t) ShaperProcessor::kLatency] = 1.0f;   // a plain 512-sample delay
 
     // Off: transparent, so the host must compensate nothing.
     REQUIRE (p.getLatencySamples() == 0);
 
-    // On, but nothing designed yet — still nothing to compensate.
+    // On, with nothing designed yet: the delay is already running.
     p.setEnabled (true);
-    REQUIRE (p.getLatencySamples() == 0);
-
-    // On with taps: now the host has to be told.
-    std::vector<float> taps ((size_t) kK, 0.0f);
-    taps[(size_t) ShaperProcessor::kLatency] = 1.0f;
-    p.setFilter (taps.data(), (int) taps.size());
-
     REQUIRE (ShaperProcessor::kLatency == 512);
     REQUIRE (p.getLatencySamples() == ShaperProcessor::kLatency);
 
-    // Clearing the filter makes it transparent again.
-    p.setFilter (nullptr, 0);
-    REQUIRE (p.getLatencySamples() == 0);
+    // ...and that is a real delay, not just a number the getter reports.
+    std::vector<float> impulse ((size_t) 1024, 0.0f);
+    impulse[0] = 1.0f;
 
-    // ...and so does switching off, even with taps loaded.
+    std::vector<float> outL ((size_t) 1024, 0.0f), outR ((size_t) 1024, 0.0f);
+    p.process (impulse.data(), impulse.data(), outL.data(), outR.data(), 1024);
+
+    REQUIRE (outL[(size_t) ShaperProcessor::kLatency] == Catch::Approx (1.0f).margin (1.0e-6f));
+    for (int i = 0; i < ShaperProcessor::kLatency; ++i)
+        REQUIRE (outL[(size_t) i] == 0.0f);
+
+    // Publishing taps changes the filter, not the latency.
     p.setFilter (taps.data(), (int) taps.size());
     REQUIRE (p.getLatencySamples() == ShaperProcessor::kLatency);
+
+    // Clearing the filter does not make it transparent either — the delay keeps
+    // running, so the host has to keep compensating.
+    p.setFilter (nullptr, 0);
+    REQUIRE (p.getLatencySamples() == ShaperProcessor::kLatency);
+
+    // Switching off is what removes the latency, and the delay with it.
     p.setEnabled (false);
     REQUIRE (p.getLatencySamples() == 0);
+
+    std::vector<float> dryL ((size_t) 1024, 0.0f), dryR ((size_t) 1024, 0.0f);
+    p.process (impulse.data(), impulse.data(), dryL.data(), dryR.data(), 1024);
+    REQUIRE (TestDsp::maxAbsDiff (dryL.data(), impulse.data(), 1024) == 0.0f);
 }
 
 TEST_CASE ("the impulse response is exactly the published taps", "[shaper][convolution]")
@@ -384,6 +414,8 @@ TEST_CASE ("a trace with fewer than two points produces no target", "[shaper][tr
 
 TEST_CASE ("the trace interpolates linearly in log-frequency", "[shaper][trace]")
 {
+    // `curve` reads "the axis floor at 20 Hz, 0 dBFS at 20 kHz" — v-space is dB,
+    // so 0.0 is NOT silence-as-zero and 1.0 is not unity magnitude either.
     auto curve = makeCurve ({ { 20.0f, 0.0f }, { 20000.0f, 1.0f } });
 
     std::vector<float> out;
@@ -397,20 +429,30 @@ TEST_CASE ("the trace interpolates linearly in log-frequency", "[shaper][trace]"
     }
 
     // Log-frequency linear means the midpoint is the *geometric* mean of the
-    // endpoints: sqrt(20 · 20000) = 632.5 Hz.
+    // endpoints: sqrt(20 · 20000) = 632.5 Hz. Half-way along the frequency axis
+    // is half-way along the v axis, and half-way up a −100..0 dB axis is
+    // −50 dBFS — i.e. 10^(−50/20) ≈ 0.00316 linear, not 0.5.
     const double midHz = std::sqrt (20.0 * 20000.0);
     const int midBin = (int) std::lround (midHz / kBinHz);
-    INFO ("bin " << midBin << " = " << out[(size_t) midBin] << " at "
+    const float midDb = TestDsp::dbOf (out[(size_t) midBin]);
+    INFO ("bin " << midBin << " = " << out[(size_t) midBin] << " (" << midDb << " dB) at "
                  << (midBin * kBinHz) << " Hz");
-    REQUIRE (out[(size_t) midBin] == Catch::Approx (0.5f).margin (0.02f));
+    REQUIRE (out[(size_t) midBin] == Catch::Approx (0.0031623f).margin (1.0e-5f));
+    REQUIRE (midDb == Catch::Approx (-50.0f).margin (0.1f));
 
     // ...and it must rise across the band, not just at the midpoint.
     REQUIRE (out[(size_t) binAt (200.0)] < out[(size_t) binAt (2000.0)]);
     REQUIRE (out[(size_t) binAt (2000.0)] < out[(size_t) binAt (18000.0)]);
 }
 
-TEST_CASE ("trace values are clamped to 0..1", "[shaper][trace]")
+TEST_CASE ("a trace outside 0..1 cannot produce an out-of-range target",
+           "[shaper][trace][robustness]")
 {
+    // The canvas and treeToTrace() both clamp v to 0..1 before it reaches here,
+    // so this is hand-edited-session territory. What buildMatchFilter() needs is a
+    // linear magnitude in 0..1, and the final clamp() guarantees exactly that:
+    // the interpolated branch bounds v itself, and the endpoint branches are
+    // caught by the magnitude clamp (v = 1.8 alone would be +80 dBFS).
     auto curve = makeCurve ({ { 20.0f, 1.8f }, { 20000.0f, -0.7f } });
 
     std::vector<float> out;
@@ -421,6 +463,14 @@ TEST_CASE ("trace values are clamped to 0..1", "[shaper][trace]")
         REQUIRE (v >= 0.0f);
         REQUIRE (v <= 1.0f);
     }
+
+    // Above the axis: clamped to unity magnitude, i.e. 0 dBFS.
+    REQUIRE (out[0] == Catch::Approx (1.0f));
+
+    // Below it, the endpoint branches pass v straight into the dB conversion, so
+    // the magnitude can sit under the axis floor. It is still a legal target, and
+    // the ±24 dB clamp in buildMatchFilter() is what bounds the design.
+    REQUIRE (TestDsp::dbOf (out[kNB - 1]) < -100.0f);
 }
 
 // Regression guard.
@@ -452,7 +502,14 @@ TEST_CASE ("outside the drawn range the trace holds its nearest endpoint",
     std::vector<float> out;
     ShaperProcessor::buildTargetFromCurve (curve, kNB, kSr, out);
 
-    // Bin 0 is 0 Hz — below the first point at 20 Hz.
-    INFO ("DC bin = " << out[0] << " (first point is 0.0, last point is 1.0)");
-    REQUIRE (out[0] == Catch::Approx (0.0f).margin (0.01f));
+    // Bin 0 is 0 Hz — below the first point at 20 Hz. It must inherit the LOWEST
+    // point's value (v = 0.0 → the −100 dBFS axis floor, 1e-5 linear), not the
+    // highest (v = 1.0 → 0 dBFS). The two are 100 dB apart, so a wrong endpoint is
+    // not a subtle error. 1e-5 is also the level buildMatchFilter() treats as
+    // silence (`targetBins[i] > 1e-5f`), so the floor value and the floor test
+    // agree rather than leaving a −80 dB bin for the designer to fit.
+    INFO ("DC bin = " << out[0] << " = " << TestDsp::dbOf (out[0])
+                      << " dB (first point is 0.0 = -100 dB, last point is 1.0 = 0 dB)");
+    REQUIRE (out[0] == Catch::Approx (1.0e-5f).margin (1.0e-9f));
+    REQUIRE (TestDsp::dbOf (out[0]) == Catch::Approx (-100.0f).margin (0.01f));
 }
