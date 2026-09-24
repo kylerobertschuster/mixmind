@@ -72,12 +72,17 @@ public:
     void setTraceMode (bool on);
     bool getTraceMode() const { return traceMode; }
     bool hasTrace() const     { return traceCurve.size() >= 2; }
-    void clearTrace()         { traceCurve.clear(); repaint(); }
+    void clearTrace()         { traceCurve.clear(); dragIndex = -1; repaint(); }
     int  getTracePointCount() const { return traceCurve.size(); }
 
     // The trace in normalised (frequencyHz, value01) space, sorted. This — not
     // the pixels — is the stored form: the pixels depend on the window size and
     // on axisMin/axisMax, which move with the selected focus band.
+    //
+    // value01 is the plot's dB-mapped display scale (0..1 ↔ −100..0 dBFS), not
+    // linear magnitude: valueForY() below is the inverse of yForValue(), and
+    // ShaperProcessor::buildTargetFromCurve converts display → dB → linear.
+    // Reading a trace point as linear magnitude is off by up to ~44 dB mid-axis.
     MixMindState::TraceCurve getTraceCurve() const { return traceCurve; }
 
     // Restores a curve recalled from a session.
@@ -85,6 +90,7 @@ public:
 
     void mouseDown (const juce::MouseEvent&) override;
     void mouseDrag (const juce::MouseEvent&) override;
+    void mouseUp   (const juce::MouseEvent&) override;
     void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
     void mouseDoubleClick (const juce::MouseEvent&) override;
     void mouseMove (const juce::MouseEvent&) override;
@@ -114,6 +120,13 @@ private:
     float groupEnergy (FocusModel::Group g, const float* bins) const;
 
     juce::Path smoothTrace() const;
+    juce::Array<std::pair<float,float>> sampleSpline() const;
+    void sortTracePoints();
+    int  hitTestPoint (juce::Point<float> p) const;
+    juce::Point<float> pointToPixel (float freq, float value) const;
+    std::pair<float,float> pixelToPoint (juce::Point<float> p) const;
+    float freqForX (float x) const;
+    float valueForY (float y) const;
     void fitImageToPlot();
     juce::Rectangle<float> plotRect() const { return { plotLeft, plotTop, plotRight - plotLeft, plotBottom - plotTop }; }
 
@@ -143,9 +156,11 @@ private:
 
     // Hand-drawn target curve, held in normalised (frequencyHz, value01) space
     // and kept sorted. Pixels are derived at draw time, so a window resize or a
-    // focus-band change cannot silently change what the curve means.
+    // focus-band change cannot silently change what the curve means. value01 is
+    // the plot's dB-mapped display scale (0..1 ↔ −100..0 dBFS), not magnitude.
     bool traceMode { false };
     MixMindState::TraceCurve traceCurve;
+    int dragIndex { -1 };   // handle being dragged, or -1
 
     double sampleRate { 44100.0 };
     FocusModel::Group focus { FocusModel::Group::Master };

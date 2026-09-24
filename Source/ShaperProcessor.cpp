@@ -6,6 +6,8 @@ void ShaperProcessor::prepare (double sr, int)
     sampleRate = sr;
     delayL.assign (kDelayLen, 0.0f);
     delayR.assign (kDelayLen, 0.0f);
+    dryL.assign (kDelayLen, 0.0f);
+    dryR.assign (kDelayLen, 0.0f);
     curTaps.assign (kTapCount, 0.0f);
     writeIdx = 0;
 }
@@ -14,6 +16,8 @@ void ShaperProcessor::reset()
 {
     juce::zeromem (delayL.data(), sizeof (float) * delayL.size());
     juce::zeromem (delayR.data(), sizeof (float) * delayR.size());
+    juce::zeromem (dryL.data(),   sizeof (float) * dryL.size());
+    juce::zeromem (dryR.data(),   sizeof (float) * dryR.size());
     writeIdx = 0;
 }
 
@@ -53,34 +57,95 @@ void ShaperProcessor::process (const float* inL, const float* inR, float* outL, 
 
     if (M <= 0)
     {
-        if (outL != inL) juce::FloatVectorOperations::copy (outL, inL, n);
-        if (outR != inR) juce::FloatVectorOperations::copy (outR, inR, n);
+        // Enabled but not designed yet (the editor publishes taps a tick later).
+        // Delay the signal anyway: the host has already been told to compensate
+        // kLatency, so passing through dry here would shift the mix by 512
+        // samples for the first ~250 ms after the plugin is switched on.
+        for (int i = 0; i < n; ++i)
+        {
+            delayL[writeIdx] = inL[i];
+            delayR[writeIdx] = inR[i];
+            outL[i] = delayL[(writeIdx - kLatency) & kDelayMask];
+            outR[i] = delayR[(writeIdx - kLatency) & kDelayMask];
+            writeIdx = (writeIdx + 1) & kDelayMask;
+        }
+
         return;
     }
 
     const float* h = curTaps.data();
+    const ChannelMode m = (ChannelMode) mode.load();
     auto& dl = delayL;
     auto& dr = delayR;
 
     for (int i = 0; i < n; ++i)
     {
-        dl[writeIdx] = inL[i];
-        dr[writeIdx] = inR[i];
+        const float l = inL[i];
+        const float r = inR[i];
+        dl[writeIdx] = l;
+        dr[writeIdx] = r;
+        dryL[writeIdx] = l;
+        dryR[writeIdx] = r;
 
-        float aL = 0.0f, aR = 0.0f;
-        int j = writeIdx;
-        for (int k = 0; k < M; ++k)
+        // Raw input kLatency samples ago — the dry-path counterpart of the
+        // FIR's (linear-phase) group delay.
+        const float dL = dryL[(writeIdx - kLatency) & kDelayMask];
+        const float dR = dryR[(writeIdx - kLatency) & kDelayMask];
+
+        switch (m)
         {
-            const float c = h[k];
-            aL += c * dl[j];
-            aR += c * dr[j];
-            j = (j - 1) & kDelayMask;
+            case ChannelMode::Stereo:
+                outL[i] = applyFir (h, M, dl, writeIdx);
+                outR[i] = applyFir (h, M, dr, writeIdx);
+                break;
+
+            case ChannelMode::Left:
+                outL[i] = applyFir (h, M, dl, writeIdx);
+                outR[i] = dR;
+                break;
+
+            case ChannelMode::Right:
+                outL[i] = dL;
+                outR[i] = applyFir (h, M, dr, writeIdx);
+                break;
+
+            case ChannelMode::Mid:
+            {
+                // FIR runs on mid; side stays dry (already delayed above).
+                dl[writeIdx] = (l + r) * 0.5f;
+                const float meq   = applyFir (h, M, dl, writeIdx);
+                const float dSide = (dL - dR) * 0.5f;
+                outL[i] = meq + dSide;
+                outR[i] = meq - dSide;
+                break;
+            }
+
+            case ChannelMode::Side:
+            {
+                // FIR runs on side; mid stays dry (already delayed above).
+                dl[writeIdx] = (l - r) * 0.5f;
+                const float seq  = applyFir (h, M, dl, writeIdx);
+                const float dMid = (dL + dR) * 0.5f;
+                outL[i] = dMid + seq;
+                outR[i] = dMid - seq;
+                break;
+            }
         }
 
-        outL[i] = aL;
-        outR[i] = aR;
         writeIdx = (writeIdx + 1) & kDelayMask;
     }
+}
+
+float ShaperProcessor::applyFir (const float* h, int M, const std::vector<float>& delay, int writeIdx)
+{
+    float acc = 0.0f;
+    int j = writeIdx;
+    for (int k = 0; k < M; ++k)
+    {
+        acc += h[k] * delay[(size_t) j];
+        j = (j - 1) & kDelayMask;
+    }
+    return acc;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -192,20 +257,23 @@ void ShaperProcessor::buildTargetFromCurve (const juce::Array<std::pair<float, f
     const float firstLf = std::log10 (juce::jmax (1.0f, curve.getReference (0).first));
     const float lastLf  = std::log10 (juce::jmax (1.0f, curve.getReference (curve.size() - 1).first));
 
-    // The trace lives in the same space as the spectrum plot: y is LINEAR
-    // magnitude (0..1), identical to the reference/live bins. Interpolate the
-    // trace points (freqHz, magnitude01) onto the analysis bins directly.
+    // The trace is stored in the canvas's display space, whose vertical axis is
+    // dB-mapped (0..1 <-> -100..0 dBFS) — see TelemetryCanvas::valueForY(). Every
+    // value below is in that space and is converted to linear magnitude once, at
+    // the end: buildMatchFilter() works in linear magnitude and subtracts in dB,
+    // and reading a display value as if it were linear was wrong by ~44 dB
+    // half-way up the axis.
     for (int i = 0; i < n; ++i)
     {
         const float f  = (float) i * nyquist / (float) n;
         const float lf = f > 1.0f ? std::log10 (f) : 0.0f;
 
-        float mag;
+        float display;
 
         if (lf <= firstLf)
-            mag = curve.getReference (0).second;
+            display = curve.getReference (0).second;
         else if (lf >= lastLf)
-            mag = curve.getReference (curve.size() - 1).second;
+            display = curve.getReference (curve.size() - 1).second;
         else
         {
             // The guards above mean a containing segment exists; the walk is
@@ -224,9 +292,10 @@ void ShaperProcessor::buildTargetFromCurve (const juce::Array<std::pair<float, f
             const float lo = std::log10 (juce::jmax (1.0f, a.first));
             const float hi = std::log10 (juce::jmax (1.0f, b.first));
             const float t  = (hi > lo) ? juce::jlimit (0.0f, 1.0f, (lf - lo) / (hi - lo)) : 0.0f;
-            mag = a.second + (b.second - a.second) * t;
+            display = juce::jlimit (0.0f, 1.0f, a.second + (b.second - a.second) * t);
         }
 
-        outTarget[(size_t) i] = juce::jlimit (0.0f, 1.0f, mag);
+        const float db = display * 100.0f - 100.0f;   // display 0..1 -> -100..0 dB
+        outTarget[(size_t) i] = juce::jlimit (0.0f, 1.0f, std::pow (10.0f, db / 20.0f));
     }
 }

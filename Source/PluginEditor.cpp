@@ -6,7 +6,7 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     setLookAndFeel (&laf); JP::setAccent(juce::Colour(0xffff8a80));
     setSize (1050, 680);
     setResizable (true, true);
-    setResizeLimits (900, 400, 1600, 1000);
+    setResizeLimits (980, 400, 1600, 1000);   // header row needs ~980 to stay uncramped
 
     // Recall whatever the session restored. The processor owns the match state
     // now, and it was loaded before this editor was ever constructed.
@@ -113,6 +113,24 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     };
     addAndMakeVisible (amountSlider);
 
+    // Channel mode — which part of the stereo signal the shaper matches. This
+    // drives the FIR, the live FFT and the reference spectrum together, so all
+    // three always describe the same signal.
+    chanBox.setTooltip ("Which part of the stereo signal the shaper analyzes and matches.\nSIDE is the difference signal (L-R) — useful for taming a wide reverb tail.");
+    for (auto m : allChannelModes())
+        chanBox.addItem (channelModeName (m), (int) m + 1);
+    chanBox.onChange = [this]
+    {
+        // The parameter (not the box) is the state: it is what the processor
+        // reads and what gets saved with the project.
+        const int idx = chanBox.getSelectedId() - 1;
+        if (auto* choice = dynamic_cast<juce::AudioParameterChoice*> (audioProcessor.parameters.getParameter ("channelMode")))
+            *choice = idx;
+
+        applyChannelMode();
+    };
+    addAndMakeVisible (chanBox);
+
     // Colour swatch — remaps the current focus group's colour
     colorSwatch.setSwatchColour (FocusModel::colorFor (FocusModel::Group::Master).saturated);
     colorSwatch.onColourPicked = [this] (juce::Colour c)
@@ -156,16 +174,22 @@ void MixMindEditor::resized()
 {
     auto b = getLocalBounds();
     auto header = b.removeFromTop (JP::headerH);
-    titleLabel.setBounds  (header.withLeft (14).withWidth (176));
-    loadRefButton.setBounds (header.withLeft (198).withWidth (80).withHeight (26).withY (7));
-    layerButton.setBounds  (header.withLeft (284).withWidth (60).withHeight (26).withY (7));
-    traceButton.setBounds  (header.withLeft (350).withWidth (64).withHeight (26).withY (7));
-    opacitySlider.setBounds (header.withLeft (420).withWidth (76).withHeight (26).withY (7));
-    focusBox.setBounds      (header.withLeft (502).withWidth (100).withHeight (26).withY (7));
-    colorSwatch.setBounds   (header.withLeft (610).withWidth (24).withHeight (24).withY (8));
-    shapeButton.setBounds   (header.withLeft (644).withWidth (68).withHeight (26).withY (7));
-    modeButton.setBounds    (header.withLeft (718).withWidth (76).withHeight (26).withY (7));
-    amountSlider.setBounds  (header.withLeft (800).withWidth (110).withHeight (26).withY (7));
+    const int h = 26, y = 7;
+
+    // One flowing row. The amount slider absorbs the leftover width, and the
+    // right margin leaves room for the signal dot.
+    int x = 14;
+    titleLabel.setBounds    (header.withLeft (x).withWidth (140));                                        x += 146;
+    loadRefButton.setBounds (header.withLeft (x).withWidth (76).withHeight (h).withY (y));                x += 82;
+    layerButton.setBounds   (header.withLeft (x).withWidth (56).withHeight (h).withY (y));                x += 62;
+    traceButton.setBounds   (header.withLeft (x).withWidth (60).withHeight (h).withY (y));                x += 66;
+    opacitySlider.setBounds (header.withLeft (x).withWidth (64).withHeight (h).withY (y));                x += 70;
+    chanBox.setBounds       (header.withLeft (x).withWidth (84).withHeight (h).withY (y));                x += 90;
+    focusBox.setBounds      (header.withLeft (x).withWidth (96).withHeight (h).withY (y));                x += 102;
+    colorSwatch.setBounds   (header.withLeft (x).withWidth (24).withHeight (24).withY (8));               x += 30;
+    shapeButton.setBounds   (header.withLeft (x).withWidth (64).withHeight (h).withY (y));                x += 70;
+    modeButton.setBounds    (header.withLeft (x).withWidth (72).withHeight (h).withY (y));                x += 78;
+    amountSlider.setBounds  (juce::Rectangle<int> (x, y, juce::jmax (90, getWidth() - 46 - x), h));
 
     telemetry.setBounds (b);
 }
@@ -173,6 +197,13 @@ void MixMindEditor::resized()
 void MixMindEditor::timerCallback()
 {
     ++dotPhase;
+
+    // Pick up channel-mode changes that didn't come from the dropdown (session
+    // reload, preset load, the host's generic parameter view).
+    const int chanIdx = currentChannelModeIndex();
+    if (chanIdx != lastChannelIdx)
+        applyChannelMode();
+
     const auto& aa = audioProcessor.audioAnalyzer;
     telemetry.setUserBins (aa.getFFTBins(), AudioAnalyzer::numBins, aa.getSampleRate());
     telemetry.setUserScalars (aa.getLufs(), aa.getStereoWidth(), aa.getPhaseCorr(), aa.getCrestFactor());
@@ -243,6 +274,35 @@ void MixMindEditor::adoptReferenceIntoUi()
 
     loadRefButton.setButtonText (ref.getFileName());
     loadRefButton.setColour (juce::TextButton::textColourOffId, JP::text);
+}
+
+// The channel mode lives in the parameter, so index and enum can't drift. Clamped
+// because a host may hand us a value between steps.
+int MixMindEditor::currentChannelModeIndex() const
+{
+    const float raw = audioProcessor.parameters.getRawParameterValue ("channelMode")->load();
+    return juce::jlimit (0, (int) allChannelModes().size() - 1, juce::roundToInt (raw));
+}
+
+void MixMindEditor::applyChannelMode()
+{
+    const int idx = currentChannelModeIndex();
+    lastChannelIdx = idx;
+    chanBox.setSelectedId (idx + 1, juce::dontSendNotification);
+
+    // The processor applies the mode to the live analyzer and the shaper itself
+    // (it must work with no editor open). What's left here is the reference: it
+    // pre-computed all four spectra at load, so this only selects which one
+    // getBins() hands out. No redesign nudge is needed — MixMindProcessor owns
+    // the match design and re-derives the target on its own timer (the editor's
+    // old firThrottle hook went away with it).
+    auto& ref = audioProcessor.referenceAnalyzer;
+
+    if (ref.hasReference())
+    {
+        ref.setChannelMode (allChannelModes()[(size_t) idx]);
+        telemetry.setReference (ref.getBins(), ReferenceAnalyzer::numBins);
+    }
 }
 
 void MixMindEditor::applyFocusSelection()

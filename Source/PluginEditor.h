@@ -35,6 +35,7 @@ private:
     juce::Slider     amountSlider;
 
     juce::ComboBox   focusBox;
+    juce::ComboBox   chanBox;      // which channel the shaper matches (Stereo/Left/Right/Mid/Side)
     ColorSwatch      colorSwatch;
 
     void loadReference();
@@ -42,12 +43,15 @@ private:
     void applyFocusSelection();
     void adoptReferenceIntoUi();
     void syncTraceToProcessor();
+    void applyChannelMode();
+    int  currentChannelModeIndex() const;
     void timerCallback() override;
     void mouseDown (const juce::MouseEvent&) override;
 
     bool manualMode { false };
     int  dotPhase { 0 };
     MixMindState::TraceCurve lastSyncedTrace;
+    int  lastChannelIdx { -1 };   // mirrors the channelMode parameter into the dropdown
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixMindEditor)
 };
