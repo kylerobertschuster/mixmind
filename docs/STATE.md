@@ -20,8 +20,9 @@ AGENTS.md, not here.
 - **LoudnessMeter** — BS.1770-4 (K-weighting, 400 ms gating, −70/−10 LU gates,
   4× true-peak). Shared with AudioAnalyzer (Scope/Meter/EQT).
 - **AudioAnalyzer / ReferenceAnalyzer** — honest LUFS; both numBins == 1024.
-- **TelemetryCanvas** — trace is linear magnitude 0..1, NOT dB (the old
-  `v·100 − 100` conversion is gone; subtract in native units).
+- **TelemetryCanvas** — trace v-space is linear in dB (0..1 ↔ −100..0 dBFS);
+  `buildTargetFromCurve` converts display → dB → linear magnitude, which
+  `buildMatchFilter` then subtracts in dB against the live bins.
 - **CMakeLists** — ShaperProcessor + LoudnessMeter in MixMind; LoudnessMeter in
   Scope/Meter/EQT.
 

@@ -59,16 +59,29 @@ rule for `performRealOnlyInverseTransform`.
 This is why step 6 only **DC-normalises** — dividing taps by their *sum* to
 preserve broadband level — and never divides by N.
 
-### 3. The canvas trace is linear magnitude 0..1 — not dB
+### 3. The trace's v-space is dB; the bins are linear magnitude
 
-`TelemetryCanvas` trace points and analyzer bins are both linear magnitude 0..1.
-`buildTargetFromCurve` interpolates them in *log-frequency* but *linear
-magnitude*, straight against the bins.
+Two different spaces feed one subtraction — get the handoff right.
 
-Never convert with `v·100 − 100` (the old bug), and never convert only one side
-of a subtraction. Manual mode is `traceTarget − live`; Auto is `ref − live`, both
-in native units. If a dB path is ever genuinely needed, convert **both** sides
-explicitly and say why in a comment.
+`TelemetryCanvas` trace control points are `(freqHz, value01)`, where `value01`
+is the plot's dB-mapped Y: `0..1 ↔ −100..0 dBFS`, the same axis the bins are
+drawn on. `buildTargetFromCurve` interpolates in *log-frequency* and converts
+once, at the end:
+
+    display v  →  dB = v·100 − 100  →  linear magnitude = 10^(dB/20)
+
+That conversion belongs there and **only** there, because `buildMatchFilter`
+takes linear-magnitude bins and does its own `20·log10` before subtracting. The
+old bug was treating a trace value as a linear magnitude and subtracting it
+straight against the bins, which is off by up to ~44 dB half-way up the axis —
+the transfer above is the fix, not the bug. `v = 0.5` is −50 dBFS ≈ 0.00316
+linear. The axis floor is 1e-5, which is also the constant `buildMatchFilter`
+tests for silence (`> 1e-5f`).
+
+So: convert exactly once, never only one side of a subtraction, and do not
+"clean up" the `v·100 − 100` in `buildTargetFromCurve`. Manual mode is
+`traceTarget − live`; Auto is `ref − live`; both end up as linear-magnitude
+subtractions in dB inside the designer.
 
 ### 4. Channels are summed, not averaged
 
@@ -139,20 +152,16 @@ consuming target, not just MixMind.
   test tones for loudness.
 - Never weaken an assertion to make a test pass.
 
-### Known gap — the shaper is untested
+### Test coverage
 
-`tests/CMakeLists.txt` compiles **only** `LoudnessMeter.cpp`, yet its own header
-comment claims coverage of "the FIR designer, the per-channel routing and its
-latency, and the trace→target map".
+`tests/CMakeLists.txt` compiles `LoudnessMeter.cpp`, `ShaperProcessor.cpp` and
+`ReferenceAnalyzer.cpp` — the **shipping** sources, not copies. Three suites:
+`[loudness]` (11 cases), `[shaper]` (16), plus session recall in
+`MatchStateTests.cpp`; 39 cases, ~11,400 assertions, all green.
 
-`tests/TestSignals.h` already ships `firMagnitudeAt`, `maxAbsDiff`, `bestLag`,
-`amplitudeForRmsDb`, and `noise` — **none of which are used anywhere**.
-`LoudnessTests.cpp` has 11 cases, all `[loudness]`.
-
-So `buildMatchFilter`, `buildTargetFromCurve`, and `ShaperProcessor::process`
-have no runtime coverage, while the helpers meant to test them sit idle. Adding
-`ShaperProcessor.cpp` to the test target is the highest-value test work in the
-repo. When you touch the shaper, consider doing that first.
+`TestSignals.h` supplies the deterministic helpers (`noise`, `firMagnitudeAt`,
+`maxAbsDiff`, `bestLag`, `dbOf`). Use `dbOf` when asserting a level in dB — it
+is clamped at 1e-9 so a zeroed magnitude reads as −180 dB instead of −inf.
 
 ## Before you change any DSP
 

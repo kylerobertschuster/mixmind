@@ -82,10 +82,15 @@ When editing shared files, check every consuming target still builds.
   both apply 1/N. Do not add a manual 1/N scale.
 - Manual mode = `traceTarget − live`. Auto mode = `ref − live`.
   Same engine serves both; do not fork it.
-- **Canvas trace is linear magnitude 0..1, not dB.** Do not convert the
-  trace with `v·100 − 100`. Subtract in native units against the
-  reference bins. If a dB path is ever needed, convert explicitly and
-  document why.
+- **Trace v-space is linear in dB: `[0..1]` → `[−100..0]` dBFS.** A trace
+  control point's value01 is the plot's dB-mapped Y, exactly as drawn.
+  `buildTargetFromCurve` converts it once — `v·100 − 100`, then
+  `10^(dB/20)` — because `buildMatchFilter` takes linear-magnitude bins
+  and does its own `20·log10`. So `v = 0.5` is −50 dBFS (≈0.00316
+  linear), **not** 0.5 linear: reading the trace as a magnitude is a
+  ~44 dB error mid-axis. Canvas *bins* stay linear magnitude 0..1; only
+  the trace's v-space is dB. Convert both sides to the same space before
+  subtracting.
 - `ReferenceAnalyzer::numBins == AudioAnalyzer::numBins == 1024`.
   If that ever changes, live-vs-target subtraction needs interpolation.
   Stop and report rather than guessing.

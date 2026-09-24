@@ -35,9 +35,11 @@ Run this before proposing any diff that touches `ShaperProcessor`,
 
 - [ ] Is every operand of a subtraction in the same space (linear magnitude vs
       linear magnitude, dB vs dB)?
-- [ ] Grep for `100` and `100 -` near trace/bin code — `v·100 − 100` must not
-      reappear.
-- [ ] Are `amount`, trace values, and bins all still 0..1 where documented?
+- [ ] Trace v-space is dB (`0..1 ↔ −100..0 dBFS`) and is converted exactly once,
+      in `buildTargetFromCurve` (`v·100 − 100`, then `10^(dB/20)`); bins are
+      linear magnitude 0..1 and are converted inside `buildMatchFilter`. Check
+      that no path treats a trace value as a magnitude or a bin as dB.
+- [ ] Are `amount`, trace values and bins all still 0..1 where documented?
 
 ## 5. Metering
 

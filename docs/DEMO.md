@@ -48,7 +48,7 @@ auval -a | grep MXMN
 ctest --test-dir build --output-on-failure
 ```
 
-39 test cases, ~11,400 assertions, **all green**.
+39 test cases, ~11,900 assertions, **all green**.
 
 ```bash
 ./build/tests/MixMind_Tests_artefacts/Release/MixMind_Tests '[loudness]'
@@ -59,9 +59,10 @@ ctest --test-dir build --output-on-failure
   −70/−10 LU gates, 4× true peak. Expectations are computed by an independent
   BS.1770-4 implementation evaluated in Python, not read back off the plugin —
   so the tests cannot agree with a bug in our own meter.
-- `[shaper]` — 16 cases. Bypass bit-transparency, latency reporting, impulse
-  response vs published taps, block-size independence, DC-normalisation, the
-  ±24 dB clamp, and the trace→target map.
+- `[shaper]` — 16 cases. Bypass bit-transparency, latency reporting (what the
+  getter reports is what `process` applies), impulse response vs published taps,
+  block-size independence, DC-normalisation, the ±24 dB clamp, and the
+  trace→target map including the dB-mapped trace v-space.
 
 Both suites compile the **shipping** `.cpp` files, not copies, so a passing test
 means the code that ships passed.
@@ -88,34 +89,33 @@ The house rule is honest DSP and honest metering. Two examples:
 - Loudness follows BS.1770-4 exactly — channels are **summed** with G = 1.0, not
   averaged, because averaging reads 3 dB low for correlated stereo. True peak is
   4× oversampled, not sample peak.
-- The shaper's canvas trace is **linear magnitude 0..1**, subtracted against the
-  reference bins in native units. There is no `v·100 − 100` dB conversion hiding
-  in the signal path.
+- The shaper's canvas trace is **dB-mapped**: v = 0.5 is −50 dBFS (≈0.00316
+  linear), not 0.5 linear. `buildTargetFromCurve` converts display → dB → linear
+  magnitude exactly once, because `buildMatchFilter` does its own `20·log10` on
+  the bins. Reading a trace point as a magnitude was a ~44 dB error half-way up
+  the axis.
 
-## 6. One known defect, documented not fixed
+## 6. The defect that was found and fixed
 
-`tests/ShaperTests.cpp` contains a test tagged `[!shouldfail]`:
+`tests/ShaperTests.cpp` carries a regression test:
 
 > *outside the drawn range the trace holds its nearest endpoint*
 
-`ShaperProcessor::buildTargetFromCurve` walks the curve's segments forward only.
-When a bin falls **below** the first trace point, the walk runs off the end and
-the fallback returns the **last** point's value — so bins below the trace inherit
-the highest frequency's setting, instead of the lowest.
+`ShaperProcessor::buildTargetFromCurve` used to walk the curve's segments
+forward only. When a bin fell **below** the first trace point, the walk ran off
+the end and the fallback returned the **last** point's value — so bins below the
+trace inherited the highest frequency's setting, instead of the lowest.
 
 It is not cosmetic: `buildMatchFilter` DC-normalises by dividing the taps by
 their sum, and `sum(taps) == H(0) == mag[0]`. Bin 0 is therefore the reference
 the whole filter is scaled against. Measured on a trace drawn 0.0 @ 20 Hz →
-1.0 @ 20 kHz over a flat spectrum, the impulse response differs by up to 8.16
+1.0 @ 20 kHz over a flat spectrum, the impulse response differed by up to 8.16
 per tap from the intended one.
 
-With the default 20 Hz axis only bin 0 is affected; selecting a focus band raises
-`axisMin` to the band start, and then every bin below the band inherits the
-treble value.
+With the default 20 Hz axis only bin 0 was affected; selecting a focus band
+raises `axisMin` to the band start, and then every bin below the band inherited
+the treble value.
 
-The assertion states the **correct** behaviour and is deliberately not weakened.
-`[!shouldfail]` keeps the suite green while the defect is outstanding, and turns
-the run **red** the moment it is fixed — at which point delete the tag.
-
-Left unfixed on purpose: it is pre-existing behaviour, not a regression, and
-changing what the shaper outputs immediately before a demo is the wrong trade.
+Fixed by holding the nearest endpoint on both sides, and pinned by the test —
+there is no `[!shouldfail]` tag left to remove. The assertion is stated at the
+−100 dBFS floor, so it goes red again if the extrapolation ever comes back.
