@@ -69,6 +69,56 @@ touching them means fixing them.
    plug-in host's window) freezes until it returns. Belongs on a background
    thread with progress.
 
+## Review findings (independent, re-verified 2026-09-26)
+
+An independent reviewer (read-only, no shared context, different model, run the
+same day CI passed) produced ten findings. Each was re-checked against the code
+here. Four hold and are new. They are bugs, not conventions, so they belong in
+the fix list rather than in `pi-warden.md`.
+
+1. `Source/LoudnessMeter.cpp:211,246-248` — **true peak never releases**.
+   `blockPeak = truePeak`, so `jmax(blockPeak, truePeak * release)` is `x`, not a
+   decay: the dBTP readout is a session-long max-hold and the crest factor
+   inherits it. `truePeak` is only cleared in `reset()` (`:117`). Needs a
+   separate per-block peak and a separate decaying hold.
+2. `Source/ReferenceAnalyzer.h:74-77` + `Source/PluginProcessor.cpp:44-59` —
+   **reference bins are not remapped on a sample-rate change**. Only the 1024
+   bins are stored, never the analysis rate, and `prepareToPlay` re-runs
+   `designMatchFilter()` on the stored grid. Recall a 48 kHz session at 96 kHz
+   and every reference feature is matched at twice its frequency. Storing bins
+   rather than the file path is deliberate; the rate has to ride along, and
+   cross-rate use needs interpolation — AGENTS.md says stop and report rather
+   than guess.
+3. `Source/AudioAnalyzer.cpp:23,27` — **mono reads +3.01 dB LUFS tall**.
+   `R = L` when the buffer has one channel, which defeats the meter's own mono
+   path (`Source/LoudnessMeter.h:32`: pass `R == nullptr` for a mono source;
+   `nch = (R != nullptr) ? 2 : 1`). Both channels are counted, so mono tracks
+   and mono reference files read 3 dB hot. Comparisons stay consistent; the
+   absolute number does not.
+4. `Source/ShaperProcessor.h:27,49` + `Source/ShaperProcessor.cpp:92-93` —
+   **reported latency is half a sample wrong**. The design phase `-π(N-1)/N`
+   (`:202`) centres the impulse response at 1023.5, and the central 1024 taps
+   (`start = (N - kTapCount) / 2`, `:221`) begin at 512, so the FIR's group
+   delay is 511.5 while `kLatency = kTapCount / 2 = 512` is what the host
+   compensates and what the dry path uses (`:92-93`). Result: a half-sample
+   offset against host compensation, and dry/wet comb filtering at the top of
+   the band in Left/Right/Mid/Side modes. Either be honest about 511.5, or use
+   an odd-length (1025-tap) design so the centre is an integer.
+
+Confirmed, but not worth a fix on their own: `mag[1024]` is left at zero
+(`Source/ShaperProcessor.cpp:194,197,203-209`), so H(Nyquist) = 0 — an asymmetry
+against the DC-normalised design, inaudible at 44.1/48 kHz; and `2/N` is applied
+to bin 0 (`Source/AudioAnalyzer.cpp:86`) where one-sided normalisation wants
+`1/N` — a display-level error in the DC bin only, because the match subtracts two
+identically-scaled spectra.
+
+Rejected after checking: that JUCE normalises the forward FFT **and**
+`AudioAnalyzer` rescales by `2/N` (it calls `performFrequencyOnlyForwardTransform`
+without `normalise`, so the `2/N` is the only scaling), and a HIGH-severity NaN
+claim (`Source/ShaperProcessor.cpp:167` floors non-finite bins through the
+`> 1e-5f` test, and `Source/MatchState.h:115-121` drops non-finite trace points
+on purpose).
+
 ## Rules and docs
 
 Three files, three jobs — keep them in sync when a rule changes.
@@ -132,7 +182,8 @@ and `honest-dsp-v1` exist.
 
 ## Open / next
 
-- Fix the four known deviations before the first public release.
+- Fix the eight known deviations — the four pre-existing ones plus the four
+  verified review findings — before the first public release.
 - Rebuild + repackage MixMind (settle the version story: CMake 1.0.0 vs site
   4.3.0) before any public download returns.
 - Decide the license model before quoting $9/mo or $99:
