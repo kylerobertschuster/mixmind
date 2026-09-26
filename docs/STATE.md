@@ -4,6 +4,28 @@ Current-state snapshot for the mixmind repo. AGENTS.md points here; this
 file is rewritten wholesale when the state changes. Operating rules live in
 AGENTS.md, not here.
 
+## v1.0 scope
+
+Locked scope for the first release. The AI features are part of v1.0.
+
+1. **Async LLM backend queue ↔ DSP thread** — not started. The model runs
+   off the audio thread; requests and results cross threads through a
+   lock-free queue, and the audio thread only reads values that are already
+   validated (no network, locks or allocation on the audio thread).
+2. **NaN / clamping firewall in front of the lock-free audio queue** — not
+   started. Every value the LLM proposes is checked for finiteness and
+   clamped to its parameter's range before it is queued. The audio path's
+   own non-finite guard (`runChain`) already exists and stays.
+3. **OpenGL-accelerated TelemetryCanvas rendering the EQ match curves** —
+   done (3909c3f): the whole editor, canvas included, renders through an
+   attached `juce::OpenGLContext`. GPU frame cost still to be measured on
+   real hardware.
+4. **Simper SVF filters applying corrections without dropouts** — done:
+   `ParametricEq` bands run as TPT (Simper) SVFs mapped exactly from the
+   matched biquads, coefficients interpolated per sample, fades on discrete
+   changes. The reference match itself is applied by the linear-phase FIR
+   (`ShaperProcessor`), crossfaded on every filter swap.
+
 ## Build
 
 - All 7 plugin targets + `MixMindTests` build clean (verified on Linux, GCC,
@@ -121,9 +143,10 @@ test suite added. Tag `honest-dsp-v1` still pending.
 
 ## Open / next
 
-- LLM assistant direction (conversational, local inference, multi-instance):
-  proposed, not started — needs a decision on scope and on reversing the
-  AGENTS.md rule that removed the AI stack.
+- LLM assistant: in v1.0 scope (items 1–2 above). AGENTS.md still says not
+  to reintroduce `ApiClient`, `ChatComponent`, `ContextPanel` or
+  `AIAnalysis` — decide whether that rule changes before the queue work
+  starts.
 - Decide the fate of `proxy/`: its DeepSeek `/api/chat` route is dead
   (no plugin calls it) and `/purchase` answers 402, so the site's Buy
   button currently fails. The plugins accept any `MM-` key locally.
