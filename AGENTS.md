@@ -128,6 +128,13 @@ Read `docs/STATE.md` for current state. It is the
 source of truth; this file is not. Do not enumerate progress here — it
 drifts within a session.
 
+## Enforceable rules
+
+`pi-warden.md` at the repo root carries the machine-checkable rules — one rule
+per heading, judged per edit. It is the enforcement copy; this file is the
+operating doc and `.pi/skills/mixmind-dsp/` is the reasoning. When a rule
+changes, update all three; do not restate pi-warden's rules here.
+
 ## What this file is not
 
 - Not a place for secrets, tokens, or connection strings.
