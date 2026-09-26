@@ -33,3 +33,6 @@ node_modules/
 *.pkg
 *.dmg
 *.zip
+
+# Working files kept out of the repo (see docs/STATE.md)
+JuicePipe_logo.jpeg
