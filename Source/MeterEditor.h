@@ -29,8 +29,8 @@ private:
     juce::TextButton licenseButton { "LICENSE" };
 
     float aLufs  { -60 }, aPeak  { -60 }, aCrest { 0 },
-          aPhase { 1 },   aStereo{ 0.5f }, aBass { 0 },
-          aMid   { 0 },   aHigh  { 0 };
+          aPhase { 1 },   aStereo{ 0.5f }, aBass { -60 },
+          aMid   { -60 }, aHigh  { -60 };
 
     int dotPhase { 0 };
 

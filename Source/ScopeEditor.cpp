@@ -49,12 +49,7 @@ void ScopeEditor::resized()
 void ScopeEditor::timerCallback()
 {
     ++dotPhase;
-    float l = proc.audioAnalyzer.getBassEnergy();
-    float r = proc.audioAnalyzer.getMidEnergy();
-    gonioL[gonioIdx] = l / 60.0f;
-    gonioR[gonioIdx] = r / 60.0f;
-    gonioIdx = (gonioIdx + 1) % gonioSize;
-    if (gonioCount < gonioSize) gonioCount++;
+    proc.audioAnalyzer.copyScopeSamples (gonioL, gonioR, gonioSize);
     repaint();
 }
 
@@ -72,22 +67,21 @@ void ScopeEditor::drawGoniometer (juce::Graphics& g)
     g.drawLine (cx - r, cy, cx + r, cy, 0.5f);
     g.drawLine (cx, cy - r, cx, cy + r, 0.5f);
 
-    // Lissajous dots
-    if (gonioCount > 1)
+    // Lissajous (M/S orientation: mono is vertical, out-of-phase horizontal).
+    // A full-scale mono signal reaches the circle.
+    const float k = r * 0.5f;
+    juce::Path path;
+    for (int i = 0; i < gonioSize; ++i)
     {
-        juce::Path path;
-        for (int i = 0; i < gonioCount; ++i)
-        {
-            float x = cx + gonioL[i] * r * 0.8f;
-            float y = cy - gonioR[i] * r * 0.8f;
-            x = juce::jlimit (cx - r, cx + r, x);
-            y = juce::jlimit (cy - r, cy + r, y);
-            if (i == 0) path.startNewSubPath (x, y);
-            else path.lineTo (x, y);
-        }
-        g.setColour (JP::accent.withAlpha (0.5f));
-        g.strokePath (path, juce::PathStrokeType (0.8f));
+        const float side = (gonioL[i] - gonioR[i]);
+        const float mid  = (gonioL[i] + gonioR[i]);
+        const float x = juce::jlimit (cx - r, cx + r, cx + side * k);
+        const float y = juce::jlimit (cy - r, cy + r, cy - mid * k);
+        if (i == 0) path.startNewSubPath (x, y);
+        else        path.lineTo (x, y);
     }
+    g.setColour (JP::accent.withAlpha (0.5f));
+    g.strokePath (path, juce::PathStrokeType (0.8f));
 }
 
 void ScopeEditor::drawReadouts (juce::Graphics& g)
@@ -116,7 +110,7 @@ void ScopeEditor::drawReadouts (juce::Graphics& g)
 
     drawBar ("PHASE", proc.audioAnalyzer.getPhaseCorr(), -1, 1, "corr");
     drawBar ("WIDTH", proc.audioAnalyzer.getStereoWidth(), 0, 1, "M/S");
-    drawBar ("LUFS",  proc.audioAnalyzer.getLufs(), -60, 0, "dB");
+    drawBar ("LUFS",  proc.audioAnalyzer.getLufs(), -60, 0, "LUFS");
 }
 
 void ScopeEditor::showLicenseDialog()

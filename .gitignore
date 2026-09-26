@@ -1,6 +1,7 @@
 # Build artifacts
 Builds/
 build/
+build-*/
 *.o
 *.obj
 *.a

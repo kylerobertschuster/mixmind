@@ -53,8 +53,9 @@ namespace FocusModel
             case Group::Vocals: return "Vocals";
             case Group::Drums:  return "Drums";
             case Group::Synth:  return "Synth";
-            default:            return "Master";
+            case Group::Count:  break;
         }
+        return "Master";
     }
 
     // Focus band in Hz — when a group is focused, the spectrum zooms to this
@@ -68,8 +69,10 @@ namespace FocusModel
             case Group::Vocals: return { 2000.0f, 8000.0f };
             case Group::Drums:  return { 8000.0f, 20000.0f };
             case Group::Synth:  return { 250.0f,  8000.0f };
-            default:            return { 20.0f,   20000.0f };
+            case Group::Master:
+            case Group::Count:  break;
         }
+        return { 20.0f, 20000.0f };
     }
 
     // Dropdown order: Master first, then the 4 default groups, then Synth.
@@ -104,10 +107,14 @@ namespace FocusModel
         return p;
     }
 
-    inline FocusColor colorFor (Group g)   { return palette()[(int) g]; }
-    inline void      setColor  (Group g, juce::Colour saturated) { palette()[(int) g] = makePair (saturated); }
-    inline void      resetColor (Group g) { palette()[(int) g] = defaultPalette()[(int) g]; }
+    inline FocusColor colorFor (Group g)   { return palette()[(size_t) g]; }
+    inline void      setColor  (Group g, juce::Colour saturated) { palette()[(size_t) g] = makePair (saturated); }
+    inline void      resetColor (Group g) { palette()[(size_t) g] = defaultPalette()[(size_t) g]; }
 
     // Reference overlay colour used in Master (band-coloured) mode.
     inline juce::Colour masterReferenceColour() { return juce::Colour (0xffff9db0); }
+
+    // Match-EQ correction curve — kept clear of the reference pink and the
+    // four band hues.
+    inline juce::Colour matchColour() { return juce::Colour (0xff80d8ff); }
 }

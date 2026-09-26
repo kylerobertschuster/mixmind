@@ -1,8 +1,11 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <functional>
+#include <vector>
 #include "FocusModel.h"
 #include "LookAndFeel.h"
 #include "AudioAnalyzer.h"
+#include "ShaperProcessor.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ColorSwatch — a clickable swatch that opens a ColourSelector popup.
@@ -37,11 +40,36 @@ private:
 //                      is blue, a vocal peak is violet, etc.).
 //    · Group focus   → zooms to the group's band, reference = pastel hue,
 //                      user = saturated hue (same colour family).
+//  Plus the hand-drawn trace, the match-EQ correction curve, a screenshot
+//  layer and the REF / YOU metering readout.
+//
+//  Vertical scale: analyzer dB (0 dB = full-scale sine) from kFloorDb to
+//  kCeilDb, linear in dB. dbToUnit()/unitToDb() are the only mapping between
+//  plot height and level; the trace is stored in dB, never in pixels.
 // ─────────────────────────────────────────────────────────────────────────────
 class TelemetryCanvas : public juce::Component,
                         private juce::Timer
 {
 public:
+    using TracePoint = ShaperProcessor::TracePoint;
+
+    struct Readout
+    {
+        float lufs     { LoudnessMeter::kSilenceDb };
+        float truePeak { LoudnessMeter::kSilenceDb };
+        float width    { 0.0f };
+        float phase    { 1.0f };
+        float crest    { 0.0f };
+    };
+
+    static constexpr float kFloorDb = -100.0f;
+    static constexpr float kCeilDb  = 0.0f;
+    static float dbToUnit (float db) { return juce::jlimit (0.0f, 1.0f, (db - kFloorDb) / (kCeilDb - kFloorDb)); }
+    static float unitToDb (float v)  { return kFloorDb + juce::jlimit (0.0f, 1.0f, v) * (kCeilDb - kFloorDb); }
+
+    // Correction curve scale (± this many dB over the plot height).
+    static constexpr float kCorrectionRangeDb = 18.0f;
+
     TelemetryCanvas();
     ~TelemetryCanvas() override;
 
@@ -49,11 +77,17 @@ public:
     void resized() override;
 
     void setUserBins (const float* bins, int n, double sampleRate);
-    void setReference (const float* bins, int n);   // nullptr clears
+    void setReference (const float* bins, int n);   // nullptr / 0 clears
     bool hasReference() const { return hasRef; }
 
-    void setUserScalars (float lufs, float width, float phase, float crest);
-    void setRefScalars  (float lufs, float width, float phase, float crest);
+    void setUserReadout (const Readout& r) { userReadout = r; }
+    void setRefReadout  (const Readout* r) { hasRefReadout = (r != nullptr); if (r != nullptr) refReadout = *r; }
+
+    // Match-EQ correction (dB per analyzer bin). `applied` = SHAPE is on.
+    void setCorrection (const std::vector<float>& db, bool applied);
+
+    // Transient status line under the legend (e.g. "Analyzing reference…").
+    void setStatus (const juce::String& s) { if (s != status) { status = s; repaint(); } }
 
     void setFocusGroup (FocusModel::Group g) { focus = g; repaint(); }
     FocusModel::Group getFocusGroup() const { return focus; }
@@ -67,17 +101,20 @@ public:
     bool getRefImageVisible() const   { return imageVisible; }
     void clearRefImage();
 
-    // ── Trace — a hand-drawn target curve the user clicks onto the plot. ─
+    // ── Trace — a hand-drawn target curve. Click to add a point, drag a point
+    //    to move it, right-click (or double-click) a point to delete it. ──
     void setTraceMode (bool on);
     bool getTraceMode() const { return traceMode; }
-    bool hasTrace() const     { return tracePoints.size() >= 2; }
-    void clearTrace()         { tracePoints.clear(); repaint(); }
+    void setTrace (const std::vector<TracePoint>& points) { trace = points; repaint(); }
+    bool hasTrace() const     { return trace.size() >= 2; }
+    std::function<void (std::vector<TracePoint>)> onTraceEdited;
 
-    // Returns the trace as (freqHz, value01) points, sorted by frequency.
-    juce::Array<std::pair<float, float>> getTraceCurve() const;
+    // Clicking the YOU readout resets integrated loudness.
+    std::function<void()> onReadoutClicked;
 
     void mouseDown (const juce::MouseEvent&) override;
     void mouseDrag (const juce::MouseEvent&) override;
+    void mouseUp (const juce::MouseEvent&) override;
     void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
     void mouseDoubleClick (const juce::MouseEvent&) override;
     void mouseMove (const juce::MouseEvent&) override;
@@ -91,11 +128,24 @@ private:
     void drawGrid (juce::Graphics& g);
     void drawMaster (juce::Graphics& g);
     void drawFocused (juce::Graphics& g);
+    void drawCorrection (juce::Graphics& g);
 
-    juce::Path buildCurve (const float* bins) const;
-    juce::Path buildBandCurve (const float* bins, float loHz, float hiHz) const;
+    // Display resolution: curves are drawn at 1/12-octave resolution, sampled
+    // every couple of pixels — bins are averaged where they are dense (highs)
+    // and interpolated (Catmull-Rom) where they are sparse (lows).
+    struct Series { const float* bins; const double* prefix; };
+    Series userSeries() const { return { smoothUser, prefixUser }; }
+    Series refSeries() const  { return { smoothRef,  prefixRef }; }
+    Series peakSeries() const { return { peakHold,   prefixPeak }; }
+    float sampleSeries (const Series& s, float hz) const;
+    juce::Path buildCurve (const Series& s) const;
+    juce::Path buildBandCurve (const Series& s, float loHz, float hiHz) const;
     float xForFreq (float hz) const;
+    float freqForX (float x) const;
     float yForValue (float v) const;
+    float yForDb (float db) const { return yForValue (dbToUnit (db)); }
+    float dbForY (float y) const;
+    float binHz() const { return (float) sampleRate / (float) AudioAnalyzer::fftSize; }
 
     void drawLegend (juce::Graphics& g);
     void drawMasterLegend (juce::Graphics& g);
@@ -105,12 +155,17 @@ private:
     void drawRefImage (juce::Graphics& g);
     void drawTrace (juce::Graphics& g);
     float groupEnergy (FocusModel::Group g, const float* bins) const;
+    void updateAxisRange();
 
-    juce::Path smoothTrace() const;
+    int  tracePointAt (juce::Point<float> p) const;   // -1 if none
+    juce::Point<float> tracePointPosition (const TracePoint& p) const;
+    void commitTrace();
+
     void fitImageToPlot();
     juce::Rectangle<float> plotRect() const { return { plotLeft, plotTop, plotRight - plotLeft, plotBottom - plotTop }; }
+    juce::Rectangle<float> youReadoutRect() const { return { plotLeft, 33.0f, 420.0f, 12.0f }; }
 
-    // Smoothed display values (0..1) for user + reference.
+    // Smoothed display values (0..1 on the dB scale) for user + reference.
     float smoothUser[kNumBins] { 0.0f };
     float smoothRef [kNumBins] { 0.0f };
     float targetUser[kNumBins] { 0.0f };
@@ -118,12 +173,18 @@ private:
     bool  hasUser { false };
     bool  hasRef  { false };
 
-    // Scalar telemetry (LUFS / stereo width / phase / crest) for the readout.
-    float userLufs  { -60.0f }, userWidth { 0.5f }, userPhase { 1.0f }, userCrest { 0.0f };
-    float refLufs   { -60.0f }, refWidth  { 0.5f }, refPhase  { 1.0f }, refCrest  { 0.0f };
-
     // Peak-hold envelope (slow release) drawn as a faint line above the curve.
     float peakHold[kNumBins] { 0.0f };
+
+    // Running sums for the display smoothing (index i = sum of bins [0, i)).
+    double prefixUser[kNumBins + 1] {}, prefixRef[kNumBins + 1] {}, prefixPeak[kNumBins + 1] {};
+
+    Readout userReadout, refReadout;
+    bool hasRefReadout { false };
+
+    std::vector<float> correction;
+    bool correctionApplied { false };
+    juce::String status;
 
     // Reference image layer (screenshot ghost).
     juce::Image refImage;
@@ -134,16 +195,17 @@ private:
     bool mouseHover { false };
     juce::Point<float> lastMouse;
 
-    // Hand-drawn trace curve (plot-space points).
+    // Hand-drawn trace (Hz, dB).
     bool traceMode { false };
-    juce::Array<juce::Point<float>> tracePoints;
+    std::vector<TracePoint> trace;
+    int dragPoint { -1 };
 
     double sampleRate { 44100.0 };
     FocusModel::Group focus { FocusModel::Group::Master };
 
     float axisMin { 20.0f }, axisMax { 20000.0f };
 
-    float plotLeft { 44.0f }, plotRight { 0.0f }, plotTop { 48.0f }, plotBottom { 0.0f };
+    float plotLeft { 44.0f }, plotRight { 0.0f }, plotTop { 56.0f }, plotBottom { 0.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TelemetryCanvas)
 };

@@ -56,7 +56,7 @@ void EQTEditor::paint (juce::Graphics& g)
     {
         g.setFont (juce::FontOptions ("Helvetica Neue", 14.0f, juce::Font::plain));
         g.setColour (JP::textDim.withAlpha (0.4f));
-        g.drawText ("No signal — play audio through this track",
+        g.drawText (juce::String::fromUTF8 ("No signal — play audio through this track"),
                     juce::Rectangle<float> (plotLeft, plotTop, plotRight - plotLeft, plotBottom - plotTop),
                     juce::Justification::centred, false);
     }

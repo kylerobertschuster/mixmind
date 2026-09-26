@@ -3,18 +3,18 @@
 <div class="container"><div class="hero">
 <div class="hero-screenshot">Screenshot inside Ableton — coming shortly<br>Placeholder for DAW screenshot</div>
 <div class="hero-info"><h1>MixMind</h1><span class="tag">v4.3.0 &middot; VST3 &amp; AU &middot; macOS 12+</span>
-<p>AI-powered mixing assistant with real-time FFT spectral telemetry, goniometer, LUFS metering, and surgical diagnostics. A second set of expert ears inside your DAW.</p>
+<p>Reference-matching spectrum shaper with honest BS.1770 metering. Drop in a reference track, see exactly where your mix differs, and match its tone with a linear-phase EQ — or draw the target curve yourself.</p>
 <div class="actions">
 <a href="#" class="btn-purchase" onclick="buyNow();return false">Add to Cart — $9/mo or $79</a>
-<a href="/downloads/MixMind-4.3.0.pkg" class="btn-download">Download Free Trial (10 prompts)</a>
+<a href="/downloads/MixMind-4.3.0.pkg" class="btn-download">Download Free Trial</a>
 </div></div></div>
 <div class="features">
-<div><h3>FFT Spectrum</h3><p>Log-scale real-time analyzer with peak hold, 0dB reference, and interactive EQ nodes</p></div>
-<div><h3>Goniometer</h3><p>Lissajous phase scope with correlation meter and stereo field visualization</p></div>
-<div><h3>LUFS Metering</h3><p>Integrated LUFS, true peak, crest factor with target loudness markers</p></div>
-<div><h3>AI Diagnostics</h3><p>DeepSeek-powered analysis with cross-domain telemetry correlation</p></div>
-<div><h3>Auto-EQ</h3><p>AI-suggested EQ points placed directly on the spectrum, applied via 8-band IIR DSP</p></div>
-<div><h3>JuiceBox Telemetry</h3><p>Collapsible meter panel showing LUFS, peak, crest, phase, stereo, and spectral bands</p></div>
+<div><h3>Reference Match</h3><p>Linear-phase match EQ that reshapes your mix toward a reference track — level-neutral, click-free, with the correction curve shown before you apply it</p></div>
+<div><h3>Trace Mode</h3><p>Draw a target curve on the analyzer (or over a screenshot) and match to it instead of a reference</p></div>
+<div><h3>BS.1770 Metering</h3><p>Gated integrated LUFS, 4× oversampled true peak, crest factor, width and phase — for your mix and the reference, side by side</p></div>
+<div><h3>Spectrum Analyzer</h3><p>1/12-octave analyzer with peak hold, band-coloured by focus group, reference overlay</p></div>
+<div><h3>Focus Groups</h3><p>Zoom the analyzer to bass, guitar, vocal, drum or synth regions with colour-matched reference and mix curves</p></div>
+<div><h3>Session Recall</h3><p>Reference analysis, trace and settings are saved with your session — even if the reference file moves</p></div>
 </div></div>
 <div id="buyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;align-items:center;justify-content:center;"><div style="background:#141416;border-radius:10px;padding:36px;max-width:380px;width:90%;text-align:center;"><h3 style="color:#f2c4ce;font-size:20px;margin-bottom:8px;">Get MixMind</h3><p style="color:rgba(255,255,255,0.5);font-size:13px;margin-bottom:20px;">$9/month or $79 lifetime — instant license delivery</p><input id="buyEmail" type="email" placeholder="you@email.com" style="width:100%;padding:12px;background:#080809;border:1px solid rgba(242,196,206,0.15);border-radius:6px;color:#f2c4ce;font-size:14px;margin-bottom:12px;outline:none;"><div style="display:flex;gap:10px;"><button onclick="processPurchase()" style="flex:1;padding:12px;background:#f2c4ce;color:#080809;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Get License Key</button><button onclick="closeBuy()" style="flex:1;padding:12px;background:transparent;color:rgba(255,255,255,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:14px;cursor:pointer;">Cancel</button></div><div id="buyResult" style="margin-top:16px;display:none;"></div></div></div>
 <script>function buyNow(){document.getElementById('buyModal').style.display='flex'}function closeBuy(){document.getElementById('buyModal').style.display='none'}async function processPurchase(){var e=document.getElementById('buyEmail').value;if(!e.includes('@')){alert('Enter a valid email');return}var r=await fetch('https://getjuicepipe.com/purchase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e})});var d=await r.json();var el=document.getElementById('buyResult');el.style.display='block';el.innerHTML='<strong style="color:#f2c4ce;font-size:16px;">'+d.license_key+'</strong><br><span style="font-size:11px;color:rgba(255,255,255,0.4);">Copy this key and paste into the plugin.</span>'}</script>

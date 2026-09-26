@@ -1,6 +1,5 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
-#include "HostTheme.h"
 
 namespace JP
 {
@@ -47,12 +46,14 @@ class JuicePipeLAF : public juce::LookAndFeel_V4
 public:
     JuicePipeLAF();
     ~JuicePipeLAF() override = default;
-    void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour&, bool, bool);
-    void drawButtonText (juce::Graphics&, juce::TextButton&, bool, bool);
-    void drawComboBox (juce::Graphics&, int, int, bool, int, int, int, int, juce::ComboBox&);
-    void drawPopupMenuItem (juce::Graphics&, const juce::Rectangle<int>&, bool, bool, bool, bool, bool,
-                            const juce::String&, const juce::String&, const juce::Image*, const juce::Colour*);
-    void drawTextEditorOutline (juce::Graphics&, int, int, juce::TextEditor&);
-    juce::Font getTextButtonFont (juce::TextButton&, int);
-    juce::Typeface::Ptr getTypefaceForFont (const juce::Font&) override;
+
+    void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour& backgroundColour,
+                               bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
+    void drawButtonText (juce::Graphics&, juce::TextButton&,
+                         bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
+    void drawComboBox (juce::Graphics&, int width, int height, bool isButtonDown,
+                       int buttonX, int buttonY, int buttonW, int buttonH, juce::ComboBox&) override;
+    void drawTextEditorOutline (juce::Graphics&, int width, int height, juce::TextEditor&) override;
+    juce::Font getTextButtonFont (juce::TextButton&, int buttonHeight) override;
+    juce::Font getComboBoxFont (juce::ComboBox&) override;
 };

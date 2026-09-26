@@ -14,13 +14,18 @@ do not choose a definition and proceed.
 ## Commands
 
 ```bash
-cmake -B build -G Ninja        # configure (JUCE 8.0.6, C++17)
-cmake --build build            # build all targets
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release   # configure (JUCE 8.0.6, C++17)
+cmake --build build                                  # build all targets + tests
+ctest --test-dir build --output-on-failure           # run the test suite
 cmake --build build --target MixMind_Standalone
-./build/MixMind_Standalone_artefacts/Standalone/MixMind   # run standalone
+./build/MixMind_artefacts/Release/Standalone/MixMind  # run standalone (MixMind.app on macOS)
 ```
 
-Targets: `MixMind`, `Scope`, `Meter`, `EQT`, `Reflex`, `ThreeFX`, `Neat`.
+Targets: `MixMind`, `Scope`, `Meter`, `EQT`, `Reflex`, `ThreeFX`, `Neat`, plus
+`MixMindTests` (JUCE `UnitTest` console app; `-DMIXMIND_BUILD_TESTS=OFF` skips
+it). `MixMindTests <category>` runs one category: `Metering`, `Shaper`,
+`Reference`, `Processor`. On Linux the processor tests paint the editor, so run
+them under `xvfb-run -a` when there is no display.
 AAX is deferred to V2. Do not add AAX to the CMake target lists.
 
 ## Boundaries
@@ -50,7 +55,9 @@ mixmind/
   Source/         # application code, safe to edit
   tests/          # test suite, keep in sync with Source/
   docs/           # architecture notes; update when behaviour changes
-  queries/        # reviewed SQL only; no ad-hoc queries in code
+  assets/         # logos / icons (branding renders in assets/branding/)
+  site/           # static marketing site
+  proxy/          # Node backend the site's checkout calls (not used by any plugin)
 ```
 
 Shared source across targets:
@@ -58,6 +65,7 @@ Shared source across targets:
 - `AudioAnalyzer.cpp/.h` — used by MixMind, Scope, Meter, EQT.
   Depends on `LoudnessMeter.cpp/.h`, so any target compiling
   `AudioAnalyzer` must also compile `LoudnessMeter`.
+- `LookAndFeel.cpp/.h` — used by every target.
 - `LicenseManager.cpp/.h` — used by Scope, Meter, EQT, Reflex,
   ThreeFX, Neat. Not used by MixMind.
 
@@ -77,29 +85,47 @@ When editing shared files, check every consuming target still builds.
   `kTapCount=1024`, `kDesignOrder=11`, `kDesignSize=2048`, `kNumBins=1024`,
   `kLatency=512`. Bumping to 2048 taps / 4096 IFFT gives ~23 Hz resolution
   at ~21 ms latency — propose, don't change silently.
+- Taps are exactly symmetric about `kLatency` (group delay = 512, matching the
+  reported latency). Latency is constant: SHAPE off / host bypass is a pure
+  `kLatency` delay, never 0. Filter swaps and toggles crossfade over
+  `kFadeSamples`; the audio thread only try-locks the `SpinLock`.
+- The match is level-neutral: the octave-weighted mean of `target − live`
+  (40 Hz–16 kHz) is removed before design. Do not reintroduce DC
+  normalisation — it turned a DC-bin cut into a broadband boost.
 - 1/3-octave smoothing is the anti-pre-ringing guard. Do not remove it.
 - JUCE `perform(..., inverse=true)` and `performRealOnlyInverseTransform`
   both apply 1/N. Do not add a manual 1/N scale.
 - Manual mode = `traceTarget − live`. Auto mode = `ref − live`.
   Same engine serves both; do not fork it.
-- **Canvas trace is linear magnitude 0..1, not dB.** Do not convert the
-  trace with `v·100 − 100`. Subtract in native units against the
-  reference bins. If a dB path is ever needed, convert explicitly and
-  document why.
-- `ReferenceAnalyzer::numBins == AudioAnalyzer::numBins == 1024`.
-  If that ever changes, live-vs-target subtraction needs interpolation.
-  Stop and report rather than guessing.
+- **The trace is stored as (Hz, dB), never as pixels or 0..1 plot units.**
+  The canvas y-axis is linear in dB (`TelemetryCanvas::dbToUnit/unitToDb`,
+  −100..0 dB, 0 dB = full-scale sine on the analyzer scale), so a plot
+  height is *not* a linear magnitude. `ShaperProcessor::buildTargetFromCurve`
+  is the one place dB → linear happens. (Reading plot height as linear
+  magnitude makes MANUAL mode boost by up to the 24 dB clamp.)
+- The auto-match compares against `AudioAnalyzer::getLongTermBins()` (≈3 s,
+  gated at −70 dBFS), not the ~200 ms display average.
+- `ReferenceAnalyzer` analyses at the file's own rate and
+  `ReferenceAnalyzer::mapToGrid` produces `AudioAnalyzer::numBins` (1024)
+  bins on the live grid. Live and reference both analyse the mid signal
+  (L+R)/2. If the live FFT size ever changes, `mapToGrid` and the shaper's
+  design grid must change with it — stop and report rather than guessing.
 
 ## Metering rules
 
 - BS.1770 only. K-weighting shelf 1681.97 Hz Q 0.707 +3.9998 dB,
   high-pass 38.135 Hz Q 0.5003.
-- Integrated uses 400 ms gating blocks, absolute gate −70 LUFS,
-  relative gate −10 LU.
+- K-weighting per channel; channel energies are summed (L, R weight 1).
+  A mono programme (`R == nullptr`) is one channel. Never measure the mono
+  sum (L+R)/2 — it reads 3 dB low.
+- Integrated uses 400 ms gating blocks with 75 % overlap, absolute gate
+  −70 LUFS, relative gate −10 LU, gated on block *energies* (not by
+  averaging LUFS values).
 - True peak via 4× windowed-sinc polyphase, cutoff 0.125 cyc/sample,
-  12 taps/phase.
-- Never substitute RMS−3 dB for LUFS. If a source still does, fix it.
-- `toLufs = -0.691 + 10·log10(energy/count)`.
+  12 taps/phase, per channel (max over channels).
+- Never substitute RMS−3 dB for LUFS, `LUFS + 3` for true peak, or any
+  other proxy. If a source still does, fix it.
+- `toLufs = -0.691 + 10·log10(energy/count)`, energy summed over channels.
 
 ## Testing
 
@@ -114,8 +140,9 @@ When editing shared files, check every consuming target still builds.
 - Branch from `main`; one logical change per branch.
 - Conventional Commits for messages.
 - Never force-push a shared branch or rewrite published history.
-- Do not commit `node_modules/`, `package-lock.json`, or `package.json`
-  — they were removed and should stay removed.
+- Do not commit `node_modules/`, `package-lock.json`, or a root
+  `package.json` — they were removed and should stay removed.
+  (`proxy/package.json` belongs to the site backend.)
 
 ## Current state
 

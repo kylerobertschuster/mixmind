@@ -41,9 +41,9 @@ void MeterEditor::paint (juce::Graphics& g)
 
     drawMeterBar (g, pad, barY, barW, 36, aLufs,  proc.audioAnalyzer.getLufs(),        -60, 0,   "INTEGRATED LUFS", "LUFS",   JP::accent);
     barY += 52;
-    drawMeterBar (g, pad, barY, barW, 28, aPeak,  proc.audioAnalyzer.getLufs() + 3,     -12, 0,   "TRUE PEAK",       "dBTP",   aPeak > -1 ? JP::warning : JP::accent, true);
+    drawMeterBar (g, pad, barY, barW, 28, aPeak,  proc.audioAnalyzer.getTruePeakDb(),   -24, 3,   "TRUE PEAK (MAX)", "dBTP",   aPeak > -1 ? JP::warning : JP::accent, true);
     barY += 44;
-    drawMeterBar (g, pad, barY, barW, 28, aCrest, proc.audioAnalyzer.getLufs() * 0.2f,   0, 20,  "CREST FACTOR",    "dB",     aCrest < 6 ? JP::warning : JP::accent);
+    drawMeterBar (g, pad, barY, barW, 28, aCrest, proc.audioAnalyzer.getCrestFactor(),   0, 20,  "CREST FACTOR",    "dB",     aCrest < 6 ? JP::warning : JP::accent);
     barY += 44;
     drawMeterBar (g, pad, barY, barW, 28, aPhase, proc.audioAnalyzer.getPhaseCorr(),     -1,  1,  "PHASE CORR",      "corr",   aPhase < 0.3f ? JP::warning : JP::accent);
     barY += 44;
@@ -55,11 +55,11 @@ void MeterEditor::paint (juce::Graphics& g)
     g.setColour (JP::accent.withAlpha (0.4f));
     g.drawText ("SPECTRUM", juce::Rectangle<float> (pad, barY, barW, 16), juce::Justification::left, false);
     barY += 22;
-    drawMeterBar (g, pad, barY, barW, 16, aBass,  proc.audioAnalyzer.getBassEnergy(),    -60, 0, "BASS", "", JP::accent);
+    drawMeterBar (g, pad, barY, barW, 16, aBass,  proc.audioAnalyzer.getBassLevelDb(),   -60, 0, "BASS", "dB", JP::accent);
     barY += 28;
-    drawMeterBar (g, pad, barY, barW, 16, aMid,   proc.audioAnalyzer.getMidEnergy(),     -60, 0, "MID",  "", JP::accent);
+    drawMeterBar (g, pad, barY, barW, 16, aMid,   proc.audioAnalyzer.getMidLevelDb(),    -60, 0, "MID",  "dB", JP::accent);
     barY += 28;
-    drawMeterBar (g, pad, barY, barW, 16, aHigh,  proc.audioAnalyzer.getHighEnergy(),    -60, 0, "HIGH", "", JP::accent);
+    drawMeterBar (g, pad, barY, barW, 16, aHigh,  proc.audioAnalyzer.getHighLevelDb(),   -60, 0, "HIGH", "dB", JP::accent);
 }
 
 void MeterEditor::resized()
@@ -74,13 +74,13 @@ void MeterEditor::timerCallback()
     ++dotPhase;
     const float k = 0.10f;
     aLufs   += (proc.audioAnalyzer.getLufs()        - aLufs)   * k;
-    aPeak   += (proc.audioAnalyzer.getLufs() + 3.0f - aPeak)   * k;
-    aCrest  += ((proc.audioAnalyzer.getLufs() * 0.2f) - aCrest)* k;
+    aPeak   += (proc.audioAnalyzer.getTruePeakDb()  - aPeak)   * k;
+    aCrest  += (proc.audioAnalyzer.getCrestFactor() - aCrest)  * k;
     aPhase  += (proc.audioAnalyzer.getPhaseCorr()    - aPhase)  * k;
     aStereo += (proc.audioAnalyzer.getStereoWidth()  - aStereo) * k;
-    aBass   += (proc.audioAnalyzer.getBassEnergy()   - aBass)   * k;
-    aMid    += (proc.audioAnalyzer.getMidEnergy()    - aMid)    * k;
-    aHigh   += (proc.audioAnalyzer.getHighEnergy()   - aHigh)   * k;
+    aBass   += (proc.audioAnalyzer.getBassLevelDb()  - aBass)   * k;
+    aMid    += (proc.audioAnalyzer.getMidLevelDb()   - aMid)    * k;
+    aHigh   += (proc.audioAnalyzer.getHighLevelDb()  - aHigh)   * k;
     repaint();
 }
 

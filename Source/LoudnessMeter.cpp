@@ -1,152 +1,240 @@
 #include "LoudnessMeter.h"
 #include <cmath>
+#include <algorithm>
 
-void LoudnessMeter::prepare (double sampleRate, int bs)
+float LoudnessMeter::toLufs (double energy, double count)
 {
-    sr        = sampleRate;
-    blockSize = juce::jmax (1, bs);
-    gateTarget = (int) std::lround (sr * 0.4);
+    if (count <= 0.0 || energy <= 0.0) return kSilenceDb;
+    return juce::jmax (kSilenceDb, (float) (-0.691 + 10.0 * std::log10 (energy / count)));
+}
 
-    // K-weighting (ITU-R BS.1770): high-shelf then high-pass.
-    juce::dsp::ProcessSpec spec { (double) sr, (juce::uint32) blockSize, 1 };
-    k1.prepare (spec);
-    k2.prepare (spec);
-    k1.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf (
-        sr, 1681.9744509555319, 0.7071752369554196f,
-        juce::Decibels::decibelsToGain (3.999843853973347f));
-    k2.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass (
-        sr, 38.13547087602444, 0.5003270373238773f);
+// K-weighting for an arbitrary sample rate. These are the bilinear-transform
+// forms of the BS.1770 pre-filter (shelf) and RLB high-pass; at 48 kHz they
+// reproduce the coefficients tabulated in the standard. RBJ cookbook filters
+// with the same f0/Q are close but not exact (the high-pass differs by
+// ~0.04 dB of broadband gain), so the analogue prototypes are used directly.
+void LoudnessMeter::designKWeighting (double fs, Biquad& s, Biquad& h)
+{
+    {
+        const double f0 = 1681.974450955533;
+        const double G  = 3.999843853973347;
+        const double Q  = 0.7071752369554196;
+        const double K  = std::tan (juce::MathConstants<double>::pi * f0 / fs);
+        const double Vh = std::pow (10.0, G / 20.0);
+        const double Vb = std::pow (Vh, 0.4996667741545416);
+        const double a0 = 1.0 + K / Q + K * K;
 
-    // 4× polyphase upsampler (windowed-sinc lowpass, cutoff 0.5/4 = 0.125 cyc/sample).
+        s.b0 = (Vh + Vb * K / Q + K * K) / a0;
+        s.b1 = 2.0 * (K * K - Vh) / a0;
+        s.b2 = (Vh - Vb * K / Q + K * K) / a0;
+        s.a1 = 2.0 * (K * K - 1.0) / a0;
+        s.a2 = (1.0 - K / Q + K * K) / a0;
+    }
+    {
+        const double f0 = 38.13547087602444;
+        const double Q  = 0.5003270373238773;
+        const double K  = std::tan (juce::MathConstants<double>::pi * f0 / fs);
+        const double a0 = 1.0 + K / Q + K * K;
+
+        h.b0 = 1.0;
+        h.b1 = -2.0;
+        h.b2 = 1.0;
+        h.a1 = 2.0 * (K * K - 1.0) / a0;
+        h.a2 = (1.0 - K / Q + K * K) / a0;
+    }
+}
+
+void LoudnessMeter::prepare (double sampleRate, int)
+{
+    sr        = sampleRate > 0.0 ? sampleRate : 48000.0;
+    subLength = juce::jmax (1, (int) std::lround (sr * 0.1));
+
+    for (int c = 0; c < kMaxChannels; ++c)
+        designKWeighting (sr, shelf[c], highPass[c]);
+
+    histEnergy.assign ((size_t) kHistBins, 0.0);
+    histCount.assign  ((size_t) kHistBins, 0);
+
+    // 4× polyphase interpolator: windowed-sinc low-pass, cutoff 0.125 cycles
+    // per (oversampled) sample = the original Nyquist.
     const int protoLen = kPhaseTaps * kUp;
-    std::vector<float> proto ((size_t) protoLen);
-    const float fc = 0.5f / (float) kUp;
-    float sum = 0.0f;
+    std::vector<double> proto ((size_t) protoLen);
+    const double fc = 0.5 / (double) kUp;
+    double sum = 0.0;
     for (int i = 0; i < protoLen; ++i)
     {
-        const float t = (float) i - (float)(protoLen - 1) * 0.5f;
-        const float w = 0.5f - 0.5f * std::cos (2.0f * juce::MathConstants<float>::pi * (float) i / (float)(protoLen - 1));
-        const float sinc = (std::abs (t) < 1e-6f) ? 2.0f * fc
-                                                  : (float)(std::sin (2.0 * juce::MathConstants<float>::pi * fc * t)
-                                                            / (juce::MathConstants<float>::pi * t));
+        const double t = (double) i - (double) (protoLen - 1) * 0.5;
+        const double w = 0.5 - 0.5 * std::cos (2.0 * juce::MathConstants<double>::pi * (double) i / (double) (protoLen - 1));
+        const double sinc = std::sin (2.0 * juce::MathConstants<double>::pi * fc * t) / (juce::MathConstants<double>::pi * t);
         proto[(size_t) i] = sinc * w;
         sum += proto[(size_t) i];
     }
-    const float scale = (float) kUp / sum;   // unity DC gain through the upsampler
-    for (auto& v : proto) v *= scale;
-    for (int p = 0; p < kUp; ++p)
-        for (int k = 0; k < kPhaseTaps; ++k)
-            phases[(size_t) p][(size_t) k] = proto[(size_t)(p + k * kUp)];
+    const double scale = (double) kUp / sum;   // unity DC gain per phase
+    for (size_t p = 0; p < (size_t) kUp; ++p)
+        for (size_t k = 0; k < (size_t) kPhaseTaps; ++k)
+            phases[p][k] = (float) (proto[p + k * (size_t) kUp] * scale);
 
     reset();
 }
 
 void LoudnessMeter::reset()
 {
-    k1.reset();
-    k2.reset();
-    for (int p = 0; p < kUp; ++p)
-        hist[p].fill (0.0f);
-
-    blockEnergy = blockRmsEnergy = blockCount = 0;
-    gateEnergy = gateCount = 0;
-    w400.clear(); w3000.clear();
-    s400 = s3000 = 0; sum400 = sum3000 = 0.0f;
-    gateBlocks.clear();
-    truePeak = 0.0f;
-    integrated.set (-120.0f);
-    momentary.set  (-120.0f);
-    shortTerm.set  (-120.0f);
-    truePeakDb.set (-120.0f);
-    rmsDb.set      (-120.0f);
-}
-
-float LoudnessMeter::toLufs (float energy, int count)
-{
-    if (count <= 0 || energy <= 0.0f) return -120.0f;
-    return -0.691f + 10.0f * std::log10 (energy / (float) count);
-}
-
-void LoudnessMeter::pushWindow (std::deque<BlockEnergy>& w, int& samples, float& sum,
-                                float energy, int count, int targetSamples)
-{
-    w.push_back ({ energy, count });
-    sum += energy;
-    samples += count;
-    while (samples > targetSamples && !w.empty())
+    for (int c = 0; c < kMaxChannels; ++c)
     {
-        sum -= w.front().energy;
-        samples -= w.front().count;
-        w.pop_front();
+        shelf[c].clear();
+        highPass[c].clear();
+        tpHist[(size_t) c].fill (0.0f);
     }
+
+    subEnergy = subRms = 0.0;
+    subPeak = 0.0f;
+    subCount = 0;
+
+    ringEnergy.fill (0.0);
+    ringRms.fill (0.0);
+    ringPeak.fill (0.0f);
+    subHead = subFilled = 0;
+
+    std::fill (histEnergy.begin(), histEnergy.end(), 0.0);
+    std::fill (histCount.begin(),  histCount.end(),  0);
+    gatedEnergy = 0.0;
+    gatedBlocks = 0;
+    truePeakMax = 0.0f;
+
+    integrated.set    (kSilenceDb);
+    momentary.set     (kSilenceDb);
+    shortTerm.set     (kSilenceDb);
+    truePeakMaxDb.set (kSilenceDb);
+    recentPeakDb.set  (kSilenceDb);
+    rmsDb.set         (kSilenceDb);
 }
 
 void LoudnessMeter::process (const float* L, const float* R, int n)
 {
-    if (n <= 0 || L == nullptr) return;
+    if (n <= 0 || L == nullptr || histCount.empty()) return;
+    if (resetRequested.exchange (false)) reset();
 
-    const float* r = (R != nullptr) ? R : L;
+    const int numCh = (R != nullptr) ? 2 : 1;
+    const float* const ch[kMaxChannels] = { L, R };
 
     for (int i = 0; i < n; ++i)
     {
-        const float m = (L[i] + r[i]) * 0.5f;
+        double e = 0.0, u = 0.0;
+        float pk = 0.0f;
 
-        // True peak: 4× oversample via polyphase FIR, track max |·|.
-        for (int p = 0; p < kUp; ++p)
+        for (int c = 0; c < numCh; ++c)
         {
-            for (int k = kPhaseTaps - 1; k > 0; --k)
-                hist[p][(size_t) k] = hist[p][(size_t)(k - 1)];
-            hist[p][0] = m;
+            const float x = ch[c][i];
 
-            float y = 0.0f;
-            for (int k = 0; k < kPhaseTaps; ++k)
-                y += phases[(size_t) p][(size_t) k] * hist[p][(size_t) k];
-            truePeak = juce::jmax (truePeak, std::abs (y));
+            const double y = highPass[c].process (shelf[c].process ((double) x));
+            e += y * y;
+            u += (double) x * (double) x;
+
+            // True peak: shift the history, evaluate the 4 interpolated phases.
+            auto& h = tpHist[(size_t) c];
+            for (size_t k = kPhaseTaps - 1; k > 0; --k)
+                h[k] = h[k - 1];
+            h[0] = x;
+
+            float m = std::abs (x);
+            for (const auto& ph : phases)
+            {
+                float acc = 0.0f;
+                for (size_t k = 0; k < (size_t) kPhaseTaps; ++k)
+                    acc += ph[k] * h[k];
+                m = juce::jmax (m, std::abs (acc));
+            }
+            pk = juce::jmax (pk, m);
         }
 
-        // K-weighted energy + unweighted RMS energy.
-        const float kw = k2.processSample (k1.processSample (m));
-        blockEnergy    += kw * kw;
-        blockRmsEnergy += m * m;
-        ++blockCount;
+        subEnergy += e;
+        subRms    += u / (double) numCh;
+        subPeak    = juce::jmax (subPeak, pk);
+        truePeakMax = juce::jmax (truePeakMax, pk);
+
+        if (++subCount >= subLength)
+            closeSubBlock();
     }
 
-    // ── Windows (400 ms momentary, 3 s short-term) ────────────────────────
-    const int target400  = (int) std::lround (sr * 0.4);
-    const int target3000 = (int) std::lround (sr * 3.0);
-    pushWindow (w400,  s400,  sum400,  blockEnergy, blockCount, target400);
-    pushWindow (w3000, s3000, sum3000, blockEnergy, blockCount, target3000);
+    truePeakMaxDb.set (truePeakMax > 0.0f ? juce::Decibels::gainToDecibels (truePeakMax, kSilenceDb) : kSilenceDb);
+}
 
-    momentary.set (toLufs (sum400,  s400));
-    shortTerm.set (toLufs (sum3000, s3000));
-    rmsDb.set (juce::Decibels::gainToDecibels (std::sqrt (blockRmsEnergy / (float) blockCount)));
+void LoudnessMeter::closeSubBlock()
+{
+    ringEnergy[(size_t) subHead] = subEnergy;
+    ringRms   [(size_t) subHead] = subRms;
+    ringPeak  [(size_t) subHead] = subPeak;
+    subHead   = (subHead + 1) % kSubPerShort;
+    subFilled = juce::jmin (subFilled + 1, kSubPerShort);
 
-    // ── Integrated gating block (400 ms) ──────────────────────────────────
-    gateEnergy += blockEnergy;
-    gateCount  += blockCount;
-    if (gateCount >= gateTarget)
+    subEnergy = subRms = 0.0;
+    subPeak = 0.0f;
+    subCount = 0;
+
+    // Sum the newest `count` sub-blocks of a ring.
+    const auto recent = [this] (const auto& ring, int count)
     {
-        gateBlocks.push_back (toLufs (gateEnergy, gateCount));
-        gateEnergy = gateCount = 0;
+        double s = 0.0;
+        for (int k = 1; k <= count; ++k)
+            s += ring[(size_t) ((subHead - k + kSubPerShort) % kSubPerShort)];
+        return s;
+    };
 
-        // Absolute gate (−70 LUFS), then relative gate (−10 LU).
-        double absSum = 0.0; int absCnt = 0;
-        for (float v : gateBlocks) if (v > -70.0f) { absSum += v; ++absCnt; }
-        if (absCnt > 0)
+    const double len = (double) subLength;
+
+    if (subFilled >= kSubPerGate)
+    {
+        // Momentary loudness == the loudness of the newest gating block.
+        const double blockEnergy = recent (ringEnergy, kSubPerGate);
+        const float  blockLufs   = toLufs (blockEnergy, kSubPerGate * len);
+        momentary.set (blockLufs);
+
+        if (blockLufs > kHistMinLufs)
         {
-            const float absMean = (float)(absSum / absCnt);
-            const float relThr  = absMean - 10.0f;
-            double relSum = 0.0; int relCnt = 0;
-            for (float v : gateBlocks) if (v > relThr) { relSum += v; ++relCnt; }
-            integrated.set (relCnt > 0 ? (float)(relSum / relCnt) : absMean);
+            const int idx = juce::jlimit (0, kHistBins - 1, (int) ((blockLufs - kHistMinLufs) / kHistStep));
+            const double meanSquare = blockEnergy / (kSubPerGate * len);
+            histEnergy[(size_t) idx] += meanSquare;
+            histCount [(size_t) idx] += 1;
+            gatedEnergy += meanSquare;
+            ++gatedBlocks;
+            updateIntegrated();
         }
+
+        // Short-term: 3 s once available (until then, what has been measured).
+        const int stCount = subFilled;
+        shortTerm.set (toLufs (recent (ringEnergy, stCount), stCount * len));
     }
 
-    // ── True-peak readout (slow release) ──────────────────────────────────
-    const float blockPeak = truePeak;
-    const float release   = std::exp (-(float) n / ((float) sr * 1.5f));
-    truePeak = juce::jmax (blockPeak, truePeak * release);
-    truePeakDb.set (juce::Decibels::gainToDecibels (truePeak));
+    const double rmsEnergy = recent (ringRms, subFilled);
+    rmsDb.set (rmsEnergy > 0.0 ? juce::jmax (kSilenceDb, (float) (10.0 * std::log10 (rmsEnergy / (subFilled * len))))
+                               : kSilenceDb);
 
-    blockEnergy = blockRmsEnergy = blockCount = 0;
+    float pk = 0.0f;
+    for (int k = 0; k < subFilled; ++k)
+        pk = juce::jmax (pk, ringPeak[(size_t) k]);
+    recentPeakDb.set (pk > 0.0f ? juce::Decibels::gainToDecibels (pk, kSilenceDb) : kSilenceDb);
+}
+
+void LoudnessMeter::updateIntegrated()
+{
+    if (gatedBlocks == 0) return;
+
+    // Relative threshold from the blocks that passed the absolute gate.
+    const float absGated = toLufs (gatedEnergy, (double) gatedBlocks);
+    const float relThr   = absGated - 10.0f;
+    if (relThr <= kHistMinLufs)
+    {
+        integrated.set (absGated);
+        return;
+    }
+
+    const int start = juce::jlimit (0, kHistBins, (int) std::ceil ((relThr - kHistMinLufs) / kHistStep));
+    double e = 0.0;
+    long   n = 0;
+    for (size_t i = (size_t) start; i < (size_t) kHistBins; ++i)
+    {
+        e += histEnergy[i];
+        n += histCount[i];
+    }
+    integrated.set (n > 0 ? toLufs (e, (double) n) : absGated);
 }

@@ -29,8 +29,6 @@ private:
     static constexpr int gonioSize = 512;
     float gonioL[gonioSize] { 0 };
     float gonioR[gonioSize] { 0 };
-    int gonioIdx { 0 };
-    int gonioCount { 0 };
 
     int dotPhase { 0 };
 
