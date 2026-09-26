@@ -121,9 +121,9 @@ test suite added. Tag `honest-dsp-v1` still pending.
 
 ## Open / next
 
-- LLM assistant direction (conversational, local inference, multi-instance):
-  proposed, not started — needs a decision on scope and on reversing the
-  AGENTS.md rule that removed the AI stack.
+- Generative AI (LLM assistant, conversational control, local inference):
+  decided — out of v1.0 scope. The AGENTS.md rule that removed the AI stack
+  stays; v1.0 is the deterministic DSP / metering / UI foundation only.
 - Decide the fate of `proxy/`: its DeepSeek `/api/chat` route is dead
   (no plugin calls it) and `/purchase` answers 402, so the site's Buy
   button currently fails. The plugins accept any `MM-` key locally.
