@@ -1,75 +1,77 @@
-# JuicePipe MixMind — Beta Program
+# MixMind — Beta Program
 
-**What:** An AI mixing assistant that actually listens to your mix — real-time
-FFT analysis, LUFS tracking, spectral energy bands, and DeepSeek-powered advice.
-All inside a VST3/AU plugin. No tab-switching. No typing out what you hear.
+**What:** MixMind is a reference-matching telemetry shaper. Load a reference
+track, overlay its spectrum against your live audio, and MixMind designs a
+linear-phase FIR match-EQ to close the gap. Real-time FFT, per-group focus
+colours, BS.1770 loudness / true-peak metering, session recall. It measures —
+you decide.
 
-**Requirements:** macOS 12+, Ableton Live or Logic Pro, and an internet
-connection on first launch.
+**Requirements:** macOS 12+ and a VST3/AU host (Ableton Live or Logic Pro).
+No internet connection required.
 
----
+> The DeepSeek-powered chat from the July beta round was removed from the
+> plugin in September 2026. It is not in any current build. Any dated artifact
+> below that mentions prompts, a chat proxy, or an `MM-` gate as a feature is
+> history, not the current product.
 
-## Reddit Post (r/AudioProductionWithAI)
+## Beta status
+
+- Builds are shared directly with testers. There is no public download while
+  the current package is rebuilt — the last public `.pkg` predates the AI
+  removal.
+- Pricing and licensing are under review. Do not quote a price yet.
+- What we want to know: does the reference → delta → shape loop help you on a
+  real mix, and where does it lie to you?
+
+## Reddit post (draft — do not post until the build and pricing are settled)
 
 ```
-Title: Built an AI mixing plugin that analyzes your track in real time.
-       Free beta keys inside.
+Title: Reference-matching spectrum shaper — looking for beta testers
 
 Body:
 
-I got tired of describing my mix to ChatGPT and getting generic advice.
-So I built a VST3/AU plugin that actually listens.
+I built a plugin that compares your mix against a reference track and shapes
+toward it. Load a reference, see its spectrum overlaid on your live audio, and
+MixMind designs a linear-phase match EQ to close the gap. You see the delta
+before you hear it, and you decide how much of it to apply.
 
-MixMind sits on your master bus, runs real-time FFT analysis on your audio,
-and lets you ask questions like:
+What it does today:
+  • Real-time FFT with reference vs. live overlay
+  • Focus groups (bass / guitar / vocals / drums), each in its own colour
+  • Auto or manual target curve, 1/3-octave smoothed, linear-phase FIR
+  • BS.1770 LUFS / true peak / crest / width / phase against the reference
+  • Match curve and reference saved with the session
 
-  • "Is my low end muddy?"
-  • "How's the stereo width?"
-  • "What frequency is eating my vocal?"
+It does not chat, it does not need an account, and it does not phone home.
 
-It sees your LUFS, spectral balance, BPM — and answers based on actual data,
-not guesses.
-
-I've got 10 free beta licenses to give away to beta
-testers. DM me or comment below and I'll send one.
-
-macOS only for now (VST3/AU). Windows version coming if there's interest.
+macOS only for now (VST3/AU). If you want in, reply and tell me what you mix.
 ```
 
-## DM Template (When Sending a License Key)
+## DM template (when sending a build)
 
 ```
-Hey — here's your MixMind beta license:
+Hey — here's the current MixMind beta build. macOS VST3/AU, Ableton or Logic.
 
-  License: MM-XXXXXXXXXXXXXXX
-  Download: https://github.com/kylerobertschuster/mixmind/releases/tag/beta-1
-  Proxy: https://getjuicepipe.com
+It's a reference-matching shaper: load a reference track, and it overlays the
+reference spectrum on your live audio and builds a linear-phase match EQ.
 
-To use it:
-  1. Download the .pkg and install
-  2. Open the plugin in Ableton or Logic
-  3. Paste the license key into the settings
-  4. Ask it anything about your mix
-
-Two things I'd love to know after you try it:
-  1. Did it actually help you on a mix?
-  2. Would you pay $9/month for this?
-
-No pressure — just curious. Thanks for trying it out.
+Two things I'd love to know after you try it on a real mix:
+  1. Did the reference/delta view change a decision you made?
+  2. Where did the match curve disagree with your ears?
 ```
 
-## What to Track
+## What to track
 
-| User | License | Tried it? | Would pay? | Notes |
-|------|---------|-----------|------------|-------|
-| 1 | MM-... | | | |
-| 2 | MM-... | | | |
-| ... | ... | ... | ... | ... |
+| User | Build sent | Tried it? | Reference used | Notes |
+|------|------------|-----------|----------------|-------|
+| 1 | | | | |
+| 2 | | | | |
+| ... | ... | ... | ... | |
 
-Generate licenses:
+## Generating test builds
 
 ```bash
-curl -X POST https://getjuicepipe.com/admin/generate-license \
-  -H "x-admin-secret: YOUR_SECRET" \
-  -d '{"count":10}'
+cmake -B build -G Ninja
+cmake --build build --target MixMind
+# Package with build_pkg.sh once the version question is settled.
 ```
