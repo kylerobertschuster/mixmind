@@ -21,10 +21,13 @@ AGENTS.md, not here.
   crossfading continuously (a 1024-tap direct FIR used to cost 4.5 %).
 - 8 EQ bands: 0.8 % static, 5.1 % with all eight sweeping every block.
 - BS.1770 meter: 0.25 %.
-- Editor (software renderer): ≈4.7 ms/frame at 1080×680, ≈10.8 ms at
-  1800×1100; the canvas runs at 30 fps (≈14 % of a core worst case here).
-  `MIXMIND_SNAPSHOT_DIR=… MixMindTests Processor` prints these and writes
-  PNG snapshots. GPU rendering (juce_opengl) is the next step if needed.
+- Editor: on screen it renders through an attached `juce::OpenGLContext`
+  (GPU); repaints stay event-driven at the canvas's 30 fps. GPU frame cost is
+  not measured yet — this container only has Mesa's CPU rasteriser, so it
+  needs real hardware. The software renderer (still used for snapshots and
+  wherever GL is unavailable) costs ≈6.5 ms/frame at 1080×680 and ≈11.4 ms
+  at 1800×1100 (Release); `MIXMIND_SNAPSHOT_DIR=… MixMindTests Processor`
+  prints these and writes PNG snapshots.
 
 ## Tests
 
@@ -54,7 +57,8 @@ commit message; Debug and Release).
   analysis with the audio file deleted, trace, parameters); pre-v2 sessions;
   failed load keeps the previous reference; AUTO, MANUAL and mid/side
   correction end to end; band parameters drive the EQ and the output
-  analyzer; non-finite input contained; editor open / resize / paint / close. Setting `MIXMIND_SNAPSHOT_DIR`
+  analyzer; non-finite input contained; editor open / resize / paint / close,
+  GL context attached. Setting `MIXMIND_SNAPSHOT_DIR`
   writes PNG snapshots of the editor for visual review.
 
 ## Code
@@ -86,7 +90,9 @@ commit message; Debug and Release).
   (Hz, dB) and the reference analysis incl. side spectrum (+ path; older
   caches without a side spectrum are refreshed from the file). Parameters
   carry version hints; mono and stereo layouts supported.
-- **Editor / TelemetryCanvas** — parameter attachments (host automation and
+- **Editor / TelemetryCanvas** — rendered through an OpenGL context
+  (`juce_opengl`, MixMind and the tests only; `paint()` runs on the GL
+  thread with the message manager locked), parameter attachments (host automation and
   session recall reflected in the UI), drag-and-drop for audio (reference)
   and images (layer), reference menu (replace / re-analyze / reveal / clear),
   match-curve preview before SHAPE is on (side curve dashed in M/S),
@@ -124,6 +130,11 @@ test suite added. Tag `honest-dsp-v1` still pending.
 - Sibling plugins still nag for a license on open with "N free prompts"
   wording from the AI era (LicenseManager is off-limits; the wording lives
   in each editor).
+- GPU rendering: measure frame cost on real Windows / macOS hardware. On
+  Windows JUCE 8 already renders through Direct2D by default and attaching
+  the GL context replaces that — compare the two before release. Apple has
+  deprecated OpenGL on macOS (it still works; on Apple Silicon the system
+  implements it on top of Metal).
 - Next resolution step would be a 4096-pt analyzer + 4096 taps (≈43 ms
   latency); the analyzer is now the limit, not the FIR.
 - Other plugins (Neat, Reflex, 3FX, Scope, Meter, EQT) — next pass.

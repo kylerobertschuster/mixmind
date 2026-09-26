@@ -80,6 +80,10 @@ When editing shared files, check every consuming target still builds.
 - Comment why, not what.
 - JUCE hygiene: `ScopedNoDenormals` in `processBlock`, `Atomic<float>`
   for cross-thread readouts, `SpinLock` for coefficient swaps.
+- The MixMind editor renders through an attached `OpenGLContext`, so
+  `paint()` runs on the GL thread with the message manager locked: no
+  blocking work, no message-thread-only calls, no waiting on the message
+  thread from a paint.
 
 ## DSP rules (MixMind-specific)
 

@@ -365,6 +365,10 @@ public:
 
             std::unique_ptr<juce::AudioProcessorEditor> editor (h.p.createEditor());
             expect (editor != nullptr);
+            if (auto* mm = dynamic_cast<MixMindEditor*> (editor.get()))
+                expect (mm->rendersWithOpenGL(), "the editor should render through OpenGL");
+            else
+                expect (false, "createEditor() should return a MixMindEditor");
             pumpUntil ([] { return false; }, 700);   // let the display smoothing settle
 
             // Optional visual check: MIXMIND_SNAPSHOT_DIR=/some/dir writes PNGs.

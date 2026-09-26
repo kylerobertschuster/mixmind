@@ -156,6 +156,9 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
 
     applyFocusSelection();
 
+    openGLContext.setContinuousRepainting (false);
+    openGLContext.attachTo (*this);
+
     setResizable (true, true);
     setResizeLimits (960, 420, 1800, 1100);
     setSize (1080, 680);
@@ -166,6 +169,7 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
 
 MixMindEditor::~MixMindEditor()
 {
+    openGLContext.detach();
     stopTimer();
     shapeAttachment.reset();
     modeAttachment.reset();

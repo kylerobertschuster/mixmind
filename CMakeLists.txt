@@ -77,6 +77,7 @@ set(MIXMIND_LIBRARIES
     juce::juce_gui_extra
     juce::juce_core
     juce::juce_dsp
+    juce::juce_opengl
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags

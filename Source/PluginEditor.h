@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_extra/juce_gui_extra.h>
+#include <juce_opengl/juce_opengl.h>
 #include "PluginProcessor.h"
 #include "TelemetryCanvas.h"
 #include "FocusModel.h"
@@ -38,6 +39,10 @@ public:
     void paintOverChildren (juce::Graphics&) override;
     void resized() override;
 
+    // The GPU context is attached from construction; it only starts once the
+    // editor is on screen.
+    bool rendersWithOpenGL() const noexcept { return openGLContext.getTargetComponent() == this; }
+
     bool isInterestedInFileDrag (const juce::StringArray& files) override;
     void fileDragEnter (const juce::StringArray&, int, int) override { dragHover = true;  repaint(); }
     void fileDragExit (const juce::StringArray&) override            { dragHover = false; repaint(); }
@@ -48,6 +53,10 @@ private:
 
     MixMindProcessor& audioProcessor;
     JuicePipeLAF      laf;
+
+    // Renders the editor (and every child) on the GPU; repaints stay
+    // event-driven (the canvas timer), not continuous.
+    juce::OpenGLContext openGLContext;
     juce::TooltipWindow tooltips { this, 600 };
 
     TelemetryCanvas   telemetry;
