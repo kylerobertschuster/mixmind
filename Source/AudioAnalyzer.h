@@ -16,7 +16,8 @@
 //        display   — ~200 ms, for the analyzer curve;
 //        long-term — ~3 s, gated on signal presence; this is what the match
 //                    EQ compares against the reference, so the correction
-//                    does not chase individual hits.
+//                    does not chase individual hits. Kept for the side
+//                    signal (L−R)/2 too, for mid/side matching.
 //    · Honest BS.1770 metering via LoudnessMeter.
 //
 //  Written on the audio thread, read on the GUI thread. Spectrum arrays are
@@ -37,7 +38,8 @@ public:
     static constexpr int numBins  = fftSize / 2;
 
     const float* getFFTBins() const      { return fftAvg; }     // display average
-    const float* getLongTermBins() const { return longTerm; }   // match-EQ average
+    const float* getLongTermBins() const { return longTerm; }   // match-EQ average (mid)
+    const float* getLongTermSideBins() const { return longTermSide; }   // same, side (L−R)/2
     bool hasLongTermSpectrum() const     { return longTermFrames.load() > 0; }
 
     // Band levels in dB RMS (< 250 Hz, 250 Hz – 2 kHz, > 2 kHz).
@@ -72,6 +74,7 @@ private:
     float windowPower { 1.0f };   // Σ w², for band-power normalisation
 
     float fifo[fftSize] { 0 };
+    float sideFifo[fftSize] { 0 };
     int   fifoIdx { 0 };
     int   hopCount { 0 };
     bool  fifoFull { false };
@@ -79,6 +82,7 @@ private:
 
     float fftAvg[numBins] { 0 };
     float longTerm[numBins] { 0 };
+    float longTermSide[numBins] { 0 };
     std::atomic<int> longTermFrames { 0 };
 
     float bassPow { 0 }, midPow { 0 }, highPow { 0 };

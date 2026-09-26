@@ -62,9 +62,9 @@ bool ReferenceAnalyzer::analyse (const juce::File& file, Result& out, juce::Stri
     juce::dsp::FFT fft (order);
     juce::dsp::WindowingFunction<float> window ((size_t) N, juce::dsp::WindowingFunction<float>::hann);
 
-    std::vector<float>  ring ((size_t) N, 0.0f);
+    std::vector<float>  ring ((size_t) N, 0.0f), sideRing ((size_t) N, 0.0f);
     std::vector<float>  frame ((size_t) (2 * N), 0.0f);
-    std::vector<double> accum ((size_t) (N / 2), 0.0);
+    std::vector<double> accum ((size_t) (N / 2), 0.0), sideAccum ((size_t) (N / 2), 0.0);
     int ringIdx = 0, hop = 0, frames = 0;
     bool ringFull = false;
 
@@ -108,7 +108,8 @@ bool ReferenceAnalyzer::analyse (const juce::File& file, Result& out, juce::Stri
             sMid += m * m; sSide += s * s;
             sRms += 0.5 * (l * l + r * r);
 
-            ring[(size_t) ringIdx] = (float) m;
+            ring[(size_t) ringIdx]     = (float) m;
+            sideRing[(size_t) ringIdx] = (float) s;
             if (++ringIdx == N) { ringIdx = 0; ringFull = true; }
 
             if (++hop < N / 2 || ! ringFull) continue;
@@ -129,6 +130,15 @@ bool ReferenceAnalyzer::analyse (const juce::File& file, Result& out, juce::Stri
             fft.performFrequencyOnlyForwardTransform (frame.data());
             for (size_t k = 0; k < accum.size(); ++k)
                 accum[k] += frame[k];
+
+            // Side, over the same (mid-gated) frames.
+            for (int k = 0; k < N; ++k)
+                frame[(size_t) k] = sideRing[(size_t) ((ringIdx + k) % N)];
+            std::fill (frame.begin() + N, frame.end(), 0.0f);
+            window.multiplyWithWindowingTable (frame.data(), (size_t) N);
+            fft.performFrequencyOnlyForwardTransform (frame.data());
+            for (size_t k = 0; k < sideAccum.size(); ++k)
+                sideAccum[k] += frame[k];
             ++frames;
         }
     }
@@ -147,8 +157,12 @@ bool ReferenceAnalyzer::analyse (const juce::File& file, Result& out, juce::Stri
 
     out.spectrum.resize ((size_t) (N / 2));
     const double norm = 2.0 / ((double) N * frames);
+    out.sideSpectrum.resize ((size_t) (N / 2));
     for (size_t k = 0; k < out.spectrum.size(); ++k)
-        out.spectrum[k] = (float) (accum[k] * norm);
+    {
+        out.spectrum[k]     = (float) (accum[k] * norm);
+        out.sideSpectrum[k] = (float) (sideAccum[k] * norm);
+    }
 
     out.lufs       = meter.getIntegratedLufs();   // kSilenceDb if under one 400 ms gating block
     out.truePeakDb = meter.getTruePeakDb();
@@ -163,10 +177,11 @@ bool ReferenceAnalyzer::analyse (const juce::File& file, Result& out, juce::Stri
     return true;
 }
 
-void ReferenceAnalyzer::mapToGrid (const Result& ref, double liveSampleRate, float* outBins, int numBins)
+void ReferenceAnalyzer::mapToGrid (const Result& ref, double liveSampleRate, float* outBins, int numBins, bool side)
 {
     std::fill (outBins, outBins + numBins, 0.0f);
-    if (! ref.isValid() || liveSampleRate <= 0.0) return;
+    if (! ref.isValid() || liveSampleRate <= 0.0 || (side && ! ref.hasSide())) return;
+    const auto& spectrum = side ? ref.sideSpectrum : ref.spectrum;
 
     const double liveBinHz = liveSampleRate / (double) AudioAnalyzer::fftSize;
     const double refBinHz  = ref.sampleRate / (double) ref.fftSize;
@@ -181,8 +196,8 @@ void ReferenceAnalyzer::mapToGrid (const Result& ref, double liveSampleRate, flo
         const int    k0 = (int) p;
         const int    k1 = juce::jmin (k0 + 1, last);
         const float  t  = (float) (p - k0);
-        const float  a  = ref.spectrum[(size_t) k0];
-        const float  b  = ref.spectrum[(size_t) k1];
+        const float  a  = spectrum[(size_t) k0];
+        const float  b  = spectrum[(size_t) k1];
         outBins[i] = (a + (b - a) * t) * gain;
     }
 }

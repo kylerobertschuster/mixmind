@@ -64,8 +64,9 @@ private:
     // Shaper controls (attached to the automatable parameters)
     juce::TextButton  shapeButton { "SHAPE" };
     juce::TextButton  modeButton  { "AUTO" };
+    juce::TextButton  stereoButton { "LINK" };
     juce::Slider      amountSlider;
-    std::unique_ptr<APVTS::ButtonAttachment> shapeAttachment, modeAttachment;
+    std::unique_ptr<APVTS::ButtonAttachment> shapeAttachment, modeAttachment, stereoAttachment;
     std::unique_ptr<APVTS::SliderAttachment> amountAttachment;
 
     void chooseReference();
@@ -75,6 +76,8 @@ private:
     void showLayerMenu();
     void setLayerVisible (bool);
     void applyFocusSelection();
+    void writeBand (int band, const ParametricEq::Band&);
+    void bandGesture (int band, bool starting);
     void refreshReference();
     void timerCallback() override;
 

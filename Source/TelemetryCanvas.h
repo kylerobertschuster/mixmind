@@ -1,10 +1,12 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <array>
 #include <functional>
 #include <vector>
 #include "FocusModel.h"
 #include "LookAndFeel.h"
 #include "AudioAnalyzer.h"
+#include "ParametricEq.h"
 #include "ShaperProcessor.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -40,8 +42,9 @@ private:
 //                      is blue, a vocal peak is violet, etc.).
 //    · Group focus   → zooms to the group's band, reference = pastel hue,
 //                      user = saturated hue (same colour family).
-//  Plus the hand-drawn trace, the match-EQ correction curve, a screenshot
-//  layer and the REF / YOU metering readout.
+//  Plus the parametric EQ nodes and curve, the hand-drawn trace, the
+//  match-EQ correction curve(s), a screenshot layer and the REF / YOU
+//  metering readout.
 //
 //  Vertical scale: analyzer dB (0 dB = full-scale sine) from kFloorDb to
 //  kCeilDb, linear in dB. dbToUnit()/unitToDb() are the only mapping between
@@ -52,6 +55,8 @@ class TelemetryCanvas : public juce::Component,
 {
 public:
     using TracePoint = ShaperProcessor::TracePoint;
+    using Band = ParametricEq::Band;
+    static constexpr int kNumBands = ParametricEq::kNumBands;
 
     struct Readout
     {
@@ -67,8 +72,9 @@ public:
     static float dbToUnit (float db) { return juce::jlimit (0.0f, 1.0f, (db - kFloorDb) / (kCeilDb - kFloorDb)); }
     static float unitToDb (float v)  { return kFloorDb + juce::jlimit (0.0f, 1.0f, v) * (kCeilDb - kFloorDb); }
 
-    // Correction curve scale (± this many dB over the plot height).
-    static constexpr float kCorrectionRangeDb = 18.0f;
+    // Correction / EQ scale (± this many dB over the plot height) — the band
+    // gain range and the match clamp.
+    static constexpr float kCorrectionRangeDb = 24.0f;
 
     TelemetryCanvas();
     ~TelemetryCanvas() override;
@@ -78,13 +84,22 @@ public:
 
     void setUserBins (const float* bins, int n, double sampleRate);
     void setReference (const float* bins, int n);   // nullptr / 0 clears
+    void setInputBins (const float* bins, int n);   // pre-processing spectrum, drawn faintly; nullptr hides
     bool hasReference() const { return hasRef; }
 
     void setUserReadout (const Readout& r) { userReadout = r; }
     void setRefReadout  (const Readout* r) { hasRefReadout = (r != nullptr); if (r != nullptr) refReadout = *r; }
 
-    // Match-EQ correction (dB per analyzer bin). `applied` = SHAPE is on.
-    void setCorrection (const std::vector<float>& db, bool applied);
+    // Match-EQ correction (dB per analyzer bin): mid (or linked) and side
+    // (empty unless matching mid/side). `applied` = SHAPE is on.
+    void setCorrection (const std::vector<float>& db, const std::vector<float>& sideDb, bool applied);
+
+    // ── Parametric EQ. Double-click empty space to add a band; drag a node
+    //    (shift = fine), scroll over it for Q, right-click for type / slope /
+    //    placement, double-click or alt-click to delete. ──────────────────
+    void setBands (const std::array<Band, kNumBands>& newBands);
+    std::function<void (int)> onBandGestureStart, onBandGestureEnd;
+    std::function<void (int, const Band&)> onBandChanged;
 
     // Transient status line under the legend (e.g. "Analyzing reference…").
     void setStatus (const juce::String& s) { if (s != status) { status = s; repaint(); } }
@@ -119,6 +134,7 @@ public:
     void mouseDoubleClick (const juce::MouseEvent&) override;
     void mouseMove (const juce::MouseEvent&) override;
     void mouseExit (const juce::MouseEvent&) override;
+    bool keyPressed (const juce::KeyPress&) override;
 
     static constexpr int kNumBins = AudioAnalyzer::numBins;
 
@@ -129,6 +145,20 @@ private:
     void drawMaster (juce::Graphics& g);
     void drawFocused (juce::Graphics& g);
     void drawCorrection (juce::Graphics& g);
+    juce::Path correctionPath (const std::vector<float>& db) const;
+    void rebuildCurves();   // match + EQ paths; only when their data or the geometry changes
+    void drawEq (juce::Graphics& g);
+
+    // EQ helpers
+    float yForGain (float db) const;
+    float gainForY (float y) const;
+    juce::Point<float> nodePosition (int band) const;
+    int  bandAt (juce::Point<float> p) const;          // -1 if none
+    void editBand (int band, const Band& b);           // single-shot edit (own gesture)
+    void showBandMenu (int band);
+    double bandResponseDb (int band, double hz) const;
+    static juce::Colour bandColour (int band);
+    juce::String bandDescription (int band) const;
 
     // Display resolution: curves are drawn at 1/12-octave resolution, sampled
     // every couple of pixels — bins are averaged where they are dense (highs)
@@ -137,6 +167,7 @@ private:
     Series userSeries() const { return { smoothUser, prefixUser }; }
     Series refSeries() const  { return { smoothRef,  prefixRef }; }
     Series peakSeries() const { return { peakHold,   prefixPeak }; }
+    Series inSeries() const   { return { smoothIn,   prefixIn }; }
     float sampleSeries (const Series& s, float hz) const;
     juce::Path buildCurve (const Series& s) const;
     juce::Path buildBandCurve (const Series& s, float loHz, float hiHz) const;
@@ -176,14 +207,27 @@ private:
     // Peak-hold envelope (slow release) drawn as a faint line above the curve.
     float peakHold[kNumBins] { 0.0f };
 
+    // Pre-processing spectrum (shown faintly while the plugin is changing the sound).
+    float smoothIn[kNumBins] { 0.0f };
+    float targetIn[kNumBins] { 0.0f };
+    bool  hasIn { false };
+
     // Running sums for the display smoothing (index i = sum of bins [0, i)).
-    double prefixUser[kNumBins + 1] {}, prefixRef[kNumBins + 1] {}, prefixPeak[kNumBins + 1] {};
+    double prefixUser[kNumBins + 1] {}, prefixRef[kNumBins + 1] {}, prefixPeak[kNumBins + 1] {}, prefixIn[kNumBins + 1] {};
 
     Readout userReadout, refReadout;
     bool hasRefReadout { false };
 
-    std::vector<float> correction;
+    std::vector<float> correction, correctionSide;
     bool correctionApplied { false };
+
+    // Parametric EQ state (mirrors the processor's parameters).
+    std::array<Band, kNumBands> bands;
+    std::array<std::array<ParametricEq::Biquad, ParametricEq::kMaxSections>, kNumBands> bandSections;
+    std::array<int, kNumBands> bandSectionCount {};
+    int hoverBand { -1 }, dragBand { -1 }, selectedBand { -1 };
+    juce::Point<float> dragStartPos;
+    Band dragOrigin;
     juce::String status;
 
     // Reference image layer (screenshot ghost).
@@ -204,6 +248,17 @@ private:
     FocusModel::Group focus { FocusModel::Group::Master };
 
     float axisMin { 20.0f }, axisMax { 20000.0f };
+
+    static constexpr int kFrameHz = 30;
+
+    // Cached curve paths (see rebuildCurves).
+    juce::Path corrStroke, corrFill, sideDashed, totalPath;
+    std::array<juce::Path, kNumBands> bandPaths;
+    juce::Rectangle<float> curvesKey;
+    bool curvesDirty { true };
+    juce::Image gridCache;
+    juce::Rectangle<float> gridCacheKey;   // (axisMin, axisMax, width, height)
+    float gridCacheScale { 0.0f };
 
     float plotLeft { 44.0f }, plotRight { 0.0f }, plotTop { 56.0f }, plotBottom { 0.0f };
 

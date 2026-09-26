@@ -1,17 +1,22 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <array>
 #include <atomic>
 #include <memory>
 #include "AudioAnalyzer.h"
+#include "ParametricEq.h"
 #include "ReferenceAnalyzer.h"
 #include "ShaperProcessor.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  MixMind — reference-matching spectrum shaper + analyzer.
-//    · AUTO   mode: reshapes the live spectrum toward the loaded reference.
+//    · AUTO   mode: reshapes the live spectrum toward the loaded reference
+//                   (linked, or mid and side separately).
 //    · MANUAL mode: reshapes toward the hand-drawn trace curve.
-//  Analysis (BS.1770 metering + averaged FFT) runs continuously on the input;
-//  the shaper is the insert path with a constant kLatency.
+//  Signal path: input analyzer → match EQ (linear-phase FIR, constant
+//  kLatency) → parametric bands → output analyzer. The match is designed from
+//  the input, so it never chases its own output; the output analyzer is what
+//  the YOU curve and readouts show.
 //
 //  The processor owns everything that must outlive the editor window: the
 //  reference analysis, the trace, and the match-filter design loop (a
@@ -35,6 +40,8 @@ public:
     bool isBusesLayoutSupported (const BusesLayout&) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     void processBlockBypassed (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    using juce::AudioProcessor::processBlock;           // float only; keep the double
+    using juce::AudioProcessor::processBlockBypassed;   // overloads visible, not hidden
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
@@ -61,22 +68,43 @@ public:
     juce::String getReferenceWildcard() const { return referenceAnalyzer.getWildcard(); }
     bool         canLoadAsReference (const juce::File& f) const { return referenceAnalyzer.canRead (f); }
 
-    // The reference spectrum on the live analyzer grid (empty if none).
+    // The reference spectrum on the live analyzer grid (empty if none), and
+    // its side spectrum (empty if none, or a pre-M/S cached analysis).
     const std::vector<float>& getReferenceBins();
+    const std::vector<float>& getReferenceSideBins();
 
     // ── Trace (manual target), stored as (Hz, dB) sorted by frequency ───────
     std::vector<TracePoint> getTrace() const;
     void setTrace (std::vector<TracePoint> points);
     int  getTraceVersion() const { return traceVersion.load(); }
 
-    // ── Match curve currently designed (dB per analyzer bin; may be empty) ──
-    const std::vector<float>& getCorrectionDb() const { return correctionDb; }
+    // ── Match curves currently designed (dB per analyzer bin; may be empty).
+    //    The side curve is only non-empty while matching mid/side. ─────────
+    const std::vector<float>& getCorrectionDb() const     { return correctionDb; }
+    const std::vector<float>& getCorrectionSideDb() const { return correctionSideDb; }
+
+    // ── Parametric bands ────────────────────────────────────────────────────
+    struct BandParams
+    {
+        juce::AudioParameterBool*   on        = nullptr;
+        juce::AudioParameterChoice* type      = nullptr;
+        juce::AudioParameterFloat*  freq      = nullptr;
+        juce::AudioParameterFloat*  gain      = nullptr;
+        juce::AudioParameterFloat*  q         = nullptr;
+        juce::AudioParameterChoice* slope     = nullptr;
+        juce::AudioParameterChoice* placement = nullptr;
+    };
+    static juce::String bandParamId (int band, const char* field);   // band is 0-based
+    const BandParams& getBandParams (int band) const { return bandParams[(size_t) band]; }
+    ParametricEq::Band readBand (int band) const;                    // any thread
 
     double getCurrentSampleRate() const;
 
     juce::AudioProcessorValueTreeState parameters;
-    AudioAnalyzer   audioAnalyzer;
+    AudioAnalyzer   audioAnalyzer;    // input (pre-processing): match source
+    AudioAnalyzer   outputAnalyzer;   // output: what the listener hears
     ShaperProcessor shaper;
+    ParametricEq    eq;
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -86,7 +114,7 @@ private:
     void startLoad (const juce::File& file);
     void installReference (int generation, std::shared_ptr<const ReferenceAnalyzer::Result> result,
                            const juce::String& error);
-    void runShaper (juce::AudioBuffer<float>&, bool shapeOn);
+    void runChain (juce::AudioBuffer<float>&, bool bypassed);
 
     // Reference state (guarded by stateLock — read by getStateInformation on
     // whatever thread the host uses).
@@ -105,17 +133,20 @@ private:
     std::vector<TracePoint> trace;
     std::atomic<int> traceVersion { 0 };
 
+    std::array<BandParams, ParametricEq::kNumBands> bandParams;
+
     // Design-loop state (message thread only).
-    std::vector<float> refGrid, correctionDb, target, taps, postedTaps;
+    std::vector<float> refGrid, refSideGrid, correctionDb, correctionSideDb, target, sideTarget;
+    std::vector<float> taps, sideTaps, postedTaps, postedSideTaps;
     int    refGridVersion { -1 };
     double refGridRate { 0.0 };
     struct DesignInputs
     {
-        bool manual = false; float amount = -1.0f; int refVersion = -1, traceVersion = -1; double rate = 0.0;
+        bool manual = false, midSide = false; float amount = -1.0f; int refVersion = -1, traceVersion = -1; double rate = 0.0;
         bool operator!= (const DesignInputs& o) const
         {
-            return manual != o.manual || ! juce::exactlyEqual (amount, o.amount) || refVersion != o.refVersion
-                || traceVersion != o.traceVersion || ! juce::exactlyEqual (rate, o.rate);
+            return manual != o.manual || midSide != o.midSide || ! juce::exactlyEqual (amount, o.amount)
+                || refVersion != o.refVersion || traceVersion != o.traceVersion || ! juce::exactlyEqual (rate, o.rate);
         }
     } lastDesign;
     int  ticksSinceDesign { 0 };

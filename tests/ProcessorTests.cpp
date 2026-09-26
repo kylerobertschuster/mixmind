@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "TestSignals.h"
+#include <limits>
 
 using namespace TestSignals;
 
@@ -52,6 +53,26 @@ namespace
             juce::MessageManager::getInstance()->runDispatchLoopUntil (20);
         }
         return true;
+    }
+
+    void setBand (MixMindProcessor& p, int band, const ParametricEq::Band& b)
+    {
+        const auto& bp = p.getBandParams (band);
+        const auto set = [] (juce::RangedAudioParameter* prm, float v) { prm->setValueNotifyingHost (prm->convertTo0to1 (v)); };
+        set (bp.on, b.on ? 1.0f : 0.0f);
+        set (bp.type, (float) (int) b.type);
+        set (bp.freq, b.freq);
+        set (bp.gain, b.gainDb);
+        set (bp.q, b.q);
+        set (bp.slope, (float) ParametricEq::indexFromSlope (b.slope));
+        set (bp.placement, (float) (int) b.placement);
+    }
+
+    float correctionSideAt (const MixMindProcessor& p, double hz)
+    {
+        const auto& c = p.getCorrectionSideDb();
+        const auto i = (size_t) std::lround (hz / (kFs / AudioAnalyzer::fftSize));
+        return i < c.size() ? c[i] : 0.0f;
     }
 
     float correctionAt (const MixMindProcessor& p, double hz)
@@ -228,6 +249,106 @@ public:
             expect (pumpUntil ([&] { return h.p.getCorrectionDb().empty(); }, 5000));
         }
 
+        beginTest ("Mid/side matching: the side follows the reference's width, the mid its tone");
+        {
+            // Reference: independent L/R noise (side as loud as mid). Mix: the
+            // same noise spectrum but narrow (side 20 dB below mid).
+            TempWav wav ("proc-wide");
+            expect (writeWav (wav.file, whiteL, whiteR, kFs));
+
+            const auto a = whiteNoise (kFs, 6.0, -20.0, 41), b = whiteNoise (kFs, 6.0, -40.0, 42);
+            std::vector<float> mixL (a.size()), mixR (a.size());
+            for (size_t i = 0; i < a.size(); ++i) { mixL[i] = a[i] + b[i]; mixR[i] = a[i] - b[i]; }
+
+            Harness h;
+            h.setParam ("shapeAmount", 1.0f);
+            h.p.loadReference (wav.file);
+            expect (pumpUntil ([&] { return h.p.getReferenceStatus() == MixMindProcessor::RefStatus::ready; }, 20000));
+            expect (h.p.getReference() != nullptr && h.p.getReference()->hasSide());
+            h.play (mixL, mixR);
+
+            // Linked: one curve, no side curve.
+            expect (pumpUntil ([&] { return ! h.p.getCorrectionDb().empty(); }, 5000));
+            expect (h.p.getCorrectionSideDb().empty());
+
+            h.setParam ("matchStereo", 1.0f);
+            expect (pumpUntil ([&] { return ! h.p.getCorrectionSideDb().empty(); }, 5000));
+
+            // Mid is white in both → ~flat. The mix's side sits 20 dB under its
+            // mid; the reference's side is level with its mid (sum and
+            // difference of independent noise) → the side comes up ~20 dB.
+            for (double f : { 200.0, 1000.0, 5000.0 })
+            {
+                expectWithinAbsoluteError (correctionAt (h.p, f), 0.0f, 1.5f, "mid @ " + juce::String (f));
+                expectWithinAbsoluteError (correctionSideAt (h.p, f), 20.0f, 2.5f, "side @ " + juce::String (f));
+            }
+
+            // Applied: the output gets wider (side up relative to mid).
+            h.setParam ("shapeEnable", 1.0f);
+            pumpUntil ([] { return false; }, 150);
+            std::vector<float> outL, outR;
+            {
+                juce::AudioBuffer<float> buf (2, 512);
+                juce::MidiBuffer midi;
+                for (size_t i = 0; i + 512 <= mixL.size(); i += 512)
+                {
+                    buf.copyFrom (0, 0, mixL.data() + i, 512);
+                    buf.copyFrom (1, 0, mixR.data() + i, 512);
+                    h.p.processBlock (buf, midi);
+                    outL.insert (outL.end(), buf.getReadPointer (0), buf.getReadPointer (0) + 512);
+                    outR.insert (outR.end(), buf.getReadPointer (1), buf.getReadPointer (1) + 512);
+                }
+            }
+            double mid = 0, side = 0;
+            for (size_t i = outL.size() / 2; i < outL.size(); ++i)
+            {
+                const double m = 0.5 * (outL[i] + outR[i]), sd = 0.5 * (outL[i] - outR[i]);
+                mid += m * m; side += sd * sd;
+            }
+            expectWithinAbsoluteError (10.0 * std::log10 (side / mid), 0.0, 3.0);   // was -20 dB
+        }
+
+        beginTest ("Band parameters drive the EQ; the output analyzer shows the result");
+        {
+            Harness h;
+            ParametricEq::Band b;
+            b.on = true; b.type = ParametricEq::Type::bell; b.freq = 1000.0f; b.gainDb = 12.0f; b.q = 1.0f;
+            setBand (h.p, 2, b);
+
+            const auto x = sine (kFs, 1000.0, 0.05, 2.0);
+            const auto out = h.play (x, x);
+            const size_t start = 48000, n = x.size() - start;
+            expectWithinAbsoluteError (rmsDb (out.data() + start, n) - rmsDb (x.data() + start - ShaperProcessor::kLatency, n),
+                                       12.0, 0.1);
+            expectGreaterThan (h.p.outputAnalyzer.getShortTermLufs() - h.p.audioAnalyzer.getShortTermLufs(), 10.0f);
+
+            // Host bypass skips the bands (a pure latency delay).
+            const auto bypassed = h.play (x, x, true);
+            expectWithinAbsoluteError (rmsDb (bypassed.data() + start, n), rmsDb (x.data() + start, n), 0.05);
+        }
+
+        beginTest ("Non-finite input never reaches the output or the match spectrum");
+        {
+            Harness h;
+            ParametricEq::Band b;
+            b.on = true; b.type = ParametricEq::Type::bell; b.freq = 200.0f; b.gainDb = 6.0f; b.q = 2.0f;
+            setBand (h.p, 0, b);
+            h.setParam ("shapeEnable", 1.0f);
+
+            auto x = whiteNoise (kFs, 1.0, -20.0, 77);
+            x[1000] = std::numeric_limits<float>::quiet_NaN();
+            x[20000] = std::numeric_limits<float>::infinity();
+            const auto out = h.play (x, x);
+
+            bool finite = true;
+            for (float v : out) finite = finite && std::isfinite (v);
+            expect (finite);
+            const float* lt = h.p.audioAnalyzer.getLongTermBins();
+            for (int i = 0; i < AudioAnalyzer::numBins; ++i) finite = finite && std::isfinite (lt[i]);
+            expect (finite);
+            expect (std::isfinite (h.p.outputAnalyzer.getShortTermLufs()));
+        }
+
         beginTest ("Editor opens, syncs with the processor and closes cleanly");
         {
             // A darker (pink-ish, -3 dB/oct) reference against a white-noise mix.
@@ -268,6 +389,56 @@ public:
             h.p.setTrace ({ { 60.0f, -48.0f }, { 400.0f, -52.0f }, { 3000.0f, -58.0f }, { 12000.0f, -64.0f } });
             pumpUntil ([] { return false; }, 400);
             snap ("mixmind-manual-trace");
+
+            // EQ nodes + mid/side match.
+            h.p.setTrace ({});
+            h.setParam ("shapeMode", 0.0f);
+            h.setParam ("matchStereo", 1.0f);
+            ParametricEq::Band lc; lc.on = true; lc.type = ParametricEq::Type::lowCut; lc.freq = 40.0f; lc.q = 0.7071f; lc.slope = 24;
+            ParametricEq::Band bell; bell.on = true; bell.freq = 320.0f; bell.gainDb = -4.5f; bell.q = 1.4f;
+            ParametricEq::Band air; air.on = true; air.type = ParametricEq::Type::highShelf; air.freq = 9000.0f; air.gainDb = 3.0f; air.q = 0.7071f;
+            air.placement = ParametricEq::Placement::side;
+            setBand (h.p, 0, lc); setBand (h.p, 1, bell); setBand (h.p, 2, air);
+            h.play (whiteL, whiteR);
+            pumpUntil ([] { return false; }, 700);
+            snap ("mixmind-eq-ms");
+
+            // Opt-in paint timing (software renderer), with the EQ, match
+            // curves, reference and live spectrum all on screen.
+            if (dir.isNotEmpty())
+            {
+                for (auto size : { juce::Point<int> (1080, 680), juce::Point<int> (1800, 1100) })
+                {
+                    editor->setSize (size.x, size.y);
+                    juce::Image img (juce::Image::ARGB, size.x, size.y, true);
+                    const auto t0 = juce::Time::getMillisecondCounterHiRes();
+                    constexpr int frames = 60;
+                    for (int f = 0; f < frames; ++f)
+                    {
+                        juce::Graphics g (img);
+                        editor->paintEntireComponent (g, true);
+                    }
+                    const double whole = (juce::Time::getMillisecondCounterHiRes() - t0) / frames;
+
+                    // The analyzer canvas on its own (the rest is the header).
+                    double canvasMs = 0.0;
+                    for (auto* child : editor->getChildren())
+                        if (auto* canvas = dynamic_cast<TelemetryCanvas*> (child))
+                        {
+                            juce::Image ci (juce::Image::ARGB, canvas->getWidth(), canvas->getHeight(), true);
+                            const auto c0 = juce::Time::getMillisecondCounterHiRes();
+                            for (int f = 0; f < frames; ++f)
+                            {
+                                juce::Graphics g (ci);
+                                canvas->paintEntireComponent (g, true);
+                            }
+                            canvasMs = (juce::Time::getMillisecondCounterHiRes() - c0) / frames;
+                        }
+                    logMessage ("paint " + juce::String (size.x) + "x" + juce::String (size.y) + ": "
+                                + juce::String (whole, 2) + " ms/frame (canvas " + juce::String (canvasMs, 2) + ")");
+                }
+                editor->setSize (1080, 680);
+            }
 
             editor->setSize (960, 420);
             snap ("mixmind-min-size");

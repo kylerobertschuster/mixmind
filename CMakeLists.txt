@@ -53,6 +53,8 @@ set(MIXMIND_SOURCES
     Source/LoudnessMeter.h
     Source/ShaperProcessor.cpp
     Source/ShaperProcessor.h
+    Source/ParametricEq.cpp
+    Source/ParametricEq.h
     Source/LookAndFeel.h
     Source/LookAndFeel.cpp
     Source/FocusModel.h
@@ -259,6 +261,7 @@ if(MIXMIND_BUILD_TESTS)
         tests/TestSignals.h
         tests/LoudnessMeterTests.cpp
         tests/ShaperTests.cpp
+        tests/ParametricEqTests.cpp
         tests/ReferenceAnalyzerTests.cpp
         tests/ProcessorTests.cpp
     )

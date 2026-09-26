@@ -14,9 +14,11 @@ void AudioAnalyzer::prepare (double sr, int blockSize)
 {
     sampleRate = sr;
     juce::zeromem (fifo, sizeof (fifo));
+    juce::zeromem (sideFifo, sizeof (sideFifo));
     juce::zeromem (fftData, sizeof (fftData));
     juce::zeromem (fftAvg, sizeof (fftAvg));
     juce::zeromem (longTerm, sizeof (longTerm));
+    juce::zeromem (longTermSide, sizeof (longTermSide));
     juce::zeromem (scopeL, sizeof (scopeL));
     juce::zeromem (scopeR, sizeof (scopeR));
     fifoIdx = hopCount = 0;
@@ -69,7 +71,8 @@ void AudioAnalyzer::process (const juce::AudioBuffer<float>& buffer)
     // Spectrum of the mid signal, 50 % overlap.
     for (int i = 0; i < n; ++i)
     {
-        fifo[fifoIdx] = 0.5f * (L[i] + R[i]);
+        fifo[fifoIdx]     = 0.5f * (L[i] + R[i]);
+        sideFifo[fifoIdx] = 0.5f * (L[i] - R[i]);
         if (++fifoIdx == fftSize) { fifoIdx = 0; fifoFull = true; }
 
         if (++hopCount >= fftSize / 2)
@@ -139,7 +142,19 @@ void AudioAnalyzer::performFFT()
         else                   h += p;
     }
 
-    if (gateOpen) longTermFrames.store (frames);
+    if (gateOpen)
+    {
+        // Side long-term, gated by the mid so a quiet-but-real side still counts.
+        for (int i = 0; i < fftSize; ++i)
+            fftData[i] = sideFifo[(fifoIdx + i) & (fftSize - 1)];
+        juce::zeromem (fftData + fftSize, sizeof (float) * fftSize);
+        window.multiplyWithWindowingTable (fftData, (size_t) fftSize);
+        forwardFFT.performFrequencyOnlyForwardTransform (fftData);
+        for (int i = 0; i < numBins; ++i)
+            longTermSide[i] += (fftData[i] * norm - longTermSide[i]) * ltAlpha;
+
+        longTermFrames.store (frames);
+    }
 
     // Band power → mean-square (Parseval with window-power correction).
     bassPow += (b * powNorm - bassPow) * bandSmooth;

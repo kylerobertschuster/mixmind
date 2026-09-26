@@ -12,6 +12,33 @@ namespace
 
     constexpr int kDesignHz        = 30;   // design-loop tick rate
     constexpr int kIdleDesignTicks = 8;    // re-design every ~270 ms as the live spectrum drifts
+
+    // Log-frequency (and log-Q) parameter ranges, so the host knob is even per octave.
+    juce::NormalisableRange<float> logRange (float lo, float hi)
+    {
+        return { lo, hi,
+                 [] (float start, float end, float t) { return start * std::pow (end / start, t); },
+                 [] (float start, float end, float v) { return std::log (v / start) / std::log (end / start); } };
+    }
+
+    juce::String hzText (float hz)
+    {
+        return hz >= 1000.0f ? juce::String (hz / 1000.0f, hz >= 10000.0f ? 1 : 2) + " kHz"
+                             : juce::String (juce::roundToInt (hz)) + " Hz";
+    }
+
+    float parseHz (const juce::String& s)
+    {
+        const float v = s.retainCharacters ("0123456789.").getFloatValue();
+        return s.containsIgnoreCase ("k") ? v * 1000.0f : v;
+    }
+
+    constexpr float kBandDefaultHz[ParametricEq::kNumBands] = { 60, 150, 400, 1000, 2500, 5000, 10000, 16000 };
+}
+
+juce::String MixMindProcessor::bandParamId (int band, const char* field)
+{
+    return "b" + juce::String (band + 1) + field;
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout MixMindProcessor::createParameterLayout()
@@ -20,13 +47,44 @@ juce::AudioProcessorValueTreeState::ParameterLayout MixMindProcessor::createPara
         .withStringFromValueFunction ([] (float v, int) { return juce::String (juce::roundToInt (v * 100.0f)) + " %"; })
         .withValueFromStringFunction ([] (const juce::String& s) { return s.retainCharacters ("0123456789.-").getFloatValue() / 100.0f; });
 
-    return {
-        std::make_unique<juce::AudioParameterBool>   (juce::ParameterID { "shapeEnable", 1 }, "Shape", false),
-        std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { "shapeMode", 1 }, "Mode",
-                                                      juce::StringArray ("Auto", "Manual"), 0),
-        std::make_unique<juce::AudioParameterFloat>  (juce::ParameterID { "shapeAmount", 1 }, "Amount",
-                                                      juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.75f, percent)
-    };
+    juce::AudioProcessorValueTreeState::ParameterLayout layout;
+    layout.add (std::make_unique<juce::AudioParameterBool>   (juce::ParameterID { "shapeEnable", 1 }, "Shape", false),
+                std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { "shapeMode", 1 }, "Mode",
+                                                              juce::StringArray ("Auto", "Manual"), 0),
+                std::make_unique<juce::AudioParameterFloat>  (juce::ParameterID { "shapeAmount", 1 }, "Amount",
+                                                              juce::NormalisableRange<float> (0.0f, 1.0f, 0.01f), 0.75f, percent),
+                std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { "matchStereo", 1 }, "Match Stereo",
+                                                              juce::StringArray ("Linked", "Mid/Side"), 0));
+
+    auto hz = juce::AudioParameterFloatAttributes()
+        .withStringFromValueFunction ([] (float v, int) { return hzText (v); })
+        .withValueFromStringFunction ([] (const juce::String& t) { return parseHz (t); });
+    auto db = juce::AudioParameterFloatAttributes()
+        .withStringFromValueFunction ([] (float v, int) { return juce::String::formatted ("%+.1f dB", v); })
+        .withValueFromStringFunction ([] (const juce::String& t) { return t.retainCharacters ("0123456789.-+").getFloatValue(); });
+    auto qText = juce::AudioParameterFloatAttributes()
+        .withStringFromValueFunction ([] (float v, int) { return juce::String (v, 2); });
+
+    for (int b = 0; b < ParametricEq::kNumBands; ++b)
+    {
+        const auto name = "Band " + juce::String (b + 1) + " ";
+        layout.add (std::make_unique<juce::AudioParameterBool>   (juce::ParameterID { bandParamId (b, "On"), 1 }, name + "On", false),
+                    std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { bandParamId (b, "Type"), 1 }, name + "Type",
+                                                                  ParametricEq::typeNames(), 0),
+                    std::make_unique<juce::AudioParameterFloat>  (juce::ParameterID { bandParamId (b, "Freq"), 1 }, name + "Freq",
+                                                                  logRange (ParametricEq::kMinHz, ParametricEq::kMaxHz),
+                                                                  kBandDefaultHz[b], hz),
+                    std::make_unique<juce::AudioParameterFloat>  (juce::ParameterID { bandParamId (b, "Gain"), 1 }, name + "Gain",
+                                                                  juce::NormalisableRange<float> (-ParametricEq::kMaxGainDb, ParametricEq::kMaxGainDb, 0.01f),
+                                                                  0.0f, db),
+                    std::make_unique<juce::AudioParameterFloat>  (juce::ParameterID { bandParamId (b, "Q"), 1 }, name + "Q",
+                                                                  logRange (ParametricEq::kMinQ, ParametricEq::kMaxQ), 1.0f, qText),
+                    std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { bandParamId (b, "Slope"), 1 }, name + "Slope",
+                                                                  ParametricEq::slopeNames(), 0),
+                    std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { bandParamId (b, "Place"), 1 }, name + "Placement",
+                                                                  ParametricEq::placementNames(), 0));
+    }
+    return layout;
 }
 
 MixMindProcessor::MixMindProcessor()
@@ -35,9 +93,36 @@ MixMindProcessor::MixMindProcessor()
                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       parameters (*this, nullptr, "MixMindParams", createParameterLayout())
 {
+    for (int b = 0; b < ParametricEq::kNumBands; ++b)
+    {
+        auto& bp = bandParams[(size_t) b];
+        bp.on        = dynamic_cast<juce::AudioParameterBool*>   (parameters.getParameter (bandParamId (b, "On")));
+        bp.type      = dynamic_cast<juce::AudioParameterChoice*> (parameters.getParameter (bandParamId (b, "Type")));
+        bp.freq      = dynamic_cast<juce::AudioParameterFloat*>  (parameters.getParameter (bandParamId (b, "Freq")));
+        bp.gain      = dynamic_cast<juce::AudioParameterFloat*>  (parameters.getParameter (bandParamId (b, "Gain")));
+        bp.q         = dynamic_cast<juce::AudioParameterFloat*>  (parameters.getParameter (bandParamId (b, "Q")));
+        bp.slope     = dynamic_cast<juce::AudioParameterChoice*> (parameters.getParameter (bandParamId (b, "Slope")));
+        bp.placement = dynamic_cast<juce::AudioParameterChoice*> (parameters.getParameter (bandParamId (b, "Place")));
+        jassert (bp.on && bp.type && bp.freq && bp.gain && bp.q && bp.slope && bp.placement);
+    }
+
     // Constant latency: the shaper is a pure kLatency delay when not shaping.
     setLatencySamples (ShaperProcessor::kLatency);
     startTimerHz (kDesignHz);
+}
+
+ParametricEq::Band MixMindProcessor::readBand (int band) const
+{
+    const auto& bp = bandParams[(size_t) band];
+    ParametricEq::Band b;
+    b.on        = bp.on->get();
+    b.type      = (ParametricEq::Type) bp.type->getIndex();
+    b.freq      = bp.freq->get();
+    b.gainDb    = bp.gain->get();
+    b.q         = bp.q->get();
+    b.slope     = ParametricEq::slopeFromIndex (bp.slope->getIndex());
+    b.placement = (ParametricEq::Placement) bp.placement->getIndex();
+    return b;
 }
 
 MixMindProcessor::~MixMindProcessor()
@@ -56,7 +141,8 @@ double MixMindProcessor::getCurrentSampleRate() const
 
 double MixMindProcessor::getTailLengthSeconds() const
 {
-    return (double) ShaperProcessor::kTapCount / getCurrentSampleRate();
+    // FIR length plus a generous allowance for a high-Q band ringing out.
+    return (double) ShaperProcessor::kTapCount / getCurrentSampleRate() + 0.25;
 }
 
 bool MixMindProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -69,11 +155,15 @@ bool MixMindProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 void MixMindProcessor::prepareToPlay (double sr, int maxBlock)
 {
     audioAnalyzer.prepare (sr, maxBlock);
+    outputAnalyzer.prepare (sr, maxBlock);
     shaper.prepare (sr, maxBlock);
+    for (int b = 0; b < ParametricEq::kNumBands; ++b)
+        eq.setBand (b, readBand (b));
+    eq.prepare (sr, maxBlock);
     setLatencySamples (ShaperProcessor::kLatency);
 }
 
-void MixMindProcessor::runShaper (juce::AudioBuffer<float>& buffer, bool shapeOn)
+void MixMindProcessor::runChain (juce::AudioBuffer<float>& buffer, bool bypassed)
 {
     const int numIn = getTotalNumInputChannels();
     const int n     = buffer.getNumSamples();
@@ -81,26 +171,64 @@ void MixMindProcessor::runShaper (juce::AudioBuffer<float>& buffer, bool shapeOn
         buffer.clear (ch, 0, n);
     if (numIn == 0) return;
 
-    // Analysis sees the input (pre-shaper), so the match never chases its own output.
-    juce::AudioBuffer<float> input (buffer.getArrayOfWritePointers(), juce::jmin (numIn, 2), n);
-    audioAnalyzer.process (input);
+    // A NaN / Inf from upstream would poison the filters and, worse, the
+    // long-term match spectrum (an average never recovers from NaN): treat
+    // non-finite input as silence.
+    juce::AudioBuffer<float> io (buffer.getArrayOfWritePointers(), juce::jmin (numIn, 2), n);
+    for (int ch = 0; ch < io.getNumChannels(); ++ch)
+    {
+        float* d = io.getWritePointer (ch);
+        for (int i = 0; i < n; ++i)
+            if (! std::isfinite (d[i])) d[i] = 0.0f;
+    }
 
-    shaper.setEnabled (shapeOn);
-    shaper.process (buffer.getWritePointer (0), numIn >= 2 ? buffer.getWritePointer (1) : nullptr, n);
+    // Analysis sees the input (pre-shaper), so the match never chases its own output.
+    audioAnalyzer.process (io);
+
+    float* L = buffer.getWritePointer (0);
+    float* R = numIn >= 2 ? buffer.getWritePointer (1) : nullptr;
+
+    shaper.setEnabled (! bypassed && parameters.getRawParameterValue ("shapeEnable")->load() > 0.5f);
+    shaper.process (L, R, n);
+
+    if (! bypassed)
+    {
+        for (int b = 0; b < ParametricEq::kNumBands; ++b)
+            eq.setBand (b, readBand (b));
+        eq.process (L, R, n);
+    }
+
+    // Last line of defence: never hand the host a non-finite sample. If one
+    // ever appears, silence the block and start the filters from clean state.
+    bool finite = true;
+    for (int ch = 0; ch < io.getNumChannels() && finite; ++ch)
+    {
+        const float* d = io.getReadPointer (ch);
+        for (int i = 0; i < n && finite; ++i) finite = std::isfinite (d[i]);
+    }
+    if (! finite)
+    {
+        io.clear();
+        shaper.reset();
+        eq.reset();
+    }
+
+    outputAnalyzer.process (io);
 }
 
 void MixMindProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
-    runShaper (buffer, parameters.getRawParameterValue ("shapeEnable")->load() > 0.5f);
+    runChain (buffer, false);
 }
 
 void MixMindProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     // Host bypass must keep the reported latency, or delay compensation
-    // shifts this track against the others. Identity = a kLatency delay.
+    // shifts this track against the others. Identity = a kLatency delay; the
+    // bands are skipped.
     juce::ScopedNoDenormals noDenormals;
-    runShaper (buffer, false);
+    runChain (buffer, true);
 }
 
 juce::AudioProcessorEditor* MixMindProcessor::createEditor()
@@ -233,17 +361,26 @@ const std::vector<float>& MixMindProcessor::getReferenceBins()
     {
         refGridVersion = version;
         refGridRate    = rate;
+        refGrid.clear();
+        refSideGrid.clear();
         if (auto ref = getReference())
         {
             refGrid.resize ((size_t) AudioAnalyzer::numBins);
             ReferenceAnalyzer::mapToGrid (*ref, rate, refGrid.data(), AudioAnalyzer::numBins);
-        }
-        else
-        {
-            refGrid.clear();
+            if (ref->hasSide())
+            {
+                refSideGrid.resize ((size_t) AudioAnalyzer::numBins);
+                ReferenceAnalyzer::mapToGrid (*ref, rate, refSideGrid.data(), AudioAnalyzer::numBins, true);
+            }
         }
     }
     return refGrid;
+}
+
+const std::vector<float>& MixMindProcessor::getReferenceSideBins()
+{
+    getReferenceBins();   // refreshes both grids
+    return refSideGrid;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -279,6 +416,7 @@ void MixMindProcessor::timerCallback()
 {
     DesignInputs in;
     in.manual       = parameters.getRawParameterValue ("shapeMode")->load() > 0.5f;
+    in.midSide      = parameters.getRawParameterValue ("matchStereo")->load() > 0.5f;
     in.amount       = parameters.getRawParameterValue ("shapeAmount")->load();
     in.refVersion   = refVersion.load();
     in.traceVersion = traceVersion.load();
@@ -291,14 +429,17 @@ void MixMindProcessor::timerCallback()
 
     constexpr int n = AudioAnalyzer::numBins;
     bool haveTarget = false;
+    sideTarget.clear();
 
     if (! in.manual)
     {
         const auto& bins = getReferenceBins();
         if (! bins.empty()) { target = bins; haveTarget = true; }
+        if (in.midSide) sideTarget = getReferenceSideBins();
     }
     else
     {
+        // The trace is a tonal target for the whole mix: MANUAL is always linked.
         const auto points = getTrace();
         if (points.size() >= 2)
         {
@@ -307,25 +448,48 @@ void MixMindProcessor::timerCallback()
         }
     }
 
-    if (! haveTarget || ! audioAnalyzer.hasLongTermSpectrum())
+    float midOffset = 0.0f;
+    const bool ok = haveTarget && audioAnalyzer.hasLongTermSpectrum()
+                 && ShaperProcessor::buildCorrection (target.data(), audioAnalyzer.getLongTermBins(), n, in.rate,
+                                                      in.amount, correctionDb, nullptr, &midOffset);
+    if (! ok)
     {
         correctionDb.clear();
+        correctionSideDb.clear();
         if (! postedIdentity) { shaper.setFilter (nullptr, 0); postedIdentity = true; }
         return;
     }
 
-    ShaperProcessor::buildMatchFilter (target.data(), audioAnalyzer.getLongTermBins(), n, in.rate,
-                                       in.amount, taps, &correctionDb);
+    // Mid/side: the side is matched with the mid's level offset, so its level
+    // relative to the mid — the width, per band — follows the reference while
+    // overall loudness stays put. A side with nothing to compare (a mono mix)
+    // is left alone.
+    const bool midSide = ! sideTarget.empty();
+    if (midSide && ! ShaperProcessor::buildCorrection (sideTarget.data(), audioAnalyzer.getLongTermSideBins(), n,
+                                                       in.rate, in.amount, correctionSideDb, &midOffset))
+        correctionSideDb.assign ((size_t) n, 0.0f);
+    if (! midSide)
+        correctionSideDb.clear();
+
+    ShaperProcessor::designFromCurve (correctionDb, taps);
+    if (midSide) ShaperProcessor::designFromCurve (correctionSideDb, sideTaps);
+    else         sideTaps.clear();
 
     // Skip re-posting a filter that has not really changed: every post costs
     // the audio thread a crossfade (two convolutions for kFadeSamples).
-    float change = postedIdentity || postedTaps.size() != taps.size() ? 1.0f : 0.0f;
-    for (size_t i = 0; i < taps.size() && change < 1.0e-5f; ++i)
-        change = juce::jmax (change, std::abs (taps[i] - postedTaps[i]));
-    if (change < 1.0e-5f) return;
+    const auto differs = [] (const std::vector<float>& a, const std::vector<float>& b)
+    {
+        if (a.size() != b.size()) return true;
+        for (size_t i = 0; i < a.size(); ++i)
+            if (std::abs (a[i] - b[i]) >= 1.0e-5f) return true;
+        return false;
+    };
+    if (! postedIdentity && ! differs (taps, postedTaps) && ! differs (sideTaps, postedSideTaps)) return;
 
-    shaper.setFilter (taps.data(), (int) taps.size());
-    postedTaps = taps;
+    if (midSide) shaper.setMidSideFilters (taps.data(), sideTaps.data(), (int) taps.size());
+    else         shaper.setFilter (taps.data(), (int) taps.size());
+    postedTaps     = taps;
+    postedSideTaps = sideTaps;
     postedIdentity = false;
 }
 
@@ -357,6 +521,11 @@ void MixMindProcessor::getStateInformation (juce::MemoryBlock& destData)
             r.setProperty ("phase",       reference->phaseCorr, nullptr);
             juce::MemoryBlock spec (reference->spectrum.data(), reference->spectrum.size() * sizeof (float));
             r.setProperty ("spectrum",    spec.toBase64Encoding(), nullptr);
+            if (reference->hasSide())
+            {
+                juce::MemoryBlock side (reference->sideSpectrum.data(), reference->sideSpectrum.size() * sizeof (float));
+                r.setProperty ("sideSpectrum", side.toBase64Encoding(), nullptr);
+            }
             root.appendChild (r, nullptr);
         }
 
@@ -423,15 +592,25 @@ void MixMindProcessor::setStateInformation (const void* data, int sizeInBytes)
     cached->stereoWidth     = r.getProperty ("width");
     cached->phaseCorr       = r.getProperty ("phase");
 
-    juce::MemoryBlock spec;
-    if (spec.fromBase64Encoding (r.getProperty ("spectrum").toString()))
+    const auto decode = [&r] (const char* key, std::vector<float>& out)
     {
-        const auto* f = static_cast<const float*> (spec.getData());
-        cached->spectrum.assign (f, f + spec.getSize() / sizeof (float));
-    }
+        juce::MemoryBlock block;
+        if (block.fromBase64Encoding (r.getProperty (key).toString()))
+        {
+            const auto* f = static_cast<const float*> (block.getData());
+            out.assign (f, f + block.getSize() / sizeof (float));
+        }
+    };
+    decode ("spectrum", cached->spectrum);
+    decode ("sideSpectrum", cached->sideSpectrum);
 
     if (cached->isValid() && cached->sampleRate > 0.0)
     {
+        // Analyses cached before mid/side matching have no side spectrum:
+        // use the cache now and refresh it from the file if it is still there.
+        const juce::File file (juce::File::isAbsolutePath (cached->path) ? cached->path : juce::String());
+        const bool refresh = ! cached->hasSide() && file.existsAsFile();
+
         ++loadGeneration;   // a restored reference supersedes any in-flight load
         {
             const juce::ScopedLock sl (stateLock);
@@ -440,6 +619,8 @@ void MixMindProcessor::setStateInformation (const void* data, int sizeInBytes)
             refMessage = {};
         }
         ++refVersion;
+
+        if (refresh) loadReference (file);
     }
     else if (juce::File::isAbsolutePath (cached->path))
     {

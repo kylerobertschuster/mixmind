@@ -24,7 +24,7 @@ cmake --build build --target MixMind_Standalone
 Targets: `MixMind`, `Scope`, `Meter`, `EQT`, `Reflex`, `ThreeFX`, `Neat`, plus
 `MixMindTests` (JUCE `UnitTest` console app; `-DMIXMIND_BUILD_TESTS=OFF` skips
 it). `MixMindTests <category>` runs one category: `Metering`, `Shaper`,
-`Reference`, `Processor`. On Linux the processor tests paint the editor, so run
+`Equalizer`, `Reference`, `Processor`. On Linux the processor tests paint the editor, so run
 them under `xvfb-run -a` when there is no display.
 AAX is deferred to V2. Do not add AAX to the CMake target lists.
 
@@ -66,6 +66,8 @@ Shared source across targets:
   Depends on `LoudnessMeter.cpp/.h`, so any target compiling
   `AudioAnalyzer` must also compile `LoudnessMeter`.
 - `LookAndFeel.cpp/.h` — used by every target.
+- `ShaperProcessor`, `ParametricEq`, `ReferenceAnalyzer`, `TelemetryCanvas` —
+  MixMind (and `MixMindTests`) only.
 - `LicenseManager.cpp/.h` — used by Scope, Meter, EQT, Reflex,
   ThreeFX, Neat. Not used by MixMind.
 
@@ -81,14 +83,23 @@ When editing shared files, check every consuming target still builds.
 
 ## DSP rules (MixMind-specific)
 
+- Signal path: input analyzer → shaper (match FIR) → `ParametricEq` bands →
+  non-finite guard → output analyzer. The match is designed from the input
+  analyzer; YOU curves/readouts show the output analyzer.
 - Shaper is a linear-phase FIR match-EQ. Constants are compile-time:
-  `kTapCount=1024`, `kDesignOrder=11`, `kDesignSize=2048`, `kNumBins=1024`,
-  `kLatency=512`. Bumping to 2048 taps / 4096 IFFT gives ~23 Hz resolution
-  at ~21 ms latency — propose, don't change silently.
-- Taps are exactly symmetric about `kLatency` (group delay = 512, matching the
-  reported latency). Latency is constant: SHAPE off / host bypass is a pure
-  `kLatency` delay, never 0. Filter swaps and toggles crossfade over
-  `kFadeSamples`; the audio thread only try-locks the `SpinLock`.
+  `kTapCount=2048`, `kDesignOrder=12`, `kDesignSize=4096`, `kNumBins=2048`,
+  `kLatency=1024` (≈21 ms @ 48 k). The analyzer's 2048-pt Hann already limits
+  resolution to the same ≈47 Hz, so more taps also need a bigger analyzer
+  FFT — propose, don't change silently.
+- Convolution is uniformly partitioned (`kPartition=128`): the first
+  partition runs direct (no added latency), the rest via FFT once per
+  partition. Output must not depend on the host block size (tested).
+- Taps are exactly symmetric about `kLatency` (group delay = 1024, matching
+  the reported latency). Latency is constant: SHAPE off / host bypass is a
+  pure `kLatency` delay, never 0, and bit-exact. Filter swaps and toggles
+  crossfade over `kFadeSamples`; filters are handed over through a fixed slot
+  pool and the audio thread only try-locks the `SpinLock` (no allocation on
+  the audio thread).
 - The match is level-neutral: the octave-weighted mean of `target − live`
   (40 Hz–16 kHz) is removed before design. Do not reintroduce DC
   normalisation — it turned a DC-bin cut into a broadband boost.
@@ -97,19 +108,41 @@ When editing shared files, check every consuming target still builds.
   both apply 1/N. Do not add a manual 1/N scale.
 - Manual mode = `traceTarget − live`. Auto mode = `ref − live`.
   Same engine serves both; do not fork it.
+- Mid/side match (`matchStereo`, AUTO only): mid = `refMid − liveMid`, side =
+  `refSide − liveSide`, and the side removes the *mid's* level offset (not its
+  own), so width per band follows the reference while loudness does not
+  move. A side with nothing to compare (mono mix) gets no correction. MANUAL
+  is always linked.
 - **The trace is stored as (Hz, dB), never as pixels or 0..1 plot units.**
   The canvas y-axis is linear in dB (`TelemetryCanvas::dbToUnit/unitToDb`,
   −100..0 dB, 0 dB = full-scale sine on the analyzer scale), so a plot
   height is *not* a linear magnitude. `ShaperProcessor::buildTargetFromCurve`
   is the one place dB → linear happens. (Reading plot height as linear
   magnitude makes MANUAL mode boost by up to the 24 dB clamp.)
-- The auto-match compares against `AudioAnalyzer::getLongTermBins()` (≈3 s,
-  gated at −70 dBFS), not the ~200 ms display average.
+- The auto-match compares against `AudioAnalyzer::getLongTermBins()` /
+  `getLongTermSideBins()` (≈3 s, gated at −70 dBFS on the mid), not the
+  ~200 ms display average.
 - `ReferenceAnalyzer` analyses at the file's own rate and
   `ReferenceAnalyzer::mapToGrid` produces `AudioAnalyzer::numBins` (1024)
   bins on the live grid. Live and reference both analyse the mid signal
   (L+R)/2. If the live FFT size ever changes, `mapToGrid` and the shaper's
   design grid must change with it — stop and report rather than guessing.
+
+## EQ rules (`ParametricEq`)
+
+- Sections are analog-matched, never bilinear (RBJ) — bilinear bells cramp
+  toward Nyquist. Poles: impulse-invariant image of the analog poles. Zeros:
+  exact at DC and the band frequency, Nyquist term by least squares over
+  f0/8 … 0.45·fs. Cut bells, boosting high shelves and cutting low shelves
+  are designed as their inverse and inverted (keeps poles below f0 and the
+  shape in the poles).
+- Sections run as TPT SVFs (g, k, mL/mB/mH mapped exactly from the matched
+  biquad — do not derive g from `tan(πf/fs)`, that re-introduces bilinear
+  poles), coefficients interpolated per sample. Discrete changes (type,
+  slope, placement, on/off) fade the band out and in.
+- All bands off = bit-exact pass-through. Placement: Stereo / Mid / Side.
+- Accuracy is tested against the analog prototype (≤ 0.75 dB to 0.45·fs,
+  ignoring points below −60 dB). Don't loosen that; improve the design.
 
 ## Metering rules
 
@@ -126,6 +159,10 @@ When editing shared files, check every consuming target still builds.
 - Never substitute RMS−3 dB for LUFS, `LUFS + 3` for true peak, or any
   other proxy. If a source still does, fix it.
 - `toLufs = -0.691 + 10·log10(energy/count)`, energy summed over channels.
+- No non-finite sample reaches an analyzer or the host: `runChain` zeroes
+  non-finite input and, if the output is ever non-finite, silences the block
+  and resets the filters. Never add a hard clipper or DC blocker "for
+  safety" — they change the sound.
 
 ## Testing
 

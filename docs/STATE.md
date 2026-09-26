@@ -15,27 +15,46 @@ AGENTS.md, not here.
   libxinerama, libxcursor, libxcomposite, libxext, libfreetype, libfontconfig,
   libgl dev packages.
 
+## Performance (measured, Release, one x86-64 core without AVX, 48 kHz stereo)
+
+- Match EQ 2048 taps: 1.1 % linked, 0.7 % mid/side, 2.4 % while
+  crossfading continuously (a 1024-tap direct FIR used to cost 4.5 %).
+- 8 EQ bands: 0.8 % static, 5.1 % with all eight sweeping every block.
+- BS.1770 meter: 0.25 %.
+- Editor (software renderer): ≈4.7 ms/frame at 1080×680, ≈10.8 ms at
+  1800×1100; the canvas runs at 30 fps (≈14 % of a core worst case here).
+  `MIXMIND_SNAPSHOT_DIR=… MixMindTests Processor` prints these and writes
+  PNG snapshots. GPU rendering (juce_opengl) is the next step if needed.
+
 ## Tests
 
-`MixMindTests` (JUCE UnitTest, `ctest`): 178 checks, all passing.
+`MixMindTests` (JUCE UnitTest, `ctest`): all passing (count in the latest
+commit message; Debug and Release).
 
 - **Metering** — BS.1770 K-weighting coefficients vs the standard's table;
   EBU Tech 3341 cases 1–5 at 44.1 and 48 kHz (±0.1 LU); block-size
   independence; mono vs dual-mono; out-of-phase stereo; inter-sample true
   peak; crest factor; absolute gate; reset.
 - **Shaper** — identity, level-neutrality, +6 dB shelf → +6 dB tilt, amount
-  scaling, exact linear phase about 512, bypass = 512-sample delay, runtime
+  scaling, exact linear phase about 1024, bit-exact bypass delay, runtime
   impulse response == designed taps, stepped sine sweep (measured gain ==
-  designed response ±0.05 dB), click-free swaps/toggles, trace → target,
-  MANUAL end-to-end, edge hold outside the data.
+  designed response ±0.05 dB), host-block-size independence, click-free
+  swaps/toggles, mid/side filter pairs, side offset, low-end resolution,
+  trace → target, MANUAL end-to-end, edge hold outside the data.
+- **Equalizer** — matched design vs analog prototype for bells (±12 dB,
+  Q 0.7–6, 100 Hz–16 kHz, 44.1/48/96 k), shelves, 12/24/48 dB/oct cuts,
+  notch; bilinear comparison; stability of 2000 random designs; measured
+  gain; Stereo/Mid/Side placement (stereo and mono); bit-exact bypass;
+  click-free on/off / type / placement / frequency jumps.
 - **Reference** — loudness/peak/spectrum agree with the live analyzer;
   44.1 k / 96 k files land on the 48 k grid at the same level; mono = dual-mono;
   sub-400 ms files; missing / silent / non-audio files; cancellation; formats.
 - **Processor** — constant latency + latency-matched host bypass; async
   reference load; session round-trip (reference restored from the cached
   analysis with the audio file deleted, trace, parameters); pre-v2 sessions;
-  failed load keeps the previous reference; AUTO and MANUAL correction end to
-  end; editor open / resize / paint / close. Setting `MIXMIND_SNAPSHOT_DIR`
+  failed load keeps the previous reference; AUTO, MANUAL and mid/side
+  correction end to end; band parameters drive the EQ and the output
+  analyzer; non-finite input contained; editor open / resize / paint / close. Setting `MIXMIND_SNAPSHOT_DIR`
   writes PNG snapshots of the editor for visual review.
 
 ## Code
@@ -51,20 +70,32 @@ AGENTS.md, not here.
 - **ReferenceAnalyzer** — streams the file (WAV/AIFF/FLAC/Ogg/MP3, plus
   CoreAudio formats on macOS), analyses at the file's own rate, maps onto
   the live grid (`mapToGrid`, no resampling). Runs on a background thread.
-- **ShaperProcessor** — linear-phase FIR match EQ (1024 taps, latency 512,
-  constant). Level-neutral, 1/3-octave smoothed, ±24 dB clamp, bins without
-  data hold the neighbouring correction, sub-20 Hz untouched. Crossfaded
-  filter swaps/toggles; mirrored delay line.
+- **ShaperProcessor** — linear-phase FIR match EQ (2048 taps, latency 1024,
+  constant), uniformly partitioned FFT convolution with a direct head (zero
+  added latency). Linked or mid/side filter pairs. Level-neutral, 1/3-octave
+  smoothed, ±24 dB clamp, bins without data hold the neighbouring
+  correction, sub-20 Hz untouched. Crossfaded swaps/toggles via a fixed slot
+  pool.
+- **ParametricEq** — 8 bands (bell, shelves, 12/24/48 dB/oct cuts, notch),
+  analog-matched design realised as TPT SVFs with per-sample interpolation,
+  Stereo/Mid/Side placement, fades on discrete changes, bit-exact when off.
+  All band settings are automatable parameters.
 - **MixMindProcessor** — owns the reference, the trace and the design loop
-  (message-thread timer), so closing the editor loses nothing. State v2 saves
-  parameters, the trace (Hz, dB) and the reference analysis (+ path).
-  Parameters carry version hints; mono and stereo layouts supported.
+  (message-thread timer), so closing the editor loses nothing. Input and
+  output analyzers; non-finite guard. State v2 saves parameters, the trace
+  (Hz, dB) and the reference analysis incl. side spectrum (+ path; older
+  caches without a side spectrum are refreshed from the file). Parameters
+  carry version hints; mono and stereo layouts supported.
 - **Editor / TelemetryCanvas** — parameter attachments (host automation and
   session recall reflected in the UI), drag-and-drop for audio (reference)
   and images (layer), reference menu (replace / re-analyze / reveal / clear),
-  match-curve preview before SHAPE is on, LUFS/dBTP readouts with YOU − REF
-  loudness difference, 1/12-octave display smoothing, dB axis labels, trace
-  editing (add / drag / delete).
+  match-curve preview before SHAPE is on (side curve dashed in M/S),
+  interactive EQ nodes (double-click add, drag, shift = fine, wheel = Q,
+  right-click menu, double-click / alt-click / Delete removes; edits are
+  host gestures), post-processing YOU spectrum with the input drawn faintly,
+  LUFS/dBTP readouts with YOU − REF loudness difference, 1/12-octave display
+  smoothing, dB axis labels, trace editing. Screenshot layer gestures need
+  Shift.
 - **Siblings** — Meter shows real true peak / crest / band levels (it showed
   `LUFS + 3` and `LUFS × 0.2`); Scope's goniometer plots real samples (it
   plotted bass vs mid energy). LookAndFeel honours toggle colours and bold
@@ -73,6 +104,10 @@ AGENTS.md, not here.
 
 ## Last milestone
 
+Sep 2026, second pass: 2048-tap partitioned match EQ, mid/side matching,
+8-band analog-matched parametric EQ with interactive nodes, output
+analyzer, non-finite guard.
+
 Sep 2026 cleanup + `honest-dsp-v1` work: MixMind compiles again (the
 reference loader did not build), BS.1770-correct metering, reference
 pipeline rebuilt, shaper made level-neutral / exact-latency / click-free,
@@ -80,15 +115,18 @@ test suite added. Tag `honest-dsp-v1` still pending.
 
 ## Open / next
 
+- LLM assistant direction (conversational, local inference, multi-instance):
+  proposed, not started — needs a decision on scope and on reversing the
+  AGENTS.md rule that removed the AI stack.
 - Decide the fate of `proxy/`: its DeepSeek `/api/chat` route is dead
   (no plugin calls it) and `/purchase` answers 402, so the site's Buy
   button currently fails. The plugins accept any `MM-` key locally.
 - Sibling plugins still nag for a license on open with "N free prompts"
   wording from the AI era (LicenseManager is off-limits; the wording lives
   in each editor).
-- Proposal: 2048 taps / 4096 design (≈23 Hz resolution, ≈21 ms latency) for
-  tighter low-end matching — current 1024 taps can't resolve much below
-  ~100 Hz.
+- Next resolution step would be a 4096-pt analyzer + 4096 taps (≈43 ms
+  latency); the analyzer is now the limit, not the FIR.
+- Other plugins (Neat, Reflex, 3FX, Scope, Meter, EQT) — next pass.
 - Logo + branding for the suite (renders in `assets/branding/`).
 - Synth focus group still gated (5th group behind the default 4).
 - Optional: iridescent band blending on the rainbow master.

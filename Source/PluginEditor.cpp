@@ -119,6 +119,15 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     addAndMakeVisible (modeButton);
     modeAttachment = std::make_unique<APVTS::ButtonAttachment> (audioProcessor.parameters, "shapeMode", modeButton);
 
+    styleHeaderButton (stereoButton);
+    stereoButton.setColour (juce::TextButton::textColourOffId, JP::text);
+    stereoButton.setClickingTogglesState (true);
+    stereoButton.setTooltip ("LINK = one match curve for both channels.\n"
+                             "M/S = match the mid and the side separately (AUTO only): the width per band follows the reference.");
+    stereoButton.onStateChange = [this] { stereoButton.setButtonText (stereoButton.getToggleState() ? "M/S" : "LINK"); };
+    addAndMakeVisible (stereoButton);
+    stereoAttachment = std::make_unique<APVTS::ButtonAttachment> (audioProcessor.parameters, "matchStereo", stereoButton);
+
     amountSlider.setSliderStyle (juce::Slider::LinearHorizontal);
     amountSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 44, 22);
     amountSlider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
@@ -134,12 +143,16 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
         audioProcessor.setTrace (std::move (pts));
         seenTraceVersion = audioProcessor.getTraceVersion();   // canvas already shows it
     };
-    telemetry.onReadoutClicked = [this] { audioProcessor.audioAnalyzer.resetLoudness(); };
+    telemetry.onReadoutClicked = [this] { audioProcessor.outputAnalyzer.resetLoudness(); };
+    telemetry.onBandGestureStart = [this] (int b) { bandGesture (b, true); };
+    telemetry.onBandGestureEnd   = [this] (int b) { bandGesture (b, false); };
+    telemetry.onBandChanged      = [this] (int b, const ParametricEq::Band& band) { writeBand (b, band); };
     addAndMakeVisible (telemetry);
 
     // Sync button labels with the restored parameter state.
     shapeButton.onStateChange();
     modeButton.onStateChange();
+    stereoButton.onStateChange();
 
     applyFocusSelection();
 
@@ -156,6 +169,7 @@ MixMindEditor::~MixMindEditor()
     stopTimer();
     shapeAttachment.reset();
     modeAttachment.reset();
+    stereoAttachment.reset();
     amountAttachment.reset();
     setLookAndFeel (nullptr);
 }
@@ -210,17 +224,18 @@ void MixMindEditor::resized()
     };
 
     // Fits the 960 px minimum width.
-    titleLabel.setBounds    (take (76, 8));
-    loadRefButton.setBounds (take (150));
-    layerButton.setBounds   (take (64, 4));
-    opacitySlider.setBounds (take (56, 10));
-    traceButton.setBounds   (take (64, 10));
-    focusBox.setBounds      (take (96));
+    titleLabel.setBounds    (take (70, 8));
+    loadRefButton.setBounds (take (130));
+    layerButton.setBounds   (take (60, 4));
+    opacitySlider.setBounds (take (48, 10));
+    traceButton.setBounds   (take (62, 10));
+    focusBox.setBounds      (take (90));
     colorSwatch.setBounds   (take (kControlH - 2).withSizeKeepingCentre (kControlH - 2, kControlH - 2));
 
     takeRight (14, 10);   // signal dot
-    amountSlider.setBounds (takeRight (150, 8));
-    modeButton.setBounds   (takeRight (74));
+    amountSlider.setBounds (takeRight (130, 8));
+    stereoButton.setBounds (takeRight (52));
+    modeButton.setBounds   (takeRight (72));
     shapeButton.setBounds  (takeRight (84));
 
     telemetry.setBounds (b);
@@ -231,9 +246,23 @@ void MixMindEditor::resized()
 void MixMindEditor::timerCallback()
 {
     ++dotPhase;
-    auto& aa = audioProcessor.audioAnalyzer;
+    // YOU = what comes out (after the match and the bands); the input is
+    // drawn faintly underneath whenever the plugin is changing the sound.
+    auto& aa = audioProcessor.outputAnalyzer;
+    const bool shapeOn = audioProcessor.parameters.getRawParameterValue ("shapeEnable")->load() > 0.5f;
 
     telemetry.setUserBins (aa.getFFTBins(), AudioAnalyzer::numBins, audioProcessor.getCurrentSampleRate());
+
+    std::array<ParametricEq::Band, ParametricEq::kNumBands> bands;
+    bool eqOn = false;
+    for (int b = 0; b < ParametricEq::kNumBands; ++b)
+    {
+        bands[(size_t) b] = audioProcessor.readBand (b);
+        eqOn |= bands[(size_t) b].on;
+    }
+    telemetry.setBands (bands);
+    if (shapeOn || eqOn) telemetry.setInputBins (audioProcessor.audioAnalyzer.getFFTBins(), AudioAnalyzer::numBins);
+    else                 telemetry.setInputBins (nullptr, 0);
 
     TelemetryCanvas::Readout you;
     you.lufs     = aa.getLufs();
@@ -252,8 +281,7 @@ void MixMindEditor::timerCallback()
         telemetry.setTrace (audioProcessor.getTrace());
     }
 
-    const bool shapeOn = audioProcessor.parameters.getRawParameterValue ("shapeEnable")->load() > 0.5f;
-    telemetry.setCorrection (audioProcessor.getCorrectionDb(), shapeOn);
+    telemetry.setCorrection (audioProcessor.getCorrectionDb(), audioProcessor.getCorrectionSideDb(), shapeOn);
 
     repaint (getLocalBounds().removeFromTop (JP::headerH).removeFromRight (40));
 }
@@ -415,6 +443,36 @@ void MixMindEditor::filesDropped (const juce::StringArray& files, int, int)
         if (audioProcessor.canLoadAsReference (f)) { audioProcessor.loadReference (f); return; }
         if (isImageFile (f))                       { loadImageLayer (f); return; }
     }
+}
+
+// ── Parametric bands ───────────────────────────────────────────────────────
+
+void MixMindEditor::bandGesture (int band, bool starting)
+{
+    const auto& bp = audioProcessor.getBandParams (band);
+    for (auto* p : std::initializer_list<juce::RangedAudioParameter*> { bp.on, bp.type, bp.freq, bp.gain, bp.q,
+                                                                         bp.slope, bp.placement })
+    {
+        if (starting) p->beginChangeGesture();
+        else          p->endChangeGesture();
+    }
+}
+
+void MixMindEditor::writeBand (int band, const ParametricEq::Band& b)
+{
+    const auto& bp = audioProcessor.getBandParams (band);
+    const auto set = [] (juce::RangedAudioParameter* p, float plainValue)
+    {
+        const float v = p->convertTo0to1 (plainValue);
+        if (! juce::exactlyEqual (v, p->getValue())) p->setValueNotifyingHost (v);
+    };
+    set (bp.on,        b.on ? 1.0f : 0.0f);
+    set (bp.type,      (float) (int) b.type);
+    set (bp.freq,      b.freq);
+    set (bp.gain,      b.gainDb);
+    set (bp.q,         b.q);
+    set (bp.slope,     (float) ParametricEq::indexFromSlope (b.slope));
+    set (bp.placement, (float) (int) b.placement);
 }
 
 // ── Focus ──────────────────────────────────────────────────────────────────
