@@ -1,55 +1,65 @@
-Version: 1.0
+Version: 1.1
 Last Reviewed: 2026-09-27
 Owner: Founder
 
 # MixMind Roadmap
 
-Priorities serve Mix Doctor (ADR-001). Each item is a GitHub issue; progress
-lives there and in `docs/STATE.md`, not here.
+Priorities serve Mix Doctor (ADR-001); the v1.0 cut is
+[ADR-006](ADR/ADR-006-v1-is-mix-doctor.md). Progress lives in the issues and
+`docs/STATE.md`, not here.
 
-## Foundation — done
+## v1.0 — Mix Doctor
 
-Honest BS.1770 metering, reference analysis and caching, 2048-tap
-linear-phase match EQ (linked and mid/side), 8-band analog-matched EQ,
-non-finite guard, GPU-rendered editor, AI worker with strict firewall and
-user approval.
+### Required
 
-## Priority 1 — become indispensable
+| Item | Issue | Status |
+|---|---|---|
+| Mix Doctor report | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | not started |
+| Severity scoring | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | not started |
+| Analysis engine: measurement snapshots, the window Mix Doctor observes, audio-thread allocation guard | [#2](https://github.com/kylerobertschuster/mixmind/issues/2), [#5](https://github.com/kylerobertschuster/mixmind/issues/5) | partial — analyzers and BS.1770 meter exist; snapshots, window and guard don't (fixes AR-001) |
+| Frequency masking | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | not started — v1.0 form undecided (below) |
+| Reference track intelligence | [#4](https://github.com/kylerobertschuster/mixmind/issues/4) | partial — analysis, caching and match EQ exist; comparison report doesn't |
+| AI explanations of findings | — | partial — worker and firewall exist; no explanation payload, model backend or UI |
+| Approval gate | — | done (ADR-003) |
 
-| Item | Issue |
+Offline function is required too (ADR-005): v1.0 must be complete with no
+model and no network.
+
+### The v1.0 AI
+
+Analysis → Diagnostics → Mix Doctor findings → AI explanation.
+
+| In v1.0 | Not in v1.0 |
 |---|---|
-| Mix Doctor MVP (incl. severity scoring) | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) |
-| Rolling analysis engine | [#2](https://github.com/kylerobertschuster/mixmind/issues/2) |
-| Frequency masking detection | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) |
-| Reference track intelligence | [#4](https://github.com/kylerobertschuster/mixmind/issues/4) |
+| ✓ Explain findings | ✗ Autonomous mixing |
+| ✓ Write the report's prose from findings | ✗ Autonomous mastering |
+| ✓ Recommend actions (applied on approval) | ✗ Autonomous parameter application |
+| | ✗ Coaching (nice-to-have) |
 
-## Priority 2 — serious audio intelligence
+## v1.x — nice-to-have
 
 | Item | Issue |
 |---|---|
 | Translation prediction | [#6](https://github.com/kylerobertschuster/mixmind/issues/6) |
+| Session history and trends (30–60 s windows) | [#2](https://github.com/kylerobertschuster/mixmind/issues/2) |
 | Section detection | [#7](https://github.com/kylerobertschuster/mixmind/issues/7) |
-| Session trend analysis | extends [#2](https://github.com/kylerobertschuster/mixmind/issues/2) |
-| Offline diagnostic mode | [#8](https://github.com/kylerobertschuster/mixmind/issues/8) |
+| AI coaching | — |
 
-## Priority 3 — coaching
+## Later
 
-AI coaching, action plans, local AI inference, adaptive learning. No issues
-yet.
+Action plans, local AI inference, adaptive learning.
 
-## Cross-cutting
+## Release work (needed to sell v1.0; not product features)
 
 | Item | Issue |
 |---|---|
-| Audio-thread allocation guard and snapshots | [#5](https://github.com/kylerobertschuster/mixmind/issues/5) |
 | Plugin settings and licensing UX | [#9](https://github.com/kylerobertschuster/mixmind/issues/9) |
 | Commercial beta program | [#10](https://github.com/kylerobertschuster/mixmind/issues/10) |
 
-## Open conflicts (raised, not resolved)
+## Open questions (raised, not resolved)
 
-- **Where AI sits.** AGENTS.md and `docs/STATE.md` put AI integration in the
-  v1.0 scope; this list puts AI coaching at Priority 3. Needs a founder
-  decision: is v1.0's AI the explanation of Mix Doctor findings (and so
-  needs #1 first), or does v1.0 ship before Mix Doctor?
-- **The v1.0 cut.** `docs/STATE.md` still lists the earlier v1.0 items;
-  whether v1.0 is re-scoped around Priority 1 is undecided.
+- **Masking's v1.0 form** (#3): multi-instance measurement of which source
+  masks which, or mix-bus symptoms only?
+- **Offline file analysis** (#8): not placed by ADR-006 — v1.0 or v1.x?
+- **AI explanations**: model provider (local / cloud / `proxy/`), the
+  explanation payload the firewall accepts, and an issue to track it.

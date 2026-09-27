@@ -1,4 +1,4 @@
-Version: 1.0
+Version: 1.1
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -17,7 +17,57 @@ Governing decisions: [ADR-001](ADR/ADR-001-mix-doctor-is-primary-product-surface
 [ADR-002](ADR/ADR-002-dsp-is-source-of-truth.md) ·
 [ADR-003](ADR/ADR-003-ai-recommendations-require-user-approval.md) ·
 [ADR-004](ADR/ADR-004-strict-json-firewall.md) ·
-[ADR-005](ADR/ADR-005-offline-diagnostics-must-function.md)
+[ADR-005](ADR/ADR-005-offline-diagnostics-must-function.md) ·
+[ADR-006](ADR/ADR-006-v1-is-mix-doctor.md)
+
+---
+
+# Known Architectural Risks
+
+Listed first because they qualify everything below. Each risk keeps its ID
+forever; when fixed it is marked Resolved with the change that fixed it,
+never deleted. A change that touches an open risk says so and updates it.
+
+## AR-001 — Analyzer spectra cross threads without synchronisation
+
+Status: **Open** · Priority: **High** · Target resolution: `MeasurementSnapshot`
+([#2](https://github.com/kylerobertschuster/mixmind/issues/2)), enforced by
+[#5](https://github.com/kylerobertschuster/mixmind/issues/5)
+
+**Description.** `AudioAnalyzer` writes its display and long-term spectra
+(plain `float` arrays) on the audio thread. The design loop and the editor
+(message thread) and the canvas `paint()` (GL thread) read them with no
+synchronisation. Scalar readouts are atomics; the spectra are not.
+
+**Potential effects**
+- Torn reads: one read mixes two analysis updates. Today the display
+  smoothing and the match design's averaging absorb them.
+- UI inconsistency: curves drawn in the same frame can come from different
+  updates.
+- Undefined behaviour: formally a data race. The compiler is allowed to
+  break it, and ThreadSanitizer would flag it.
+
+**Why it matters more now.** Mix Doctor findings will be computed from these
+spectra, and a finding has to come from one consistent measurement (ADR-002).
+
+**Target.** The audio thread publishes complete, fixed-size snapshots
+(lock-free FIFO, or a double buffer with an atomic index); readers only ever
+see whole snapshots.
+
+## AR-002 — AI worker shutdown depends on cooperative cancellation
+
+Status: **Open** · Priority: **Medium** (High once a real model backend
+lands) · Target resolution: the backend contract, tested against the first
+real backend
+
+**Description.** `~AiWorker` asks its thread to exit and waits 4 s. A backend
+that ignores `shouldCancel` — e.g. a blocking HTTP call with no timeout —
+outlives that, and JUCE then kills the thread by force, which can leave locks
+or the heap in a broken state and crash the host when the plugin closes.
+
+**Target.** Every backend uses bounded timeouts and polls `shouldCancel`
+(streaming or progress callbacks), and a test closes the plugin mid-request
+against the real backend. The fake-backend case is already tested.
 
 ---
 
@@ -62,7 +112,7 @@ input ─► non-finite → 0 ─► input AudioAnalyzer ─► ShaperProcessor 
 | Parameters | message / host → audio | APVTS `std::atomic<float>` |
 | Match filters | message → audio | 5-slot pool; writer takes a `SpinLock`, the audio thread only try-locks; swaps crossfade over 2048 samples |
 | Scalar readouts (LUFS, peaks, width, …) | audio → message / GL | `juce::Atomic<float>` |
-| Spectra (display, long-term) | audio → message / GL | plain float arrays read without synchronisation; a torn read affects one displayed frame or one design tick, which smoothing absorbs. **Known gap**; replaced by snapshots in the Target State (#2, #5) |
+| Spectra (display, long-term) | audio → message / GL | plain float arrays read without synchronisation — **AR-001** |
 | Reference analysis | loader → message; host threads | `shared_ptr<const Result>` under a `CriticalSection`; never touched by the audio thread |
 | AI requests | message → AI worker | list under a `CriticalSection`; never touched by the audio thread |
 | AI results | AI worker → message | lock-free SPSC FIFO (`AbstractFifo`) of fixed-size plain-data records |
@@ -78,7 +128,7 @@ message thread: drainAi ─► pending suggestion ─► approveAiSuggestion (us
 
 - Backends run only on the worker thread; exceptions are contained; results
   (accepted, rejected with a reason, or failed) always come back through the
-  FIFO.
+  FIFO. Shutdown relies on the backend honouring `shouldCancel` — **AR-002**.
 - `AiFirewall` is all-or-nothing, clamps only continuous quantities, and
   requires exact choices and switches. The AI never supplies filter
   coefficients (ADR-004).
@@ -134,8 +184,8 @@ diagnostic engine, or change the audio without the user (ADR-002, ADR-003).
 
 | Component | Status | Issue | Notes |
 |---|---|---|---|
-| `MeasurementSnapshot` + analysis history (10 / 30 / 60 s) | PLANNED | [#2](https://github.com/kylerobertschuster/mixmind/issues/2) | audio thread publishes fixed-size frames through a lock-free FIFO; statistics off-thread |
-| Audio-thread allocation guard; snapshot pattern everywhere | PLANNED | [#5](https://github.com/kylerobertschuster/mixmind/issues/5) | closes the unsynchronised-spectra gap |
+| `MeasurementSnapshot` + analysis history (10 / 30 / 60 s) | PLANNED | [#2](https://github.com/kylerobertschuster/mixmind/issues/2) | audio thread publishes fixed-size frames through a lock-free FIFO; statistics off-thread; resolves AR-001 |
+| Audio-thread allocation guard; snapshot pattern everywhere | PLANNED | [#5](https://github.com/kylerobertschuster/mixmind/issues/5) | keeps AR-001 closed |
 | Diagnostic engine / Mix Doctor (`Finding`: observation, impact, severity, evidence, actions) | PLANNED | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | rules with explicit, tested thresholds; no invented norms |
 | Reference intelligence (comparison report, several references, audition) | PARTIAL | [#4](https://github.com/kylerobertschuster/mixmind/issues/4) | analysis, caching and match EQ exist |
 | Masking engine | PLANNED | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | real masking needs per-source signals (multi-instance); mix-bus symptoms meanwhile |
@@ -143,4 +193,4 @@ diagnostic engine, or change the audio without the user (ADR-002, ADR-003).
 | Translation predictor | PLANNED | [#6](https://github.com/kylerobertschuster/mixmind/issues/6) | defined scores, relative to the reference until calibrated |
 | Section detector | PLANNED | [#7](https://github.com/kylerobertschuster/mixmind/issues/7) | offline on a bounce first; real-time with lag |
 | Offline file analysis | PLANNED | [#8](https://github.com/kylerobertschuster/mixmind/issues/8) | same engines as real time, on a background thread |
-| AI explanation layer (backend + UI) | PARTIAL | — (see STATE.md) | worker, firewall and approval exist; provider and UI undecided |
+| AI explanation layer (explanation payload, backend, UI) | PARTIAL | — (see ROADMAP open questions) | worker, firewall and approval exist; the firewall's schema covers parameter / trace suggestions only; provider and UI undecided; AR-002 |

@@ -1,4 +1,4 @@
-Version: 1.1
+Version: 1.2
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -42,6 +42,11 @@ reasoning.
 - `FOUNDERS_NOTES.md` and ADRs are append-only: add dated entries; supersede
   an ADR with a new one rather than editing its decision. A change that
   contradicts an Accepted ADR needs a new ADR first.
+- Known architectural risks are listed at the top of `ARCHITECTURE.md`
+  (AR-NNN). A change that touches an open risk says so and updates it; a
+  risk is marked Resolved, never deleted.
+- The v1.0 scope is ADR-006 (v1.0 is Mix Doctor). Work outside its required
+  list does not block v1.0 and should not displace it without asking.
 
 ## Commands
 
@@ -119,13 +124,16 @@ When editing shared files, check every consuming target still builds.
 ## AI integration (v1.0)
 
 Governed by ADR-002 (DSP is the source of truth), ADR-003 (AI
-recommendations require user approval), ADR-004 (strict JSON firewall) and
-ADR-005 (offline diagnostics must function).
+recommendations require user approval), ADR-004 (strict JSON firewall),
+ADR-005 (offline diagnostics must function) and ADR-006 (v1.0 scope).
 
 AI/LLM integration is part of the v1.0 scope. Its job is to explain findings
 and prepare actions. It never measures, never creates findings, and never
 changes the audio on its own. Nothing may depend on it: with no model and no
-network, every measurement and diagnostic still works. `ApiClient`,
+network, every measurement and diagnostic still works. In v1.0 (ADR-006) the
+AI explains Mix Doctor findings, writes the report's prose from them and
+recommends actions for approval — no coaching, no autonomous mixing,
+mastering or parameter application. `ApiClient`,
 `ChatComponent`, `ContextPanel` and `AIAnalysis` may return to the MixMind
 target when they meet these rules:
 

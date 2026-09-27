@@ -1,4 +1,4 @@
-Version: 1.0
+Version: 1.1
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -19,3 +19,4 @@ One decision per file, `ADR-NNN-short-title.md`, numbered in order.
 | [003](ADR-003-ai-recommendations-require-user-approval.md) | AI recommendations require user approval | Accepted |
 | [004](ADR-004-strict-json-firewall.md) | Strict JSON firewall | Accepted |
 | [005](ADR-005-offline-diagnostics-must-function.md) | Offline diagnostics must function | Accepted |
+| [006](ADR-006-v1-is-mix-doctor.md) | MixMind v1.0 is Mix Doctor | Accepted |

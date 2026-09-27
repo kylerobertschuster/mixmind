@@ -1,4 +1,4 @@
-Version: 1.0
+Version: 1.1
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -10,31 +10,28 @@ AGENTS.md, not here.
 
 ## v1.0 scope
 
-Locked scope for the first release. The AI features are part of v1.0.
+Defined by ADR-006: **v1.0 ships Mix Doctor.** Status against its required
+list (details and issues in `docs/ROADMAP.md`):
 
-1. **Async LLM backend queue ↔ DSP thread** — infrastructure done
-   (`AiWorker`): requests run on a worker thread, results come back through a
-   lock-free SPSC FIFO of plain-data records, and an accepted result is held
-   as a suggestion until the user approves it (ADR-003), then applied as
-   host-visible parameter gestures. The audio thread never touches the AI
-   path. **No model backend yet** (provider undecided) and no UI to ask it
-   anything or approve — `setAiBackend()` / `approveAiSuggestion()` are the
-   hooks.
-2. **NaN / clamping firewall in front of the lock-free audio queue** — done
-   (`AiFirewall`): strict JSON check, then all-or-nothing validation;
-   NaN / inf / unknown IDs / wrong types reject, continuous values clamp to the
-   parameter's own range, choices and switches must be exact, trace clamped
-   to 20 Hz–20 kHz / −100..0 dB. The audio path's own non-finite guard
-   (`runChain`) stays.
-3. **OpenGL-accelerated TelemetryCanvas rendering the EQ match curves** —
-   done (3909c3f): the whole editor, canvas included, renders through an
-   attached `juce::OpenGLContext`. GPU frame cost still to be measured on
-   real hardware.
-4. **Simper SVF filters applying corrections without dropouts** — done:
-   `ParametricEq` bands run as TPT (Simper) SVFs mapped exactly from the
-   matched biquads, coefficients interpolated per sample, fades on discrete
-   changes. The reference match itself is applied by the linear-phase FIR
-   (`ShaperProcessor`), crossfaded on every filter swap.
+- **Mix Doctor report + severity scoring** (#1) — not started.
+- **Analysis engine** (#2, #5) — partial: input / output analyzers, BS.1770
+  meter and long-term spectra exist; measurement snapshots, the rolling window
+  and the allocation guard don't. AR-001 open.
+- **Frequency masking** (#3) — not started; v1.0 form undecided.
+- **Reference track intelligence** (#4) — partial: native-rate mid + side
+  analysis, session cache, AUTO / mid-side match exist; comparison report
+  doesn't.
+- **AI explanations** — partial: `AiWorker` (worker thread, lock-free FIFO)
+  and `AiFirewall` (strict JSON, all-or-nothing) exist, but the firewall's
+  schema covers parameter / trace suggestions only — no explanation payload,
+  no model backend, no UI. AR-002 open.
+- **Approval gate** — done (ADR-003): an accepted AI result changes nothing
+  until `approveAiSuggestion()`.
+- **Offline function** (ADR-005) — holds today: nothing needs a network.
+
+Foundation already done (the earlier v1.0 list, replaced by ADR-006): GPU
+(OpenGL) editor, Simper SVF parametric EQ, 2048-tap linear-phase match EQ,
+AI worker + firewall.
 
 ## Build
 
@@ -130,8 +127,10 @@ commit message; Debug and Release).
   analog-matched design realised as TPT SVFs with per-sample interpolation,
   Stereo/Mid/Side placement, fades on discrete changes, bit-exact when off.
   All band settings are automatable parameters.
-- **AiFirewall / AiWorker** — see v1.0 scope items 1–2. The worker thread
-  starts on first request; results are drained by the design-loop timer.
+- **AiFirewall / AiWorker** — strict JSON check + all-or-nothing firewall
+  (ADR-004) and the worker's lock-free result FIFO; accepted results wait for
+  approval (ADR-003). The worker thread starts on first request; results
+  are drained by the design-loop timer.
 - **MixMindProcessor** — owns the reference, the trace and the design loop
   (message-thread timer), so closing the editor loses nothing. Input and
   output analyzers; non-finite guard. State v2 saves parameters, the trace
@@ -174,24 +173,28 @@ test suite added. Tag `honest-dsp-v1` still pending.
 
 ## Open / next
 
-- LLM assistant: firewall + queue in place. Next: pick the model backend
-  (local Ollama / cloud API / the `proxy/`) and build the UI that asks it.
-- Decide the fate of `proxy/`: its DeepSeek `/api/chat` route is dead
-  (no plugin calls it) and `/purchase` answers 402, so the site's Buy
-  button currently fails. The plugins accept any `MM-` key locally.
-- Sibling plugins still nag for a license on open with "N free prompts"
-  wording from the AI era (LicenseManager is off-limits; the wording lives
-  in each editor).
+- Decide masking's v1.0 form (#3) and whether offline file analysis (#8) is
+  in v1.0 — both raised in `docs/ROADMAP.md`.
+- Build order toward ADR-006: snapshots / rolling window (#2, fixes AR-001)
+  → Mix Doctor rules + severity (#1) and the comparison report (#4) →
+  masking (#3) → AI explanation payload, backend and UI.
+- AI: pick the model backend (local Ollama / cloud API / the `proxy/`);
+  its HTTP calls must be bounded and cancellable (AR-002).
+- Low-end resolution: a 4096-pt (or multi-resolution) analyzer is likely
+  needed for masking (#3); changing it also changes `mapToGrid` and the
+  match-EQ grid — design note first.
 - GPU rendering: measure frame cost on real Windows / macOS hardware. On
   Windows JUCE 8 already renders through Direct2D by default and attaching
   the GL context replaces that — compare the two before release. Apple has
   deprecated OpenGL on macOS (it still works; on Apple Silicon the system
   implements it on top of Metal).
-- Next resolution step would be a 4096-pt analyzer + 4096 taps (≈43 ms
-  latency); the analyzer is now the limit, not the FIR.
-- Other plugins (Neat, Reflex, 3FX, Scope, Meter, EQT) — next pass.
-- Logo + branding for the suite (renders in `assets/branding/`).
-- Synth focus group still gated (5th group behind the default 4).
-- Optional: iridescent band blending on the rainbow master.
-- Browser/web marketing front door (`site/`) — after the plugin's core loop
-  is airtight.
+- Release work (#9, #10): the `proxy/` `/purchase` route answers 402 so the
+  site's Buy button fails; plugins accept any `MM-` key; sibling plugins
+  still show AI-era "free prompts" wording (LicenseManager is off-limits; the
+  wording lives in each editor).
+- Sibling plugins (Neat, Reflex, 3FX, Scope, Meter, EQT) are separate
+  products, not part of MixMind v1.0; their pass is still pending.
+- Parked, outside the v1.0 scope (kept so nothing is lost): suite logo and
+  branding (`assets/branding/`); synth focus group (5th group behind the
+  default 4); iridescent band blending on the rainbow master; the `site/`
+  front door.
