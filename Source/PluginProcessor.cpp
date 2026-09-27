@@ -414,6 +414,8 @@ void MixMindProcessor::setTrace (std::vector<TracePoint> points)
 
 void MixMindProcessor::timerCallback()
 {
+    drainAi();   // first, so this tick's design already sees what the AI changed
+
     DesignInputs in;
     in.manual       = parameters.getRawParameterValue ("shapeMode")->load() > 0.5f;
     in.midSide      = parameters.getRawParameterValue ("matchStereo")->load() > 0.5f;
@@ -631,4 +633,45 @@ void MixMindProcessor::setStateInformation (const void* data, int sizeInBytes)
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new MixMindProcessor();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  AI results (message thread)
+// ─────────────────────────────────────────────────────────────────────────────
+
+void MixMindProcessor::drainAi()
+{
+    AiResult r;
+    while (ai.pop (r))
+    {
+        const int applied = r.status == AiResult::Status::accepted ? applyAiPayload (r.payload) : 0;
+        aiStatus = { r.requestId, r.status, juce::String::fromUTF8 (r.message), applied };
+    }
+}
+
+int MixMindProcessor::applyAiPayload (const AiPayload& p)
+{
+    // Applied exactly as if the user had moved the controls: the host sees
+    // the edits (automation, undo), the session saves them, the editor's
+    // attachments follow, and the audio thread reads the new values from the
+    // parameters' atomics. Never from the audio thread: notifying listeners
+    // there can post messages and block.
+    const auto& list = getParameters();
+    int applied = 0;
+    for (int i = 0; i < p.numChanges; ++i)
+    {
+        const auto& change = p.changes[(size_t) i];
+        auto* param = list[change.param];
+        if (param == nullptr || juce::exactlyEqual (param->getValue(), change.value)) continue;
+        param->beginChangeGesture();
+        param->setValueNotifyingHost (change.value);
+        param->endChangeGesture();
+        ++applied;
+    }
+    if (p.setsTrace)
+    {
+        setTrace ({ p.trace.begin(), p.trace.begin() + p.numTracePoints });
+        ++applied;
+    }
+    return applied;
 }

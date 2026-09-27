@@ -5,7 +5,7 @@
 // Runs every juce::UnitTest registered in this binary. Exit code = number of
 // failures (0 = all passed), so CI / ctest can gate on it.
 //   MixMindTests                 run everything
-//   MixMindTests <category>      run one category (Metering, Shaper, Reference, Processor)
+//   MixMindTests <category>      run one category (Metering, Shaper, Equalizer, Reference, Processor, AI)
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juce;   // message manager for timers / async loads

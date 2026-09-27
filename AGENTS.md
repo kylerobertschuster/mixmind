@@ -24,7 +24,7 @@ cmake --build build --target MixMind_Standalone
 Targets: `MixMind`, `Scope`, `Meter`, `EQT`, `Reflex`, `ThreeFX`, `Neat`, plus
 `MixMindTests` (JUCE `UnitTest` console app; `-DMIXMIND_BUILD_TESTS=OFF` skips
 it). `MixMindTests <category>` runs one category: `Metering`, `Shaper`,
-`Equalizer`, `Reference`, `Processor`. On Linux the processor tests paint the editor, so run
+`Equalizer`, `Reference`, `Processor`, `AI`. On Linux the processor tests paint the editor, so run
 them under `xvfb-run -a` when there is no display.
 AAX is deferred to V2. Do not add AAX to the CMake target lists.
 
@@ -64,8 +64,8 @@ Shared source across targets:
   Depends on `LoudnessMeter.cpp/.h`, so any target compiling
   `AudioAnalyzer` must also compile `LoudnessMeter`.
 - `LookAndFeel.cpp/.h` — used by every target.
-- `ShaperProcessor`, `ParametricEq`, `ReferenceAnalyzer`, `TelemetryCanvas` —
-  MixMind (and `MixMindTests`) only.
+- `ShaperProcessor`, `ParametricEq`, `ReferenceAnalyzer`, `TelemetryCanvas`,
+  `AiFirewall`, `AiWorker` — MixMind (and `MixMindTests`) only.
 - `LicenseManager.cpp/.h` — used by Scope, Meter, EQT, Reflex,
   ThreeFX, Neat. Not used by MixMind.
 
@@ -97,6 +97,20 @@ the MixMind target when they meet these real-time safety rules:
 - Every coefficient, curve or parameter payload coming from the AI passes a
   strict NaN / inf / clamping firewall before it touches the lock-free audio
   queue. Nothing from the AI bypasses it.
+- How that is built: backends run only on the `AiWorker` thread (poll
+  `shouldCancel`, use timeouts); `AiFirewall` validates on that thread and the
+  result goes through the worker's lock-free SPSC FIFO as plain data. The FIFO
+  is drained on the message thread (`MixMindProcessor::drainAi`), which applies
+  a payload as host-visible parameter gestures and trace edits; the DSP picks
+  them up through the parameters' atomics and the FIR slot pool. Never apply AI
+  changes from the audio thread — parameter notifications there post messages
+  and can block.
+- The firewall is all-or-nothing (one bad field rejects the payload) and only
+  clamps continuous quantities; choices and switches must be exact. The AI
+  never supplies filter coefficients — it proposes band settings and the
+  analog-matched designer computes them. Model text passes the strict JSON
+  check before `juce::JSON` sees it: JUCE's parser misreads malformed numbers
+  (`-x` → −72) and recurses without a depth limit.
 
 ## DSP rules (MixMind-specific)
 

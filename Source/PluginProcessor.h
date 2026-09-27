@@ -3,6 +3,7 @@
 #include <array>
 #include <atomic>
 #include <memory>
+#include "AiWorker.h"
 #include "AudioAnalyzer.h"
 #include "ParametricEq.h"
 #include "ReferenceAnalyzer.h"
@@ -100,6 +101,21 @@ public:
 
     double getCurrentSampleRate() const;
 
+    // ── AI assistant (message thread). Requests run on the AI worker, never on
+    //    the audio thread; validated results come back through its lock-free
+    //    FIFO and the design loop applies them as host-visible parameter
+    //    gestures (and trace edits), which the DSP picks up lock-free. ────────
+    struct AiStatus
+    {
+        int requestId { 0 };                           // 0 = no result yet
+        AiResult::Status status { AiResult::Status::failed };
+        juce::String message;                          // summary, or why nothing was applied
+        int applied { 0 };                             // parameters actually changed (+1 for a trace)
+    };
+    void setAiBackend (AiWorker::Backend backend)       { ai.setBackend (std::move (backend)); }
+    int  submitAiRequest (const juce::String& request) { return ai.submit (request); }
+    const AiStatus& getLastAiStatus() const            { return aiStatus; }
+
     juce::AudioProcessorValueTreeState parameters;
     AudioAnalyzer   audioAnalyzer;    // input (pre-processing): match source
     AudioAnalyzer   outputAnalyzer;   // output: what the listener hears
@@ -115,6 +131,8 @@ private:
     void installReference (int generation, std::shared_ptr<const ReferenceAnalyzer::Result> result,
                            const juce::String& error);
     void runChain (juce::AudioBuffer<float>&, bool bypassed);
+    void drainAi();
+    int  applyAiPayload (const AiPayload&);
 
     // Reference state (guarded by stateLock — read by getStateInformation on
     // whatever thread the host uses).
@@ -151,6 +169,11 @@ private:
     } lastDesign;
     int  ticksSinceDesign { 0 };
     bool postedIdentity { false };
+
+    // Declared last so it is destroyed first: its thread stops before anything
+    // else goes away.
+    AiWorker ai { getParameters() };
+    AiStatus aiStatus;
 
     JUCE_DECLARE_WEAK_REFERENCEABLE (MixMindProcessor)
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixMindProcessor)

@@ -8,14 +8,18 @@ AGENTS.md, not here.
 
 Locked scope for the first release. The AI features are part of v1.0.
 
-1. **Async LLM backend queue ↔ DSP thread** — not started. The model runs
-   off the audio thread; requests and results cross threads through a
-   lock-free queue, and the audio thread only reads values that are already
-   validated (no network, locks or allocation on the audio thread).
-2. **NaN / clamping firewall in front of the lock-free audio queue** — not
-   started. Every value the LLM proposes is checked for finiteness and
-   clamped to its parameter's range before it is queued. The audio path's
-   own non-finite guard (`runChain`) already exists and stays.
+1. **Async LLM backend queue ↔ DSP thread** — infrastructure done
+   (`AiWorker`): requests run on a worker thread, results come back through a
+   lock-free SPSC FIFO of plain-data records, the processor applies them as
+   host-visible parameter gestures, and the audio thread never touches the AI
+   path. **No model backend yet** (provider undecided) and no UI to ask it
+   anything — `setAiBackend()` is the hook.
+2. **NaN / clamping firewall in front of the lock-free audio queue** — done
+   (`AiFirewall`): strict JSON check, then all-or-nothing validation;
+   NaN / inf / unknown IDs / wrong types reject, continuous values clamp to the
+   parameter's own range, choices and switches must be exact, trace clamped
+   to 20 Hz–20 kHz / −100..0 dB. The audio path's own non-finite guard
+   (`runChain`) stays.
 3. **OpenGL-accelerated TelemetryCanvas rendering the EQ match curves** —
    done (3909c3f): the whole editor, canvas included, renders through an
    attached `juce::OpenGLContext`. GPU frame cost still to be measured on
@@ -74,6 +78,18 @@ commit message; Debug and Release).
 - **Reference** — loudness/peak/spectrum agree with the live analyzer;
   44.1 k / 96 k files land on the 48 k grid at the same level; mono = dual-mono;
   sub-400 ms files; missing / silent / non-audio files; cancellation; formats.
+- **AI** — firewall: valid payloads map exactly onto parameters; NaN / ±inf
+  (values and literals) reject; out-of-range quantities clamp; choices and
+  switches must be exact; unknown IDs / fields, coefficients, prose, code
+  fences, truncated or trailing text, malformed numbers JUCE would misread,
+  deep nesting and oversize replies reject; trace rules; 9000-case fuzz
+  (nothing non-finite, unknown or out of range ever accepted). Worker: 400
+  results through the 8-slot FIFO in order under back-pressure; backend
+  failure / exception / no backend come back as results. Processor: accepted
+  payload applied as host gestures and audible (−4 dB at the band centre);
+  rejected payloads change nothing; audio thread keeps running (worst block
+  timed) while the model blocks and results land; closing mid-request is
+  prompt.
 - **Processor** — constant latency + latency-matched host bypass; async
   reference load; session round-trip (reference restored from the cached
   analysis with the audio file deleted, trace, parameters); pre-v2 sessions;
@@ -106,6 +122,8 @@ commit message; Debug and Release).
   analog-matched design realised as TPT SVFs with per-sample interpolation,
   Stereo/Mid/Side placement, fades on discrete changes, bit-exact when off.
   All band settings are automatable parameters.
+- **AiFirewall / AiWorker** — see v1.0 scope items 1–2. The worker thread
+  starts on first request; results are drained by the design-loop timer.
 - **MixMindProcessor** — owns the reference, the trace and the design loop
   (message-thread timer), so closing the editor loses nothing. Input and
   output analyzers; non-finite guard. State v2 saves parameters, the trace
@@ -143,8 +161,8 @@ test suite added. Tag `honest-dsp-v1` still pending.
 
 ## Open / next
 
-- LLM assistant: in v1.0 scope (items 1–2 above); AGENTS.md now authorizes
-  it under the real-time safety rules in its "AI integration" section.
+- LLM assistant: firewall + queue in place. Next: pick the model backend
+  (local Ollama / cloud API / the `proxy/`) and build the UI that asks it.
 - Decide the fate of `proxy/`: its DeepSeek `/api/chat` route is dead
   (no plugin calls it) and `/purchase` answers 402, so the site's Buy
   button currently fails. The plugins accept any `MM-` key locally.

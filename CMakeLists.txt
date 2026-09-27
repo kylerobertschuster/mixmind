@@ -55,6 +55,10 @@ set(MIXMIND_SOURCES
     Source/ShaperProcessor.h
     Source/ParametricEq.cpp
     Source/ParametricEq.h
+    Source/AiFirewall.cpp
+    Source/AiFirewall.h
+    Source/AiWorker.cpp
+    Source/AiWorker.h
     Source/LookAndFeel.h
     Source/LookAndFeel.cpp
     Source/FocusModel.h
@@ -265,6 +269,7 @@ if(MIXMIND_BUILD_TESTS)
         tests/ParametricEqTests.cpp
         tests/ReferenceAnalyzerTests.cpp
         tests/ProcessorTests.cpp
+        tests/AiTests.cpp
     )
     target_include_directories(MixMindTests PRIVATE Source tests)
 
