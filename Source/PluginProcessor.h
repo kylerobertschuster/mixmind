@@ -103,18 +103,26 @@ public:
 
     // ── AI assistant (message thread). Requests run on the AI worker, never on
     //    the audio thread; validated results come back through its lock-free
-    //    FIFO and the design loop applies them as host-visible parameter
-    //    gestures (and trace edits), which the DSP picks up lock-free. ────────
+    //    FIFO. An accepted result is only a suggestion (ADR-003): nothing
+    //    changes until the user approves it, and then it is applied as
+    //    host-visible parameter gestures (and a trace edit) that the DSP picks
+    //    up lock-free. ─────────────────────────────────────────────────────────
     struct AiStatus
     {
         int requestId { 0 };                           // 0 = no result yet
         AiResult::Status status { AiResult::Status::failed };
-        juce::String message;                          // summary, or why nothing was applied
-        int applied { 0 };                             // parameters actually changed (+1 for a trace)
+        juce::String message;                          // summary, or why there is no suggestion
+        bool awaitingApproval { false };               // a suggestion is pending
+        int applied { 0 };                             // after approval: parameters changed (+1 for a trace)
     };
     void setAiBackend (AiWorker::Backend backend)       { ai.setBackend (std::move (backend)); }
     int  submitAiRequest (const juce::String& request) { return ai.submit (request); }
     const AiStatus& getLastAiStatus() const            { return aiStatus; }
+
+    // The pending suggestion (only ever the latest result's), or nullptr.
+    const AiPayload* getAiSuggestion() const           { return aiStatus.awaitingApproval ? &aiSuggestion : nullptr; }
+    int  approveAiSuggestion();                        // the user's click; returns what changed
+    void dismissAiSuggestion()                         { aiStatus.awaitingApproval = false; }
 
     juce::AudioProcessorValueTreeState parameters;
     AudioAnalyzer   audioAnalyzer;    // input (pre-processing): match source
@@ -174,6 +182,7 @@ private:
     // else goes away.
     AiWorker ai { getParameters() };
     AiStatus aiStatus;
+    AiPayload aiSuggestion;   // valid while aiStatus.awaitingApproval
 
     JUCE_DECLARE_WEAK_REFERENCEABLE (MixMindProcessor)
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixMindProcessor)

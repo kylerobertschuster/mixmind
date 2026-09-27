@@ -517,7 +517,44 @@ public:
             expect (msg.length() > 50 && msg.containsOnly (juce::String::fromUTF8 ("\xc3\xa9")));
         }
 
-        beginTest ("The processor applies an accepted payload as host-visible edits the DSP follows");
+        beginTest ("An accepted suggestion changes nothing until the user approves it");
+        {
+            GestureCounter host;
+            Harness h;
+            h.p.addListener (&host);
+            const auto before = snapshot (h.p);
+            const auto suggestion = R"({
+                "parameters": { "b2On": true, "b2Type": "Bell", "b2Freq": 250, "b2Gain": -4, "b2Q": 1.2, "shapeAmount": 0.4 },
+                "trace": [ [60, -48], [400, -52], [3000, -58] ] })";
+            h.p.setAiBackend (replyWith (suggestion));
+            const int traceBefore = h.p.getTraceVersion();
+
+            // Dismissed: nothing happens, ever.
+            int id = h.p.submitAiRequest ("take some mud out");
+            expect (pumpUntil ([&] { return h.p.getLastAiStatus().requestId == id; }, 10000));
+            expect (h.p.getLastAiStatus().awaitingApproval && h.p.getAiSuggestion() != nullptr);
+            h.p.dismissAiSuggestion();
+            expect (h.p.getAiSuggestion() == nullptr);
+            expectEquals (h.p.approveAiSuggestion(), 0);
+
+            // Superseded: a newer answer that fails leaves nothing to approve.
+            id = h.p.submitAiRequest ("again");
+            expect (pumpUntil ([&] { return h.p.getLastAiStatus().requestId == id; }, 10000));
+            expect (h.p.getLastAiStatus().awaitingApproval);
+            h.p.setAiBackend (replyWith ("{\"parameters\":{\"b2Gain\":\"lots\"}}"));
+            id = h.p.submitAiRequest ("and again");
+            expect (pumpUntil ([&] { return h.p.getLastAiStatus().requestId == id; }, 10000));
+            expect (! h.p.getLastAiStatus().awaitingApproval && h.p.getAiSuggestion() == nullptr);
+            expectEquals (h.p.approveAiSuggestion(), 0);
+
+            pumpUntil ([] { return false; }, 100);   // design-loop ticks: still nothing applied
+            expect (snapshot (h.p) == before);
+            expect (h.p.getTrace().empty() && h.p.getTraceVersion() == traceBefore);
+            expectEquals (host.begins.load(), 0);
+            h.p.removeListener (&host);
+        }
+
+        beginTest ("An approved suggestion applies as host-visible edits the DSP follows");
         {
             GestureCounter host;
             Harness h;
@@ -530,8 +567,14 @@ public:
             const int id = h.p.submitAiRequest ("take some mud out");
             expect (pumpUntil ([&] { return h.p.getLastAiStatus().requestId == id; }, 10000));
             const auto& st = h.p.getLastAiStatus();
-            expect (st.status == AiResult::Status::accepted, st.message);
-            expectEquals (st.applied, 6);                 // b2Type is already Bell: 5 parameters + the trace
+            expect (st.status == AiResult::Status::accepted && st.awaitingApproval, st.message);
+            expect (h.p.getAiSuggestion() != nullptr && h.p.getAiSuggestion()->numChanges == 6);
+            expectEquals (host.begins.load(), 0);
+
+            expectEquals (h.p.approveAiSuggestion(), 6);  // b2Type is already Bell: 5 parameters + the trace
+            expectEquals (st.applied, 6);
+            expect (! st.awaitingApproval && h.p.getAiSuggestion() == nullptr);
+            expectEquals (h.p.approveAiSuggestion(), 0);  // one click, one application
             expectEquals (host.begins.load(), 5);
             expectEquals (host.ends.load(), 5);
             expect (host.changes.load() >= 5);
@@ -568,7 +611,8 @@ public:
                 const int id = h.p.submitAiRequest ("x");
                 expect (pumpUntil ([&] { return h.p.getLastAiStatus().requestId == id; }, 10000));
                 expect (h.p.getLastAiStatus().status == AiResult::Status::rejected, reply);
-                expectEquals (h.p.getLastAiStatus().applied, 0);
+                expect (! h.p.getLastAiStatus().awaitingApproval);
+                expectEquals (h.p.approveAiSuggestion(), 0);
             }
             expect (h.p.getLastAiStatus().message.contains ("trace"));
             expect (snapshot (h.p) == before);
@@ -602,7 +646,8 @@ public:
             h.p.submitAiRequest ("first: blocks until released");
             expect (pumpUntil ([&] { return inBackend.load(); }, 5000));
 
-            // An audio thread runs the whole time; the message thread drains and applies.
+            // An audio thread runs the whole time; the message thread drains, and
+            // every suggestion is approved as soon as it lands.
             std::atomic<bool> stop { false };
             juce::WaitableEvent audioDone;
             std::atomic<double> worstMs { 0.0 };
@@ -636,7 +681,11 @@ public:
 
             int last = 0;
             for (int i = 0; i < 30; ++i) last = h.p.submitAiRequest ("again");
-            expect (pumpUntil ([&] { return h.p.getLastAiStatus().requestId == last; }, 20000));
+            int approved = 0;
+            expect (pumpUntil ([&] { approved += h.p.approveAiSuggestion() > 0 ? 1 : 0;
+                                     return h.p.getLastAiStatus().requestId == last; }, 20000));
+            approved += h.p.approveAiSuggestion() > 0 ? 1 : 0;
+            pumpUntil ([] { return false; }, 100);   // audio runs on with the last change applied
             stop = true;
             expect (audioDone.wait (5000));
 
@@ -645,6 +694,7 @@ public:
             expect (whileBlocked > 20, "the audio thread must keep running while the backend blocks");
             expect (worstMs.load() < 50.0, "no audio block may wait on the AI path");
             expectEquals (nonFinite.load(), 0);
+            expect (approved > 0);
             expect (h.p.readBand (2).on);
         }
 

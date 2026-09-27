@@ -641,12 +641,23 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 
 void MixMindProcessor::drainAi()
 {
+    // Each result supersedes the previous suggestion: only the answer to the
+    // latest request can be applied.
     AiResult r;
     while (ai.pop (r))
     {
-        const int applied = r.status == AiResult::Status::accepted ? applyAiPayload (r.payload) : 0;
-        aiStatus = { r.requestId, r.status, juce::String::fromUTF8 (r.message), applied };
+        const bool accepted = r.status == AiResult::Status::accepted;
+        if (accepted) aiSuggestion = r.payload;
+        aiStatus = { r.requestId, r.status, juce::String::fromUTF8 (r.message), accepted, 0 };
     }
+}
+
+int MixMindProcessor::approveAiSuggestion()
+{
+    if (! aiStatus.awaitingApproval) return 0;
+    aiStatus.awaitingApproval = false;
+    aiStatus.applied = applyAiPayload (aiSuggestion);
+    return aiStatus.applied;
 }
 
 int MixMindProcessor::applyAiPayload (const AiPayload& p)
