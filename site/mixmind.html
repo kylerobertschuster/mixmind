@@ -1,21 +1,96 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>MixMind — JuicePipe</title><link rel="icon" type="image/svg+xml" href="/favicon.svg"><style>:root{--black:#080809;--pink:#f2c4ce}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Helvetica Neue',-apple-system,sans-serif;background:var(--black);color:#fff;min-height:100vh}header{text-align:center;padding:40px 24px 0}header a{text-decoration:none}header img{height:120px}.back{margin-bottom:24px}.back a{color:rgba(255,255,255,0.3);font-size:12px;text-decoration:none}.container{max-width:900px;margin:0 auto;padding:32px 24px 80px}.hero{display:flex;gap:32px;align-items:flex-start;margin-bottom:48px}.hero-screenshot{flex:1;background:#141416;border-radius:10px;border:1px solid rgba(242,196,206,0.15);min-height:400px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.15);font-size:14px}.hero-info{width:280px;flex-shrink:0}.hero-info h1{font-size:28px;color:var(--pink);margin-bottom:8px}.hero-info .tag{display:inline-block;font-size:11px;color:rgba(255,255,255,0.4);border:1px solid rgba(255,255,255,0.1);padding:3px 10px;border-radius:4px;margin-bottom:16px}.hero-info p{font-size:13px;line-height:1.6;color:rgba(255,255,255,0.6);margin-bottom:24px}.actions{display:flex;flex-direction:column;gap:10px}.actions a{display:block;text-align:center;padding:12px;border-radius:6px;font-size:14px;font-weight:600;text-decoration:none}.btn-purchase{background:var(--pink);color:var(--black)}.btn-download{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.08)}.features{margin-top:48px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:rgba(255,255,255,0.04);border-radius:8px;overflow:hidden}.features div{background:#0e0e10;padding:24px}.features div h3{font-size:12px;color:var(--pink);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}.features div p{font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5}@media(max-width:768px){.hero{flex-direction:column}.hero-info{width:100%}}</style></head><body>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>MixMind — the mix diagnostician · JuicePipe</title><link rel="icon" type="image/svg+xml" href="/favicon.svg"><style>:root{--black:#080809;--pink:#f2c4ce}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Helvetica Neue',-apple-system,sans-serif;background:var(--black);color:#fff;min-height:100vh}header{text-align:center;padding:40px 24px 0}header a{text-decoration:none}header img{height:120px}.back{margin-bottom:24px}.back a{color:rgba(255,255,255,0.3);font-size:12px;text-decoration:none}.container{max-width:900px;margin:0 auto;padding:32px 24px 80px}.hero{display:flex;gap:32px;align-items:flex-start;margin-bottom:48px}.hero-screenshot{flex:1;background:#141416;border-radius:10px;border:1px solid rgba(242,196,206,0.15);min-height:400px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.15);font-size:14px}.hero-info{width:280px;flex-shrink:0}.hero-info h1{font-size:28px;color:var(--pink);margin-bottom:8px}.hero-info .tag{display:inline-block;font-size:11px;color:rgba(255,255,255,0.4);border:1px solid rgba(255,255,255,0.1);padding:3px 10px;border-radius:4px;margin-bottom:16px}.hero-info p{font-size:13px;line-height:1.6;color:rgba(255,255,255,0.6);margin-bottom:24px}.actions{display:flex;flex-direction:column;gap:10px}.actions a{display:block;text-align:center;padding:12px;border-radius:6px;font-size:14px;font-weight:600;text-decoration:none}.btn-purchase{background:var(--pink);color:var(--black)}.btn-download{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.08)}.features{margin-top:48px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:rgba(255,255,255,0.04);border-radius:8px;overflow:hidden}.features div{background:#0e0e10;padding:24px}.features div h3{font-size:12px;color:var(--pink);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}.features div p{font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5}.hero-info h2{font-size:15px;font-weight:600;color:#fff;margin-bottom:10px}section{margin-top:56px}section>h2{font-size:12px;color:var(--pink);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}section>p.lead{font-size:14px;line-height:1.6;color:rgba(255,255,255,0.6);margin-bottom:20px;max-width:640px}.report{background:#0e0e10;border:1px solid rgba(242,196,206,0.15);border-radius:10px;padding:24px}.report .rh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px}.report .rh strong{font-size:15px}.report .rh span{font-size:11px;color:rgba(255,255,255,0.35)}.group{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.35);margin:18px 0 8px}.finding{border-left:2px solid var(--pink);padding:4px 0 4px 14px;margin-bottom:14px}.finding.mod{border-color:rgba(242,196,206,0.45)}.finding h3{font-size:14px;margin-bottom:6px}.pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}.pills span{font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.6)}.finding dl{display:grid;grid-template-columns:110px 1fr;gap:4px 12px;font-size:12px;line-height:1.5}.finding dt{color:rgba(255,255,255,0.35)}.finding dd{color:rgba(255,255,255,0.7)}.healthy{font-size:12px;color:rgba(255,255,255,0.55);line-height:1.8}.note{font-size:11px;color:rgba(255,255,255,0.3);margin-top:10px}.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:rgba(255,255,255,0.04);border-radius:8px;overflow:hidden}.cols.five{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.cols div{background:#0e0e10;padding:20px}.cols h3{font-size:12px;color:var(--pink);margin-bottom:6px}.cols p{font-size:12px;color:rgba(255,255,255,0.5);line-height:1.5}.compare{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.compare div{padding:18px;border:1px solid rgba(255,255,255,0.06);border-radius:8px;font-size:12px;color:rgba(255,255,255,0.5);line-height:1.5}.compare div.us{border-color:rgba(242,196,206,0.35);color:rgba(255,255,255,0.8)}.compare strong{display:block;font-size:12px;color:#fff;margin-bottom:6px}.closing{text-align:center;margin-top:64px;font-size:14px;line-height:1.8;color:rgba(255,255,255,0.55)}.closing strong{color:var(--pink);font-weight:600}@media(max-width:768px){.compare{grid-template-columns:1fr}.finding dl{grid-template-columns:1fr}}@media(max-width:768px){.hero{flex-direction:column}.hero-info{width:100%}}</style></head><body>
 <header><div class="back"><a href="/">&larr; JuicePipe</a></div><a href="/"><img src="/assets/logo-mixmind.svg" alt="JuicePipe"></a></header>
 <div class="container"><div class="hero">
-<div class="hero-screenshot">Screenshot inside Ableton — coming shortly<br>Placeholder for DAW screenshot</div>
-<div class="hero-info"><h1>MixMind</h1><span class="tag">v4.3.0 &middot; VST3 &amp; AU &middot; macOS 12+</span>
-<p>Reference-matching spectrum shaper with honest BS.1770 metering. Drop in a reference track, see exactly where your mix differs, and match its tone with a linear-phase EQ — or draw the target curve yourself.</p>
+<div class="hero-screenshot">Mix Doctor inside Ableton — screenshot coming with v1.0</div>
+<div class="hero-info"><h1>MixMind</h1><span class="tag">v1.0 &middot; VST3 &amp; AU &middot; macOS 12+</span>
+<h2>The mix diagnostician.</h2>
+<p>MixMind helps you understand why a mix isn&rsquo;t working and what to try next. It measures your mix, finds the problems, explains why they matter and how sure it is &mdash; and leaves every decision with you.</p>
 <div class="actions">
 <a href="#" class="btn-purchase" onclick="buyNow();return false">Add to Cart — $9/mo or $79</a>
-<a href="/downloads/MixMind-4.3.0.pkg" class="btn-download">Download Free Trial</a>
+<a href="/downloads/MixMind-1.0.0.pkg" class="btn-download">Download Free Trial</a>
 </div></div></div>
+
+<section><h2>Meet Mix Doctor</h2>
+<p class="lead">Load MixMind on your mix, press <strong>Run Mix Doctor</strong> and play the part you&rsquo;re stuck on. You get a prioritized report of what&rsquo;s wrong, measured against your reference track.</p>
+<div class="report">
+<div class="rh"><strong>Mix Doctor Report</strong><span>Example &middot; compared with your reference</span></div>
+<div class="group">Critical</div>
+<div class="finding"><h3>Low-end congestion</h3>
+<div class="pills"><span>Severity: High</span><span>Confidence: Medium</span></div>
+<dl><dt>Observed</dt><dd>40&ndash;120&nbsp;Hz sits 4&nbsp;dB above the reference, and low-end transients are 5&nbsp;dB weaker than the reference&rsquo;s.</dd>
+<dt>Why it matters</dt><dd>The low end is burying the punch of the track and eating headroom.</dd>
+<dt>Likely causes</dt><dd>Kick and bass overlapping &middot; an over-compressed low-end bus &middot; too much sub energy</dd>
+<dt>Try first</dt><dd>Check how the kick and bass sit together &mdash; sidechain or a dynamic EQ on the bass &mdash; then run Mix Doctor again.</dd></dl></div>
+<div class="group">Moderate</div>
+<div class="finding mod"><h3>Upper-mid density</h3>
+<div class="pills"><span>Severity: Medium</span><span>Confidence: Medium</span></div>
+<dl><dt>Observed</dt><dd>2&ndash;4&nbsp;kHz is 3&nbsp;dB denser than the reference.</dd>
+<dt>Why it matters</dt><dd>That&rsquo;s where vocals and lead instruments carry their detail; crowding it can blur the focus.</dd>
+<dt>Try first</dt><dd>Find which parts compete in that range and give one of them the space.</dd></dl></div>
+<div class="finding mod"><h3>True peak above &minus;1&nbsp;dBTP</h3>
+<div class="pills"><span>Severity: Medium</span><span>Confidence: High</span></div>
+<dl><dt>Observed</dt><dd>True peak reaches &minus;0.3&nbsp;dBTP.</dd>
+<dt>Why it matters</dt><dd>Streaming encoders can clip peaks this close to 0&nbsp;dB.</dd>
+<dt>Try first</dt><dd>Bring the limiter ceiling down to &minus;1&nbsp;dBTP.</dd></dl></div>
+<div class="group">Healthy</div>
+<div class="healthy">&check; Loudness within 0.5&nbsp;LU of the reference<br>&check; Crest factor in line with the reference<br>&check; Low end mono-compatible</div>
+</div>
+<p class="note">Example report. Findings depend on your mix and your reference.</p>
+</section>
+
+<section><h2>Every finding tells you</h2>
+<div class="cols five">
+<div><h3>What was observed</h3><p>The measurement behind it: frequency range, level, compared with your reference.</p></div>
+<div><h3>Why it matters</h3><p>What the listener will hear, in producer language.</p></div>
+<div><h3>How severe it is</h3><p>So you fix the thing that matters most first.</p></div>
+<div><h3>How sure MixMind is</h3><p>High, Medium or Low confidence. When it suspects rather than knows, it says so.</p></div>
+<div><h3>What to try next</h3><p>A concrete first move, and what to check after it.</p></div>
+</div></section>
+
+<section><h2>What Mix Doctor checks</h2>
+<div class="cols">
+<div><h3>Balance</h3><p>Bass, low-mid, mid, high-mid and air against your reference.</p></div>
+<div><h3>Spectral congestion</h3><p>Crowded ranges and likely masking, from the low end to the upper mids.</p></div>
+<div><h3>Dynamics</h3><p>Crest factor and transient punch &mdash; over-compressed or too loose.</p></div>
+<div><h3>Stereo image</h3><p>Width against the reference, phase and mono compatibility.</p></div>
+<div><h3>Loudness &amp; peaks</h3><p>BS.1770 integrated loudness and 4&times; oversampled true peak.</p></div>
+<div><h3>Reference differences</h3><p>Where your mix and your reference part ways, in dB.</p></div>
+</div></section>
+
+<section><h2>Evidence, not opinions</h2>
+<div class="compare">
+<div><strong>Traditional analyzer</strong>Shows you data. Working out what it means is up to you.</div>
+<div><strong>Traditional AI</strong>Offers opinions. It never heard your mix.</div>
+<div class="us"><strong>MixMind</strong>Measures your mix, shows the evidence, explains it, tells you how sure it is and what to try first.</div>
+</div></section>
+
+<section><h2>Honest by design</h2>
+<div class="cols">
+<div><h3>You stay in control</h3><p>Nothing changes your audio unless you turn a processor on or approve a suggested change. Every suggestion is optional.</p></div>
+<div><h3>Explanations, not inventions</h3><p>Plain-language explanations are written from the measured findings. The AI never adds a finding or changes how sure MixMind is.</p></div>
+<div><h3>Works offline</h3><p>Every measurement and every finding work without an internet connection. Only the written explanations need a model.</p></div>
+</div></section>
+
+<section><h2>Tools to act on it</h2>
+<p class="lead">When you know what to fix, the tools are already on the track.</p>
 <div class="features">
-<div><h3>Reference Match</h3><p>Linear-phase match EQ that reshapes your mix toward a reference track — level-neutral, click-free, with the correction curve shown before you apply it</p></div>
+<div><h3>Reference Match</h3><p>Linear-phase match EQ that reshapes your mix toward a reference &mdash; level-neutral, click-free, linked or mid/side, with the correction curve shown before you apply it</p></div>
+<div><h3>8-Band EQ</h3><p>Analog-matched bells, shelves, cuts and notch, placed on stereo, mid or side, edited right on the analyzer</p></div>
+<div><h3>BS.1770 Metering</h3><p>Gated integrated LUFS, 4&times; oversampled true peak, crest factor, width and phase &mdash; your mix and the reference side by side</p></div>
 <div><h3>Trace Mode</h3><p>Draw a target curve on the analyzer (or over a screenshot) and match to it instead of a reference</p></div>
-<div><h3>BS.1770 Metering</h3><p>Gated integrated LUFS, 4× oversampled true peak, crest factor, width and phase — for your mix and the reference, side by side</p></div>
-<div><h3>Spectrum Analyzer</h3><p>1/12-octave analyzer with peak hold, band-coloured by focus group, reference overlay</p></div>
-<div><h3>Focus Groups</h3><p>Zoom the analyzer to bass, guitar, vocal, drum or synth regions with colour-matched reference and mix curves</p></div>
-<div><h3>Session Recall</h3><p>Reference analysis, trace and settings are saved with your session — even if the reference file moves</p></div>
-</div></div>
+<div><h3>Spectrum Analyzer</h3><p>1/12-octave analyzer with peak hold, focus groups for bass, vocal, drum and synth ranges, reference overlay</p></div>
+<div><h3>Session Recall</h3><p>Reference analysis, trace and settings are saved with your session &mdash; even if the reference file moves</p></div>
+</div></section>
+
+<section><h2>Built for producers</h2>
+<p class="lead">For the producer who can hear that something is wrong but isn&rsquo;t always sure why. MixMind closes the gap between &ldquo;something feels off&rdquo; and &ldquo;I know exactly what to fix.&rdquo;</p>
+</section>
+
+<div class="closing">
+FabFilter helps producers see. Ozone helps producers master. <strong>MixMind helps producers understand.</strong><br><br>
+The goal isn&rsquo;t dependency; it&rsquo;s confidence. You should leave MixMind knowing more than when you loaded it &mdash;<br>because great mixes shouldn&rsquo;t feel like black magic. They should feel learnable.
+</div>
+</div>
 <div id="buyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;align-items:center;justify-content:center;"><div style="background:#141416;border-radius:10px;padding:36px;max-width:380px;width:90%;text-align:center;"><h3 style="color:#f2c4ce;font-size:20px;margin-bottom:8px;">Get MixMind</h3><p style="color:rgba(255,255,255,0.5);font-size:13px;margin-bottom:20px;">$9/month or $79 lifetime — instant license delivery</p><input id="buyEmail" type="email" placeholder="you@email.com" style="width:100%;padding:12px;background:#080809;border:1px solid rgba(242,196,206,0.15);border-radius:6px;color:#f2c4ce;font-size:14px;margin-bottom:12px;outline:none;"><div style="display:flex;gap:10px;"><button onclick="processPurchase()" style="flex:1;padding:12px;background:#f2c4ce;color:#080809;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Get License Key</button><button onclick="closeBuy()" style="flex:1;padding:12px;background:transparent;color:rgba(255,255,255,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:14px;cursor:pointer;">Cancel</button></div><div id="buyResult" style="margin-top:16px;display:none;"></div></div></div>
 <script>function buyNow(){document.getElementById('buyModal').style.display='flex'}function closeBuy(){document.getElementById('buyModal').style.display='none'}async function processPurchase(){var e=document.getElementById('buyEmail').value;if(!e.includes('@')){alert('Enter a valid email');return}var r=await fetch('https://getjuicepipe.com/purchase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e})});var d=await r.json();var el=document.getElementById('buyResult');el.style.display='block';el.innerHTML='<strong style="color:#f2c4ce;font-size:16px;">'+d.license_key+'</strong><br><span style="font-size:11px;color:rgba(255,255,255,0.4);">Copy this key and paste into the plugin.</span>'}</script>
 </body></html>
