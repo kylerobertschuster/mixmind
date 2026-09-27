@@ -45,8 +45,6 @@ Do not:
   library are the assumed baseline.
 - Touch `LicenseManager.cpp/.h` — shared with Scope, Meter, EQT, Reflex,
   ThreeFX, Neat. Removing it breaks their builds.
-- Reintroduce `ApiClient`, `ChatComponent`, `ContextPanel`, or
-  `AIAnalysis` into the MixMind target. They were deliberately removed.
 
 ## Project structure
 
@@ -85,11 +83,29 @@ When editing shared files, check every consuming target still builds.
   blocking work, no message-thread-only calls, no waiting on the message
   thread from a paint.
 
+## AI integration (mandatory for v1.0)
+
+AI/LLM integration is part of the v1.0 scope and is required, not optional.
+`ApiClient`, `ChatComponent`, `ContextPanel` and `AIAnalysis` may return to
+the MixMind target when they meet these real-time safety rules:
+
+- All network and LLM calls run entirely off the audio thread, on an
+  asynchronous worker. The audio thread never waits on, allocates for, or
+  calls into the AI path.
+- Communication between the worker thread and the DSP thread uses lock-free
+  ring buffers (FIFO) — no locks, no blocking handoffs.
+- Every coefficient, curve or parameter payload coming from the AI passes a
+  strict NaN / inf / clamping firewall before it touches the lock-free audio
+  queue. Nothing from the AI bypasses it.
+
 ## DSP rules (MixMind-specific)
 
 - Signal path: input analyzer → shaper (match FIR) → `ParametricEq` bands →
   non-finite guard → output analyzer. The match is designed from the input
   analyzer; YOU curves/readouts show the output analyzer.
+- Reference-match correction runs on the linear-phase FIR (`ShaperProcessor`);
+  the 8-band parametric EQ runs on Simper (TPT) SVFs (`ParametricEq`). Neither
+  moves onto the other's engine — AI-driven changes included.
 - Shaper is a linear-phase FIR match-EQ. Constants are compile-time:
   `kTapCount=2048`, `kDesignOrder=12`, `kDesignSize=4096`, `kNumBins=2048`,
   `kLatency=1024` (≈21 ms @ 48 k). The analyzer's 2048-pt Hann already limits

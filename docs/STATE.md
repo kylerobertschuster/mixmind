@@ -143,10 +143,8 @@ test suite added. Tag `honest-dsp-v1` still pending.
 
 ## Open / next
 
-- LLM assistant: in v1.0 scope (items 1–2 above). AGENTS.md still says not
-  to reintroduce `ApiClient`, `ChatComponent`, `ContextPanel` or
-  `AIAnalysis` — decide whether that rule changes before the queue work
-  starts.
+- LLM assistant: in v1.0 scope (items 1–2 above); AGENTS.md now authorizes
+  it under the real-time safety rules in its "AI integration" section.
 - Decide the fate of `proxy/`: its DeepSeek `/api/chat` route is dead
   (no plugin calls it) and `/purchase` answers 402, so the site's Buy
   button currently fails. The plugins accept any `MM-` key locally.
