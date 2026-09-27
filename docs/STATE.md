@@ -1,3 +1,7 @@
+Version: 1.0
+Last Reviewed: 2026-09-27
+Owner: Founder
+
 # STATE — MixMind
 
 Current-state snapshot for the mixmind repo. AGENTS.md points here; this
@@ -10,10 +14,12 @@ Locked scope for the first release. The AI features are part of v1.0.
 
 1. **Async LLM backend queue ↔ DSP thread** — infrastructure done
    (`AiWorker`): requests run on a worker thread, results come back through a
-   lock-free SPSC FIFO of plain-data records, the processor applies them as
-   host-visible parameter gestures, and the audio thread never touches the AI
+   lock-free SPSC FIFO of plain-data records, and an accepted result is held
+   as a suggestion until the user approves it (ADR-003), then applied as
+   host-visible parameter gestures. The audio thread never touches the AI
    path. **No model backend yet** (provider undecided) and no UI to ask it
-   anything — `setAiBackend()` is the hook.
+   anything or approve — `setAiBackend()` / `approveAiSuggestion()` are the
+   hooks.
 2. **NaN / clamping firewall in front of the lock-free audio queue** — done
    (`AiFirewall`): strict JSON check, then all-or-nothing validation;
    NaN / inf / unknown IDs / wrong types reject, continuous values clamp to the
@@ -85,10 +91,12 @@ commit message; Debug and Release).
   deep nesting and oversize replies reject; trace rules; 9000-case fuzz
   (nothing non-finite, unknown or out of range ever accepted). Worker: 400
   results through the 8-slot FIFO in order under back-pressure; backend
-  failure / exception / no backend come back as results. Processor: accepted
-  payload applied as host gestures and audible (−4 dB at the band centre);
-  rejected payloads change nothing; audio thread keeps running (worst block
-  timed) while the model blocks and results land; closing mid-request is
+  failure / exception / no backend come back as results. Processor: an
+  accepted suggestion changes nothing until approved (pending, dismissed and
+  superseded suggestions change nothing); once approved it applies once, as
+  host gestures, and is audible (−4 dB at the band centre); rejected payloads
+  change nothing; the audio thread keeps running (worst block timed) while the
+  model blocks and suggestions land and are approved; closing mid-request is
   prompt.
 - **Processor** — constant latency + latency-matched host bypass; async
   reference load; session round-trip (reference restored from the cached
@@ -149,6 +157,11 @@ commit message; Debug and Release).
   TelemetryData, PipeVisualizer, JuiceBoxMeter).
 
 ## Last milestone
+
+Sep 2026, docs and AI: project documents (VISION, ARCHITECTURE with
+current vs target state, ROADMAP, FOUNDERS_NOTES, ADR-001…005) with an
+authority order in AGENTS.md; AI worker + strict firewall; AI suggestions
+require user approval; OpenGL editor. Roadmap issues #1–#10 opened.
 
 Sep 2026, second pass: 2048-tap partitioned match EQ, mid/side matching,
 8-band analog-matched parametric EQ with interactive nodes, output

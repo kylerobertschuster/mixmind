@@ -1,15 +1,47 @@
+Version: 1.1
+Last Reviewed: 2026-09-27
+Owner: Founder
+
 # AGENTS.md
 
 Operating instructions for the Pi coding agent working in `mixmind`.
-Keep this file at the repository root.
+Keep this file at the repository root. It is the only agent file — do not
+add an `AGENT.md`.
 
 ## Purpose
 
-MixMind is a JUCE-based spectrum analyzer / reference-matching shaper
-plugin. The flagship goal is FabFilter / Ozone 8 caliber: honest DSP,
+MixMind is a JUCE-based, understanding-first mix diagnostic plugin, with a
+reference-matching shaper and a parametric EQ as the tools that act on its
+findings. The flagship goal is FabFilter / Ozone 8 caliber: honest DSP,
 honest metering, no proxy or licensing scaffolding in the audio path.
 Prefer correctness over cleverness. When a request is ambiguous, ask —
 do not choose a definition and proceed.
+
+Mission, principles and product identity live in `docs/VISION.md`:
+understanding first, diagnosis as the primary value, processing tools that
+act on findings, the producer always in control.
+
+## Documents and authority
+
+Authority, highest first: `docs/VISION.md` → `docs/ARCHITECTURE.md` →
+`AGENTS.md` → `docs/STATE.md`. `docs/ADR/` records the decisions behind them;
+`docs/ROADMAP.md` orders the work; `docs/FOUNDERS_NOTES.md` keeps the
+reasoning.
+
+- If documents conflict — with each other or with the code — raise the
+  disagreement with the user. Do not silently resolve it.
+- Every doc starts with `Version`, `Last Reviewed`, `Owner`. Bump the version
+  on a substantive change. Git is the history: no copied `-v1` files.
+- `VISION.md`: clarifications and wording only; mission, audience or product
+  category changes need founder review.
+- `ARCHITECTURE.md`: implementation detail follows the code; changes to
+  threading, networking, latency or the DSP pipeline need review. Keep
+  "Current State" true to the code; in "Target State" mark every component
+  PLANNED / PARTIAL with its issue. Never describe a planned component as if
+  it exists.
+- `FOUNDERS_NOTES.md` and ADRs are append-only: add dated entries; supersede
+  an ADR with a new one rather than editing its decision. A change that
+  contradicts an Accepted ADR needs a new ADR first.
 
 ## Commands
 
@@ -52,7 +84,8 @@ Do not:
 mixmind/
   Source/         # application code, safe to edit
   tests/          # test suite, keep in sync with Source/
-  docs/           # architecture notes; update when behaviour changes
+  docs/           # VISION, ARCHITECTURE, ROADMAP, STATE, FOUNDERS_NOTES, ADR/;
+                  # update when behaviour changes
   assets/         # logos / icons (branding renders in assets/branding/)
   site/           # static marketing site
   proxy/          # Node backend the site's checkout calls (not used by any plugin)
@@ -83,11 +116,18 @@ When editing shared files, check every consuming target still builds.
   blocking work, no message-thread-only calls, no waiting on the message
   thread from a paint.
 
-## AI integration (mandatory for v1.0)
+## AI integration (v1.0)
 
-AI/LLM integration is part of the v1.0 scope and is required, not optional.
-`ApiClient`, `ChatComponent`, `ContextPanel` and `AIAnalysis` may return to
-the MixMind target when they meet these real-time safety rules:
+Governed by ADR-002 (DSP is the source of truth), ADR-003 (AI
+recommendations require user approval), ADR-004 (strict JSON firewall) and
+ADR-005 (offline diagnostics must function).
+
+AI/LLM integration is part of the v1.0 scope. Its job is to explain findings
+and prepare actions. It never measures, never creates findings, and never
+changes the audio on its own. Nothing may depend on it: with no model and no
+network, every measurement and diagnostic still works. `ApiClient`,
+`ChatComponent`, `ContextPanel` and `AIAnalysis` may return to the MixMind
+target when they meet these rules:
 
 - All network and LLM calls run entirely off the audio thread, on an
   asynchronous worker. The audio thread never waits on, allocates for, or
@@ -97,14 +137,18 @@ the MixMind target when they meet these real-time safety rules:
 - Every coefficient, curve or parameter payload coming from the AI passes a
   strict NaN / inf / clamping firewall before it touches the lock-free audio
   queue. Nothing from the AI bypasses it.
+- Every AI-prepared change is a suggestion until the user approves it. Never
+  apply an AI payload without an explicit user action; any "auto" behaviour
+  needs a new ADR.
 - How that is built: backends run only on the `AiWorker` thread (poll
   `shouldCancel`, use timeouts); `AiFirewall` validates on that thread and the
   result goes through the worker's lock-free SPSC FIFO as plain data. The FIFO
-  is drained on the message thread (`MixMindProcessor::drainAi`), which applies
-  a payload as host-visible parameter gestures and trace edits; the DSP picks
-  them up through the parameters' atomics and the FIR slot pool. Never apply AI
-  changes from the audio thread — parameter notifications there post messages
-  and can block.
+  is drained on the message thread (`MixMindProcessor::drainAi`), which keeps
+  the latest accepted payload as the pending suggestion;
+  `approveAiSuggestion()` applies it as host-visible parameter gestures and a
+  trace edit, and the DSP picks them up through the parameters' atomics and
+  the FIR slot pool. Never apply AI changes from the audio thread — parameter
+  notifications there post messages and can block.
 - The firewall is all-or-nothing (one bad field rejects the payload) and only
   clamps continuous quantities; choices and switches must be exact. The AI
   never supplies filter coefficients — it proposes band settings and the

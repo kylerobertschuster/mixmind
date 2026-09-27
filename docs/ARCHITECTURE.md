@@ -1,0 +1,146 @@
+Version: 1.0
+Last Reviewed: 2026-09-27
+Owner: Founder
+
+# MixMind Architecture
+
+How MixMind measures, diagnoses, explains and presents audio information
+while staying real-time safe.
+
+Two parts, never mixed: **Current State** is what the code does today and
+must stay true to it. **Target State** is where it is going; every component
+there is marked PLANNED or PARTIAL with its issue. Changes to threading,
+networking, latency or the DSP pipeline need review (AGENTS.md, "Documents
+and authority").
+
+Governing decisions: [ADR-001](ADR/ADR-001-mix-doctor-is-primary-product-surface.md) ·
+[ADR-002](ADR/ADR-002-dsp-is-source-of-truth.md) ·
+[ADR-003](ADR/ADR-003-ai-recommendations-require-user-approval.md) ·
+[ADR-004](ADR/ADR-004-strict-json-firewall.md) ·
+[ADR-005](ADR/ADR-005-offline-diagnostics-must-function.md)
+
+---
+
+# Current State
+
+## Signal path (audio thread, `MixMindProcessor::runChain`)
+
+```
+input ─► non-finite → 0 ─► input AudioAnalyzer ─► ShaperProcessor ─► ParametricEq ─► non-finite guard ─► output AudioAnalyzer ─► host
+                           (match source)        (linear-phase FIR)  (8 × TPT SVF)    (silence + reset)   (YOU curve, readouts)
+```
+
+- **Input analyzer**: mid (L+R)/2 spectrum, 2048-point Hann, 50 % overlap;
+  ~200 ms display average; ~3 s long-term average gated at −70 dBFS (mid and
+  side) used for matching; BS.1770-4 loudness per channel, 4× true peak,
+  crest; ~300 ms width / correlation; goniometer ring.
+- **Match EQ** (`ShaperProcessor`): 2048-tap linear-phase FIR, uniformly
+  partitioned convolution (128-sample direct head, FFT tail), linked or
+  mid/side filter pairs. Latency is constant at 1024 samples; SHAPE off and
+  host bypass are a bit-exact 1024-sample delay.
+- **Parametric EQ** (`ParametricEq`): 8 bands, analog-matched designs run as
+  TPT (Simper) SVFs with per-sample coefficient interpolation; Stereo / Mid /
+  Side placement; bit-exact when all bands are off.
+- **Non-finite guard**: non-finite input becomes silence; a non-finite output
+  block is silenced and the filters reset. No clipper, no DC blocker.
+
+## Threads and ownership
+
+| Thread | Runs | Writes | Reads |
+|---|---|---|---|
+| **Audio** (host) | `processBlock` → `runChain` | analyzer spectra and readouts, FIR convolution state, EQ voices | parameters, FIR slot pool, band settings |
+| **Message** | design-loop timer (30 Hz): `drainAi`, match design (`buildCorrection` → `designFromCurve` → `setFilter`); reference install; applying approved AI suggestions; editor timer (30 Hz) | trace, correction curves, AI status and pending suggestion, parameters (as host gestures) | long-term spectra, reference |
+| **GL** | editor and canvas `paint()` with the message manager locked | — | what the message thread reads |
+| **Reference loader** (`ThreadPool`, 1 thread) | `ReferenceAnalyzer::analyse` on a file at its own rate | result, handed to the message thread with `callAsync` | the audio file |
+| **AI worker** (`AiWorker`, started on first request) | model call → strict JSON check → `AiFirewall` → FIFO | its FIFO slots | request list |
+| **Host** (any) | `getStateInformation` / `setStateInformation` | state | reference under `stateLock` |
+
+## Cross-thread handoffs
+
+| Data | From → to | Mechanism |
+|---|---|---|
+| Parameters | message / host → audio | APVTS `std::atomic<float>` |
+| Match filters | message → audio | 5-slot pool; writer takes a `SpinLock`, the audio thread only try-locks; swaps crossfade over 2048 samples |
+| Scalar readouts (LUFS, peaks, width, …) | audio → message / GL | `juce::Atomic<float>` |
+| Spectra (display, long-term) | audio → message / GL | plain float arrays read without synchronisation; a torn read affects one displayed frame or one design tick, which smoothing absorbs. **Known gap**; replaced by snapshots in the Target State (#2, #5) |
+| Reference analysis | loader → message; host threads | `shared_ptr<const Result>` under a `CriticalSection`; never touched by the audio thread |
+| AI requests | message → AI worker | list under a `CriticalSection`; never touched by the audio thread |
+| AI results | AI worker → message | lock-free SPSC FIFO (`AbstractFifo`) of fixed-size plain-data records |
+| Loudness reset | message → audio | atomic flag |
+
+## AI path (current implementation)
+
+```
+submitAiRequest ─► AI worker: backend (blocking, cancellable) ─► strict JSON ─► AiFirewall ─► SPSC FIFO
+                                                                                               │
+message thread: drainAi ─► pending suggestion ─► approveAiSuggestion (user) ─► parameter gestures + trace ─► DSP (atomics, slot pool)
+```
+
+- Backends run only on the worker thread; exceptions are contained; results
+  (accepted, rejected with a reason, or failed) always come back through the
+  FIFO.
+- `AiFirewall` is all-or-nothing, clamps only continuous quantities, and
+  requires exact choices and switches. The AI never supplies filter
+  coefficients (ADR-004).
+- An accepted result is a **suggestion**; only the latest one is kept, and
+  nothing changes until `approveAiSuggestion()` (ADR-003). Approval applies it
+  as host-visible, undoable parameter gestures.
+- **No model backend and no UI exist yet**; `setAiBackend()` is the hook.
+
+## Real-time rules (enforced today by review and tests)
+
+The audio thread may read and analyse audio, run the DSP chain, update
+atomics and try-lock the filter pool. It may not allocate, wait on a lock,
+touch the network or the filesystem, format text or JSON, or call into the
+AI path. Violations are bugs. An automated allocation guard is planned (#5).
+
+## State and latency
+
+Reported latency is constant (1024 samples). Session state (v2) holds the
+parameters, the trace in (Hz, dB), and the reference analysis including its
+side spectrum, so a session reopens with its reference even if the file
+moved. Pending AI suggestions are not saved.
+
+## Editor
+
+Renders through an attached `OpenGLContext`; repaints are event-driven at
+30 fps. The canvas caches its grid and curve paths.
+
+---
+
+# Target State
+
+## Layers
+
+```
+Audio thread ─► Analysis engine ─────► Diagnostic engine ─────► UI
+ (measure)      (history, snapshots)   (Mix Doctor: findings,   (report, evidence,
+                                        severity, evidence)       actions)
+                                              │                     ▲
+                                              ▼                     │
+                                        AI layer (optional) ────────┘
+                                        explains findings, prepares actions
+                                              │ user approves
+                                              ▼
+                                        AiFirewall ─► parameters ─► DSP
+```
+
+The AI is a side branch, not a stage in the main path: the report works with
+no model and no network (ADR-005). New layers may diagnose or explain; none
+may measure outside the analysis engine, create findings outside the
+diagnostic engine, or change the audio without the user (ADR-002, ADR-003).
+
+## Components
+
+| Component | Status | Issue | Notes |
+|---|---|---|---|
+| `MeasurementSnapshot` + analysis history (10 / 30 / 60 s) | PLANNED | [#2](https://github.com/kylerobertschuster/mixmind/issues/2) | audio thread publishes fixed-size frames through a lock-free FIFO; statistics off-thread |
+| Audio-thread allocation guard; snapshot pattern everywhere | PLANNED | [#5](https://github.com/kylerobertschuster/mixmind/issues/5) | closes the unsynchronised-spectra gap |
+| Diagnostic engine / Mix Doctor (`Finding`: observation, impact, severity, evidence, actions) | PLANNED | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | rules with explicit, tested thresholds; no invented norms |
+| Reference intelligence (comparison report, several references, audition) | PARTIAL | [#4](https://github.com/kylerobertschuster/mixmind/issues/4) | analysis, caching and match EQ exist |
+| Masking engine | PLANNED | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | real masking needs per-source signals (multi-instance); mix-bus symptoms meanwhile |
+| Multi-resolution analysis for the low end | PROPOSED | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | changing the live FFT also changes `mapToGrid` and the match-EQ grid — design note first |
+| Translation predictor | PLANNED | [#6](https://github.com/kylerobertschuster/mixmind/issues/6) | defined scores, relative to the reference until calibrated |
+| Section detector | PLANNED | [#7](https://github.com/kylerobertschuster/mixmind/issues/7) | offline on a bounce first; real-time with lag |
+| Offline file analysis | PLANNED | [#8](https://github.com/kylerobertschuster/mixmind/issues/8) | same engines as real time, on a background thread |
+| AI explanation layer (backend + UI) | PARTIAL | — (see STATE.md) | worker, firewall and approval exist; provider and UI undecided |
