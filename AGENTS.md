@@ -1,4 +1,4 @@
-Version: 1.2
+Version: 1.3
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -45,8 +45,24 @@ reasoning.
 - Known architectural risks are listed at the top of `ARCHITECTURE.md`
   (AR-NNN). A change that touches an open risk says so and updates it; a
   risk is marked Resolved, never deleted.
-- The v1.0 scope is ADR-006 (v1.0 is Mix Doctor). Work outside its required
+- The v1.0 scope is ADR-006 (v1.0 is Mix Doctor), refined by ADR-008
+  (mix-bus masking in v1.0, track-aware in v1.1). Work outside the required
   list does not block v1.0 and should not displace it without asking.
+
+## Diagnostics (Mix Doctor)
+
+- Only the analysis engine measures and only the diagnostic engine creates
+  findings (ADR-002). Every finding carries observation, impact, severity,
+  confidence, the evidence behind it and recommended actions.
+- Severity and confidence are independent, and each comes from an explicit,
+  tested rule (ADR-007). A finding that infers a cause lists potential
+  causes and a next step instead of naming one. Show confidence as
+  High / Medium / Low; a numeric percentage only for a rule calibrated
+  against labelled data.
+- No comparison against a norm that hasn't been measured: compare with the
+  user's reference or a published standard.
+- v1.0 works from the mix bus: never claim which tracks cause a problem
+  until track-aware diagnostics exist (ADR-008).
 
 ## Commands
 
@@ -125,7 +141,9 @@ When editing shared files, check every consuming target still builds.
 
 Governed by ADR-002 (DSP is the source of truth), ADR-003 (AI
 recommendations require user approval), ADR-004 (strict JSON firewall),
-ADR-005 (offline diagnostics must function) and ADR-006 (v1.0 scope).
+ADR-005 (offline diagnostics must function), ADR-006 (v1.0 scope) and
+ADR-007 (diagnostic confidence). The explanation payload is specified in
+issue #11.
 
 AI/LLM integration is part of the v1.0 scope. Its job is to explain findings
 and prepare actions. It never measures, never creates findings, and never
@@ -133,7 +151,8 @@ changes the audio on its own. Nothing may depend on it: with no model and no
 network, every measurement and diagnostic still works. In v1.0 (ADR-006) the
 AI explains Mix Doctor findings, writes the report's prose from them and
 recommends actions for approval — no coaching, no autonomous mixing,
-mastering or parameter application. `ApiClient`,
+mastering or parameter application. It never outputs or alters severity or
+confidence; those are rendered from the diagnostics. `ApiClient`,
 `ChatComponent`, `ContextPanel` and `AIAnalysis` may return to the MixMind
 target when they meet these rules:
 

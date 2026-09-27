@@ -1,4 +1,4 @@
-Version: 1.1
+Version: 1.2
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -20,3 +20,5 @@ One decision per file, `ADR-NNN-short-title.md`, numbered in order.
 | [004](ADR-004-strict-json-firewall.md) | Strict JSON firewall | Accepted |
 | [005](ADR-005-offline-diagnostics-must-function.md) | Offline diagnostics must function | Accepted |
 | [006](ADR-006-v1-is-mix-doctor.md) | MixMind v1.0 is Mix Doctor | Accepted |
+| [007](ADR-007-diagnostic-confidence.md) | Every finding carries severity and confidence | Accepted |
+| [008](ADR-008-v1-masking-is-mix-bus.md) | v1.0 masking is mix-bus; track-aware in v1.1; offline file analysis first v1.x | Accepted |

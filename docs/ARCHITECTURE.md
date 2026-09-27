@@ -1,4 +1,4 @@
-Version: 1.1
+Version: 1.2
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -18,7 +18,9 @@ Governing decisions: [ADR-001](ADR/ADR-001-mix-doctor-is-primary-product-surface
 [ADR-003](ADR/ADR-003-ai-recommendations-require-user-approval.md) ·
 [ADR-004](ADR/ADR-004-strict-json-firewall.md) ·
 [ADR-005](ADR/ADR-005-offline-diagnostics-must-function.md) ·
-[ADR-006](ADR/ADR-006-v1-is-mix-doctor.md)
+[ADR-006](ADR/ADR-006-v1-is-mix-doctor.md) ·
+[ADR-007](ADR/ADR-007-diagnostic-confidence.md) ·
+[ADR-008](ADR/ADR-008-v1-masking-is-mix-bus.md)
 
 ---
 
@@ -186,11 +188,12 @@ diagnostic engine, or change the audio without the user (ADR-002, ADR-003).
 |---|---|---|---|
 | `MeasurementSnapshot` + analysis history (10 / 30 / 60 s) | PLANNED | [#2](https://github.com/kylerobertschuster/mixmind/issues/2) | audio thread publishes fixed-size frames through a lock-free FIFO; statistics off-thread; resolves AR-001 |
 | Audio-thread allocation guard; snapshot pattern everywhere | PLANNED | [#5](https://github.com/kylerobertschuster/mixmind/issues/5) | keeps AR-001 closed |
-| Diagnostic engine / Mix Doctor (`Finding`: observation, impact, severity, evidence, actions) | PLANNED | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | rules with explicit, tested thresholds; no invented norms |
+| Diagnostic engine / Mix Doctor (`Finding`: observation, impact, severity, confidence, evidence, potential causes, actions) | PLANNED | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | rules with explicit, tested thresholds and a confidence rule each (ADR-007); no invented norms |
 | Reference intelligence (comparison report, several references, audition) | PARTIAL | [#4](https://github.com/kylerobertschuster/mixmind/issues/4) | analysis, caching and match EQ exist |
-| Masking engine | PLANNED | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | real masking needs per-source signals (multi-instance); mix-bus symptoms meanwhile |
+| Congestion diagnostics (mix bus, v1.0) | PLANNED | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | low-end / midrange congestion, transient suppression, spectral crowding; potential sources with confidence, never named tracks (ADR-008) |
+| Track-aware masking (v1.1) | PLANNED | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | instance discovery, cross-instance spectral exchange, per-source masking (ADR-008) |
 | Multi-resolution analysis for the low end | PROPOSED | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | changing the live FFT also changes `mapToGrid` and the match-EQ grid — design note first |
 | Translation predictor | PLANNED | [#6](https://github.com/kylerobertschuster/mixmind/issues/6) | defined scores, relative to the reference until calibrated |
 | Section detector | PLANNED | [#7](https://github.com/kylerobertschuster/mixmind/issues/7) | offline on a bounce first; real-time with lag |
 | Offline file analysis | PLANNED | [#8](https://github.com/kylerobertschuster/mixmind/issues/8) | same engines as real time, on a background thread |
-| AI explanation layer (explanation payload, backend, UI) | PARTIAL | — (see ROADMAP open questions) | worker, firewall and approval exist; the firewall's schema covers parameter / trace suggestions only; provider and UI undecided; AR-002 |
+| AI explanation layer (explanation payload, backend, UI) | PARTIAL | [#11](https://github.com/kylerobertschuster/mixmind/issues/11) | worker, firewall and approval exist; the explanation schema (AI text only, keyed by finding ID; numbers checked against evidence) is specified in #11, not built; provider undecided; AR-002 |

@@ -1,4 +1,4 @@
-Version: 1.1
+Version: 1.2
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -10,18 +10,21 @@ AGENTS.md, not here.
 
 ## v1.0 scope
 
-Defined by ADR-006: **v1.0 ships Mix Doctor.** Status against its required
-list (details and issues in `docs/ROADMAP.md`):
+Defined by ADR-006: **v1.0 ships Mix Doctor**, with ADR-007 (every finding
+carries severity and confidence) and ADR-008 (mix-bus masking in v1.0,
+track-aware in v1.1; offline file analysis is the first v1.x feature).
+Status against the required list (details and issues in `docs/ROADMAP.md`):
 
-- **Mix Doctor report + severity scoring** (#1) — not started.
+- **Mix Doctor report + severity and confidence scoring** (#1) — not started.
 - **Analysis engine** (#2, #5) — partial: input / output analyzers, BS.1770
   meter and long-term spectra exist; measurement snapshots, the rolling window
   and the allocation guard don't. AR-001 open.
-- **Frequency masking** (#3) — not started; v1.0 form undecided.
+- **Frequency masking** (#3) — not started; v1.0 = mix-bus congestion
+  diagnostics with confidence and potential sources (ADR-008).
 - **Reference track intelligence** (#4) — partial: native-rate mid + side
   analysis, session cache, AUTO / mid-side match exist; comparison report
   doesn't.
-- **AI explanations** — partial: `AiWorker` (worker thread, lock-free FIFO)
+- **AI explanations** (#11) — partial: `AiWorker` (worker thread, lock-free FIFO)
   and `AiFirewall` (strict JSON, all-or-nothing) exist, but the firewall's
   schema covers parameter / trace suggestions only — no explanation payload,
   no model backend, no UI. AR-002 open.
@@ -173,15 +176,17 @@ test suite added. Tag `honest-dsp-v1` still pending.
 
 ## Open / next
 
-- Decide masking's v1.0 form (#3) and whether offline file analysis (#8) is
-  in v1.0 — both raised in `docs/ROADMAP.md`.
 - Build order toward ADR-006: snapshots / rolling window (#2, fixes AR-001)
-  → Mix Doctor rules + severity (#1) and the comparison report (#4) →
-  masking (#3) → AI explanation payload, backend and UI.
-- AI: pick the model backend (local Ollama / cloud API / the `proxy/`);
-  its HTTP calls must be bounded and cancellable (AR-002).
+  → Mix Doctor rules with severity and confidence (#1) and the comparison
+  report (#4) → mix-bus congestion diagnostics (#3) → AI explanations (#11).
+- AI: pick the v1.0 model provider (local Ollama / cloud API / the `proxy/`)
+  in #11; its calls must be bounded and cancellable (AR-002).
+- Launch page (`site/mixmind.html`) rewritten for v1.0 on this branch; it
+  describes features that don't exist yet, so it must not be published
+  before v1.0 ships. The trial link points at `MixMind-1.0.0.pkg`, which
+  doesn't exist yet, and the Buy flow fails until #9 (`/purchase` → 402).
 - Low-end resolution: a 4096-pt (or multi-resolution) analyzer is likely
-  needed for masking (#3); changing it also changes `mapToGrid` and the
+  needed for low-end congestion diagnostics (#3, ADR-008); changing it also changes `mapToGrid` and the
   match-EQ grid — design note first.
 - GPU rendering: measure frame cost on real Windows / macOS hardware. On
   Windows JUCE 8 already renders through Direct2D by default and attaching

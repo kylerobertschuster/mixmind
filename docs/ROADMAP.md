@@ -1,12 +1,14 @@
-Version: 1.1
+Version: 1.2
 Last Reviewed: 2026-09-27
 Owner: Founder
 
 # MixMind Roadmap
 
 Priorities serve Mix Doctor (ADR-001); the v1.0 cut is
-[ADR-006](ADR/ADR-006-v1-is-mix-doctor.md). Progress lives in the issues and
-`docs/STATE.md`, not here.
+[ADR-006](ADR/ADR-006-v1-is-mix-doctor.md), refined by
+[ADR-007](ADR/ADR-007-diagnostic-confidence.md) (confidence) and
+[ADR-008](ADR/ADR-008-v1-masking-is-mix-bus.md) (masking, offline analysis).
+Progress lives in the issues and `docs/STATE.md`, not here.
 
 ## v1.0 — Mix Doctor
 
@@ -15,11 +17,11 @@ Priorities serve Mix Doctor (ADR-001); the v1.0 cut is
 | Item | Issue | Status |
 |---|---|---|
 | Mix Doctor report | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | not started |
-| Severity scoring | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | not started |
+| Severity and confidence scoring (ADR-007) | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | not started |
 | Analysis engine: measurement snapshots, the window Mix Doctor observes, audio-thread allocation guard | [#2](https://github.com/kylerobertschuster/mixmind/issues/2), [#5](https://github.com/kylerobertschuster/mixmind/issues/5) | partial — analyzers and BS.1770 meter exist; snapshots, window and guard don't (fixes AR-001) |
-| Frequency masking | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | not started — v1.0 form undecided (below) |
+| Frequency masking — mix-bus congestion diagnostics with confidence (ADR-008) | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | not started |
 | Reference track intelligence | [#4](https://github.com/kylerobertschuster/mixmind/issues/4) | partial — analysis, caching and match EQ exist; comparison report doesn't |
-| AI explanations of findings | — | partial — worker and firewall exist; no explanation payload, model backend or UI |
+| AI explanations of findings | [#11](https://github.com/kylerobertschuster/mixmind/issues/11) | partial — worker and firewall exist; no explanation payload, model backend or UI |
 | Approval gate | — | done (ADR-003) |
 
 Offline function is required too (ADR-005): v1.0 must be complete with no
@@ -36,10 +38,17 @@ Analysis → Diagnostics → Mix Doctor findings → AI explanation.
 | ✓ Recommend actions (applied on approval) | ✗ Autonomous parameter application |
 | | ✗ Coaching (nice-to-have) |
 
+## v1.1 — track-aware diagnostics (ADR-008)
+
+Instance discovery, cross-instance spectral exchange, actual kick-vs-bass
+identification — [#3](https://github.com/kylerobertschuster/mixmind/issues/3). v1.0 finds congestion; v1.1 names the tracks
+causing it.
+
 ## v1.x — nice-to-have
 
 | Item | Issue |
 |---|---|
+| Offline file analysis — first v1.x feature after launch (ADR-008) | [#8](https://github.com/kylerobertschuster/mixmind/issues/8) |
 | Translation prediction | [#6](https://github.com/kylerobertschuster/mixmind/issues/6) |
 | Session history and trends (30–60 s windows) | [#2](https://github.com/kylerobertschuster/mixmind/issues/2) |
 | Section detection | [#7](https://github.com/kylerobertschuster/mixmind/issues/7) |
@@ -58,8 +67,10 @@ Action plans, local AI inference, adaptive learning.
 
 ## Open questions (raised, not resolved)
 
-- **Masking's v1.0 form** (#3): multi-instance measurement of which source
-  masks which, or mix-bus symptoms only?
-- **Offline file analysis** (#8): not placed by ADR-006 — v1.0 or v1.x?
-- **AI explanations**: model provider (local / cloud / `proxy/`), the
-  explanation payload the firewall accepts, and an issue to track it.
+- **The v1.0 model provider** for AI explanations (local / cloud / `proxy/`)
+  — tracked in [#11](https://github.com/kylerobertschuster/mixmind/issues/11).
+- **Confidence calibration** (ADR-007): the labelled set that earns a rule
+  its numeric percentage — the beta's "this finding was wrong" feedback
+  ([#10](https://github.com/kylerobertschuster/mixmind/issues/10)) is the first source.
+- **Launch page** (`site/mixmind.html`) describes v1.0 and must not go live
+  before v1.0 ships; it leaves translation out until [#6](https://github.com/kylerobertschuster/mixmind/issues/6) ships.

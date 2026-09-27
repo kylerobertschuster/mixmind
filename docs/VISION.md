@@ -1,4 +1,4 @@
-Version: 1.0
+Version: 1.1
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -82,11 +82,13 @@ finding carries:
 1. **Observation** — what was measured, where (frequency, time, section).
 2. **Impact** — why it matters to the listener.
 3. **Severity** — how much it matters, relative to the reference or a stated standard.
-4. **Recommended actions** — what to try first, in the producer's hands.
+4. **Confidence** — how sure MixMind is, from the evidence (ADR-007). When it
+   knows, it says it knows; when it suspects, it says it suspects.
+5. **Recommended actions** — what to try first, in the producer's hands.
 
 Example:
 
-> **Low end 4 dB above the reference** · Severity: High
+> **Low end 4 dB above the reference** · Severity: High · Confidence: High
 > Observation: 40–120 Hz is 4.1 dB louder than the reference, loudness-matched.
 > Impact: masks the kick's attack and costs headroom.
 > Try: a low shelf of −3 dB at 100 Hz, then re-run Mix Doctor.
