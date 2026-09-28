@@ -1,4 +1,4 @@
-Version: 1.4
+Version: 1.5
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -77,7 +77,7 @@ cmake --build build --target MixMind_Standalone
 Targets: `MixMind`, `Scope`, `Meter`, `EQT`, `Reflex`, `ThreeFX`, `Neat`, plus
 `MixMindTests` (JUCE `UnitTest` console app; `-DMIXMIND_BUILD_TESTS=OFF` skips
 it). `MixMindTests <category>` runs one category: `Metering`, `Shaper`,
-`Equalizer`, `Reference`, `Processor`, `AI`. On Linux the processor tests paint the editor, so run
+`Equalizer`, `Reference`, `Processor`, `AI`, `Analysis`. On Linux the processor tests paint the editor, so run
 them under `xvfb-run -a` when there is no display.
 AAX is deferred to V2. Do not add AAX to the CMake target lists.
 
@@ -115,11 +115,12 @@ mixmind/
 Shared source across targets:
 
 - `AudioAnalyzer.cpp/.h` — used by MixMind, Scope, Meter, EQT.
-  Depends on `LoudnessMeter.cpp/.h`, so any target compiling
-  `AudioAnalyzer` must also compile `LoudnessMeter`.
+  Depends on `LoudnessMeter.cpp/.h` and `SnapshotBuffer.h`, so any target
+  compiling `AudioAnalyzer` must also compile `LoudnessMeter`.
 - `LookAndFeel.cpp/.h` — used by every target.
 - `ShaperProcessor`, `ParametricEq`, `ReferenceAnalyzer`, `TelemetryCanvas`,
-  `AiFirewall`, `AiWorker` — MixMind (and `MixMindTests`) only.
+  `AiFirewall`, `AiWorker`, `MeasurementHistory` — MixMind (and
+  `MixMindTests`) only.
 - `LicenseManager.cpp/.h` — used by Scope, Meter, EQT, Reflex,
   ThreeFX, Neat. Not used by MixMind.
 
@@ -132,6 +133,10 @@ When editing shared files, check every consuming target still builds.
 - Comment why, not what.
 - JUCE hygiene: `ScopedNoDenormals` in `processBlock`, `Atomic<float>`
   for cross-thread readouts, `SpinLock` for coefficient swaps.
+- Analyzer data crosses threads only through `getSpectra()` (one reader
+  thread, the message thread: take it once per callback, don't keep the
+  reference), `popFrame()` and the atomic readouts. Never read analyzer
+  internals from another thread or hand its arrays to `paint()` — copy.
 - Session state, presets and dropped files are untrusted input (projects get
   shared): validate every size, rate and value from them before it is used
   to index or divide — checks, not trust (`ReferenceAnalyzer::Result::isValid`).

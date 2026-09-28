@@ -255,7 +255,7 @@ void MixMindEditor::timerCallback()
     auto& aa = audioProcessor.outputAnalyzer;
     const bool shapeOn = audioProcessor.parameters.getRawParameterValue ("shapeEnable")->load() > 0.5f;
 
-    telemetry.setUserBins (aa.getFFTBins(), AudioAnalyzer::numBins, audioProcessor.getCurrentSampleRate());
+    telemetry.setUserBins (aa.getSpectra().display, AudioAnalyzer::numBins, audioProcessor.getCurrentSampleRate());
 
     std::array<ParametricEq::Band, ParametricEq::kNumBands> bands;
     bool eqOn = false;
@@ -265,7 +265,7 @@ void MixMindEditor::timerCallback()
         eqOn |= bands[(size_t) b].on;
     }
     telemetry.setBands (bands);
-    if (shapeOn || eqOn) telemetry.setInputBins (audioProcessor.audioAnalyzer.getFFTBins(), AudioAnalyzer::numBins);
+    if (shapeOn || eqOn) telemetry.setInputBins (audioProcessor.audioAnalyzer.getSpectra().display, AudioAnalyzer::numBins);
     else                 telemetry.setInputBins (nullptr, 0);
 
     TelemetryCanvas::Readout you;

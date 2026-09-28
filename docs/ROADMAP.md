@@ -1,4 +1,4 @@
-Version: 1.2
+Version: 1.3
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -18,7 +18,7 @@ Progress lives in the issues and `docs/STATE.md`, not here.
 |---|---|---|
 | Mix Doctor report | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | not started |
 | Severity and confidence scoring (ADR-007) | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | not started |
-| Analysis engine: measurement snapshots, the window Mix Doctor observes, audio-thread allocation guard | [#2](https://github.com/kylerobertschuster/mixmind/issues/2), [#5](https://github.com/kylerobertschuster/mixmind/issues/5) | partial — analyzers and BS.1770 meter exist; snapshots, window and guard don't (fixes AR-001) |
+| Analysis engine: measurement snapshots, the window Mix Doctor observes, audio-thread allocation guard | [#2](https://github.com/kylerobertschuster/mixmind/issues/2), [#5](https://github.com/kylerobertschuster/mixmind/issues/5) | done except the allocation guard (#5) — snapshots (AR-001 resolved), 100 ms frames, 60 s history with BS.1770 / EBU 3342 statistics |
 | Frequency masking — mix-bus congestion diagnostics with confidence (ADR-008) | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | not started |
 | Reference track intelligence | [#4](https://github.com/kylerobertschuster/mixmind/issues/4) | partial — analysis, caching and match EQ exist; comparison report doesn't |
 | AI explanations of findings | [#11](https://github.com/kylerobertschuster/mixmind/issues/11) | partial — worker and firewall exist; no explanation payload, model backend or UI |

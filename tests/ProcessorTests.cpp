@@ -406,7 +406,7 @@ public:
             bool finite = true;
             for (float v : out) finite = finite && std::isfinite (v);
             expect (finite);
-            const float* lt = h.p.audioAnalyzer.getLongTermBins();
+            const float* lt = h.p.audioAnalyzer.getSpectra().longTerm;
             for (int i = 0; i < AudioAnalyzer::numBins; ++i) finite = finite && std::isfinite (lt[i]);
             expect (finite);
             expect (std::isfinite (h.p.outputAnalyzer.getShortTermLufs()));

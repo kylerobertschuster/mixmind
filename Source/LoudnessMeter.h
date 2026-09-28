@@ -54,6 +54,20 @@ public:
     // BS.1770: loudness of a mean-square channel-summed energy.
     static float toLufs (double energy, double count);
 
+    // The 100 ms steps, as they close (audio thread only). AudioAnalyzer cuts
+    // its blocks at step ends so each measurement frame is exactly one step.
+    struct Step
+    {
+        double kEnergy { 0 };    // Σ K-weighted squares, summed over channels
+        double energy  { 0 };    // Σ unweighted squares, averaged over channels
+        float  truePeak { 0 };   // max true peak (linear)
+        int    samples { 0 };
+    };
+    int  samplesToStepEnd() const noexcept     { return juce::jmax (1, subLength - subCount); }
+    juce::uint64 getStepCount() const noexcept { return stepCount; }   // survives reset()
+    const Step& getLastStep() const noexcept   { return lastStep; }
+    bool takeResetRequest() noexcept           { return resetRequested.exchange (false); }
+
     // K-weighting biquad coefficients for a sample rate (exposed for tests).
     struct Biquad
     {
@@ -102,6 +116,8 @@ private:
     std::array<double, kSubPerShort> ringRms {};
     std::array<float,  kSubPerShort> ringPeak {};
     int subHead { 0 }, subFilled { 0 };
+    juce::uint64 stepCount { 0 };
+    Step lastStep;
 
     // Integrated gating state (allocated in prepare, never on the audio thread).
     std::vector<double> histEnergy;

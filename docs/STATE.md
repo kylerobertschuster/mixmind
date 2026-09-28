@@ -1,4 +1,4 @@
-Version: 1.3
+Version: 1.4
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -16,9 +16,11 @@ track-aware in v1.1; offline file analysis is the first v1.x feature).
 Status against the required list (details and issues in `docs/ROADMAP.md`):
 
 - **Mix Doctor report + severity and confidence scoring** (#1) — not started.
-- **Analysis engine** (#2, #5) — partial: input / output analyzers, BS.1770
-  meter and long-term spectra exist; measurement snapshots, the rolling window
-  and the allocation guard don't. AR-001 open.
+- **Analysis engine** (#2, #5) — done except the audio-thread allocation
+  guard (#5): spectra published whole (AR-001 resolved), 100 ms measurement
+  frames, and a 60 s `MeasurementHistory` of the output with BS.1770
+  integrated loudness, EBU 3342 loudness range, true peak, RMS, crest,
+  correlation, width, octave bands and mono fold-down.
 - **Frequency masking** (#3) — not started; v1.0 = mix-bus congestion
   diagnostics with confidence and potential sources (ADR-008).
 - **Reference track intelligence** (#4) — partial: native-rate mid + side
@@ -52,7 +54,8 @@ AI worker + firewall.
 - Match EQ 2048 taps: 1.1 % linked, 0.7 % mid/side, 2.4 % while
   crossfading continuously (a 1024-tap direct FIR used to cost 4.5 %).
 - 8 EQ bands: 0.8 % static, 5.1 % with all eight sweeping every block.
-- BS.1770 meter: 0.25 %.
+- BS.1770 meter: 0.25 %. Whole AudioAnalyzer (meter, spectra, frames):
+  0.7 % per instance (`MIXMIND_BENCH=1 MixMindTests Analysis`).
 - Editor: on screen it renders through an attached `juce::OpenGLContext`
   (GPU); repaints stay event-driven at the canvas's 30 fps. GPU frame cost is
   not measured yet — this container only has Mesa's CPU rasteriser, so it
@@ -86,6 +89,16 @@ commit message; Debug and Release).
   sub-400 ms files; missing / silent / non-audio files; cancellation; formats;
   an implausible Result (subnormal, negative, NaN or infinite rate) never
   indexes outside its spectrum.
+- **Analysis** — snapshot handoff: 200 000 values under contention, no torn
+  or out-of-order read; frames tile the audio in exact 100 ms steps and are
+  identical for 64 / 441 / 4096 / random block sizes; window integrated
+  loudness and true peak equal the BS.1770 meter (44.1 / 48 k); loudness range
+  matches EBU Tech 3342 cases 1–4 (10 / 5 / 20 / 15 LU); silence gated out of
+  RMS / bands / stereo; identical, anti-phase and uncorrelated channels give
+  correlation 1 / −1 / 0 and mono loss 0 / floor / −3 dB; octave bands equal
+  the long-term spectrum's band means at 44.1 / 48 / 96 k; dropped frames are
+  counted and never bridged; prepare() and loudness reset keep frames whole;
+  the processor's history is read while its audio thread runs.
 - **AI** — firewall: valid payloads map exactly onto parameters; NaN / ±inf
   (values and literals) reject; out-of-range quantities clamp; choices and
   switches must be exact; unknown IDs / fields, coefficients, prose, code
@@ -119,8 +132,14 @@ commit message; Debug and Release).
   histogram (no audio-thread allocation), per-channel 4× true peak,
   3 s RMS/peak for crest. Thread-safe `requestReset()` (click the YOU readout).
 - **AudioAnalyzer** — mid (L+R)/2 spectrum, 2048 Hann, 50 % overlap; display
-  average (~200 ms) and gated long-term average (~3 s) for matching; band
-  levels in dB RMS; ~300 ms width/correlation; goniometer sample ring.
+  average (~200 ms) and gated long-term average (~3 s) for matching, published
+  whole through a `SnapshotBuffer` (`getSpectra()`, message thread, once per
+  callback); a `MeasurementFrame` per 100 ms loudness step through a lock-free
+  FIFO; band levels in dB RMS; ~300 ms width/correlation; goniometer ring.
+- **MeasurementHistory** — the output's last 60 s of frames (drained by the
+  design loop); window statistics per BS.1770-4 and EBU Tech 3342 plus true
+  peak, RMS, crest, stereo, octave bands and mono fold-down; blocks never span
+  a dropped frame.
 - **ReferenceAnalyzer** — streams the file (WAV/AIFF/FLAC/Ogg/MP3, plus
   CoreAudio formats on macOS), analyses at the file's own rate, maps onto
   the live grid (`mapToGrid`, no resampling). Runs on a background thread.
@@ -180,9 +199,10 @@ test suite added. Tag `honest-dsp-v1` still pending.
 
 ## Open / next
 
-- Build order toward ADR-006: snapshots / rolling window (#2, fixes AR-001)
-  → Mix Doctor rules with severity and confidence (#1) and the comparison
-  report (#4) → mix-bus congestion diagnostics (#3) → AI explanations (#11).
+- Build order toward ADR-006: ~~snapshots / rolling window (#2)~~ done →
+  Mix Doctor rules with severity and confidence (#1) and the comparison
+  report (#4) → mix-bus congestion diagnostics (#3) → AI explanations (#11);
+  the allocation guard (#5) alongside.
 - AI: pick the v1.0 model provider (local Ollama / cloud API / the `proxy/`)
   in #11; its calls must be bounded and cancellable (AR-002).
 - Launch page (`site/mixmind.html`) rewritten for v1.0 on this branch; it

@@ -59,6 +59,9 @@ set(MIXMIND_SOURCES
     Source/AiFirewall.h
     Source/AiWorker.cpp
     Source/AiWorker.h
+    Source/MeasurementHistory.cpp
+    Source/MeasurementHistory.h
+    Source/SnapshotBuffer.h
     Source/LookAndFeel.h
     Source/LookAndFeel.cpp
     Source/FocusModel.h
@@ -270,6 +273,7 @@ if(MIXMIND_BUILD_TESTS)
         tests/ReferenceAnalyzerTests.cpp
         tests/ProcessorTests.cpp
         tests/AiTests.cpp
+        tests/AnalysisTests.cpp
     )
     target_include_directories(MixMindTests PRIVATE Source tests)
 

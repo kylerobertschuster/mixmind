@@ -77,7 +77,7 @@ void EQTEditor::resized()
 void EQTEditor::timerCallback()
 {
     ++dotPhase;
-    const float* bins = proc.audioAnalyzer.getFFTBins();
+    const float* bins = proc.audioAnalyzer.getSpectra().display;
     int nBins = AudioAnalyzer::numBins;
     int step = juce::jmax (1, nBins / kNumBins);
     hasSignal = false;

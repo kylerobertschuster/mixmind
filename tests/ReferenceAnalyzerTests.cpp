@@ -32,7 +32,8 @@ namespace
             buf.copyFrom (1, 0, r.data() + i, 512);
             a.process (buf);
         }
-        return { a.getLongTermBins(), a.getLongTermBins() + kBins };
+        const auto& s = a.getSpectra();
+        return { s.longTerm, s.longTerm + kBins };
     }
 }
 

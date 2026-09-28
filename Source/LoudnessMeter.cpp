@@ -161,6 +161,9 @@ void LoudnessMeter::process (const float* L, const float* R, int n)
 
 void LoudnessMeter::closeSubBlock()
 {
+    lastStep = { subEnergy, subRms, subPeak, subCount };
+    ++stepCount;
+
     ringEnergy[(size_t) subHead] = subEnergy;
     ringRms   [(size_t) subHead] = subRms;
     ringPeak  [(size_t) subHead] = subPeak;

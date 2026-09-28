@@ -5,6 +5,7 @@
 #include <memory>
 #include "AiWorker.h"
 #include "AudioAnalyzer.h"
+#include "MeasurementHistory.h"
 #include "ParametricEq.h"
 #include "ReferenceAnalyzer.h"
 #include "ShaperProcessor.h"
@@ -101,6 +102,10 @@ public:
 
     double getCurrentSampleRate() const;
 
+    // What Mix Doctor observes: the output analyzer's measurement frames,
+    // drained by the design loop (message thread; runs with the editor closed).
+    const MeasurementHistory& getMeasurementHistory() const { return history; }
+
     // ── AI assistant (message thread). Requests run on the AI worker, never on
     //    the audio thread; validated results come back through its lock-free
     //    FIFO. An accepted result is only a suggestion (ADR-003): nothing
@@ -180,6 +185,8 @@ private:
 
     // Declared last so it is destroyed first: its thread stops before anything
     // else goes away.
+    MeasurementHistory history;
+
     AiWorker ai { getParameters() };
     AiStatus aiStatus;
     AiPayload aiSuggestion;   // valid while aiStatus.awaitingApproval

@@ -1,4 +1,4 @@
-Version: 1.2
+Version: 1.3
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -32,9 +32,9 @@ never deleted. A change that touches an open risk says so and updates it.
 
 ## AR-001 — Analyzer spectra cross threads without synchronisation
 
-Status: **Open** · Priority: **High** · Target resolution: `MeasurementSnapshot`
-([#2](https://github.com/kylerobertschuster/mixmind/issues/2)), enforced by
-[#5](https://github.com/kylerobertschuster/mixmind/issues/5)
+Status: **Resolved** 2026-09-28 by the analysis engine
+([#2](https://github.com/kylerobertschuster/mixmind/issues/2)) · Priority: High
+· Kept closed by [#5](https://github.com/kylerobertschuster/mixmind/issues/5)
 
 **Description.** `AudioAnalyzer` writes its display and long-term spectra
 (plain `float` arrays) on the audio thread. The design loop and the editor
@@ -55,6 +55,15 @@ spectra, and a finding has to come from one consistent measurement (ADR-002).
 **Target.** The audio thread publishes complete, fixed-size snapshots
 (lock-free FIFO, or a double buffer with an atomic index); readers only ever
 see whole snapshots.
+
+**Resolution.** `AudioAnalyzer` now publishes its spectra as one `Spectra`
+set through a `SnapshotBuffer` (triple buffer: wait-free, the writer never
+touches the slot the reader holds). Readers call `getSpectra()` once per
+callback on the message thread and use that set; the canvas copies what it
+needs, so `paint()` never reads analyzer memory. Measurement frames go through
+a lock-free SPSC FIFO. Tested: 200 000 snapshots handed over under contention
+with no torn or out-of-order read, and a live processor read while its audio
+thread runs.
 
 ## AR-002 — AI worker shutdown depends on cooperative cancellation
 
@@ -85,7 +94,9 @@ input ─► non-finite → 0 ─► input AudioAnalyzer ─► ShaperProcessor 
 - **Input analyzer**: mid (L+R)/2 spectrum, 2048-point Hann, 50 % overlap;
   ~200 ms display average; ~3 s long-term average gated at −70 dBFS (mid and
   side) used for matching; BS.1770-4 loudness per channel, 4× true peak,
-  crest; ~300 ms width / correlation; goniometer ring.
+  crest; ~300 ms width / correlation; goniometer ring. Spectra are published
+  whole (`SnapshotBuffer`); every 100 ms loudness step also yields a
+  `MeasurementFrame` (below). The output analyzer is the same class.
 - **Match EQ** (`ShaperProcessor`): 2048-tap linear-phase FIR, uniformly
   partitioned convolution (128-sample direct head, FFT tail), linked or
   mid/side filter pairs. Latency is constant at 1024 samples; SHAPE off and
@@ -101,7 +112,7 @@ input ─► non-finite → 0 ─► input AudioAnalyzer ─► ShaperProcessor 
 | Thread | Runs | Writes | Reads |
 |---|---|---|---|
 | **Audio** (host) | `processBlock` → `runChain` | analyzer spectra and readouts, FIR convolution state, EQ voices | parameters, FIR slot pool, band settings |
-| **Message** | design-loop timer (30 Hz): `drainAi`, match design (`buildCorrection` → `designFromCurve` → `setFilter`); reference install; applying approved AI suggestions; editor timer (30 Hz) | trace, correction curves, AI status and pending suggestion, parameters (as host gestures) | long-term spectra, reference |
+| **Message** | design-loop timer (30 Hz): `drainAi`, drains the output analyzer's frames into `MeasurementHistory`, match design (`buildCorrection` → `designFromCurve` → `setFilter`); reference install; applying approved AI suggestions; editor timer (30 Hz) | trace, correction curves, AI status and pending suggestion, parameters (as host gestures) | long-term spectra, reference |
 | **GL** | editor and canvas `paint()` with the message manager locked | — | what the message thread reads |
 | **Reference loader** (`ThreadPool`, 1 thread) | `ReferenceAnalyzer::analyse` on a file at its own rate | result, handed to the message thread with `callAsync` | the audio file |
 | **AI worker** (`AiWorker`, started on first request) | model call → strict JSON check → `AiFirewall` → FIFO | its FIFO slots | request list |
@@ -114,7 +125,8 @@ input ─► non-finite → 0 ─► input AudioAnalyzer ─► ShaperProcessor 
 | Parameters | message / host → audio | APVTS `std::atomic<float>` |
 | Match filters | message → audio | 5-slot pool; writer takes a `SpinLock`, the audio thread only try-locks; swaps crossfade over 2048 samples |
 | Scalar readouts (LUFS, peaks, width, …) | audio → message / GL | `juce::Atomic<float>` |
-| Spectra (display, long-term) | audio → message / GL | plain float arrays read without synchronisation — **AR-001** |
+| Spectra (display, long-term mid and side) | audio → message | `SnapshotBuffer` triple buffer, one reader thread; take `getSpectra()` once per callback (AR-001, resolved) |
+| Measurement frames (100 ms) | audio → message | lock-free SPSC FIFO (`AbstractFifo`, 256 frames ≈ 25 s); never waited for — a frame nobody reads is dropped and its index goes missing |
 | Reference analysis | loader → message; host threads | `shared_ptr<const Result>` under a `CriticalSection`; never touched by the audio thread |
 | AI requests | message → AI worker | list under a `CriticalSection`; never touched by the audio thread |
 | AI results | AI worker → message | lock-free SPSC FIFO (`AbstractFifo`) of fixed-size plain-data records |
@@ -138,6 +150,20 @@ message thread: drainAi ─► pending suggestion ─► approveAiSuggestion (us
   nothing changes until `approveAiSuggestion()` (ADR-003). Approval applies it
   as host-visible, undoable parameter gestures.
 - **No model backend and no UI exist yet**; `setAiBackend()` is the hook.
+
+## Analysis history (the window Mix Doctor observes)
+
+Each 100 ms loudness step closes a `MeasurementFrame`: K-weighted energy,
+unweighted energy, true peak, L/R/cross sums, and — averaged over the FFT
+frames in the step — mid magnitude, mid power and side power per octave band
+(31.25 Hz … 16 kHz, on the analyzer grid). The host block is cut at step ends
+so frames tile the audio exactly whatever the block size. `MeasurementHistory`
+(message thread) keeps the last 60 s of the output analyzer's frames and
+computes, over any stretch: BS.1770-4 integrated loudness, EBU Tech 3342
+loudness range, max true peak, and over frames with signal (−70 dBFS) RMS,
+crest, correlation, width, octave-band levels and mono fold-down loss. Blocks
+never span a missing frame; a new `prepare()` starts a new history. Cost:
+0.7 % of one core per analyzer (Release, 48 kHz stereo).
 
 ## Real-time rules (enforced today by review and tests)
 
@@ -186,8 +212,8 @@ diagnostic engine, or change the audio without the user (ADR-002, ADR-003).
 
 | Component | Status | Issue | Notes |
 |---|---|---|---|
-| `MeasurementSnapshot` + analysis history (10 / 30 / 60 s) | PLANNED | [#2](https://github.com/kylerobertschuster/mixmind/issues/2) | audio thread publishes fixed-size frames through a lock-free FIFO; statistics off-thread; resolves AR-001 |
-| Audio-thread allocation guard; snapshot pattern everywhere | PLANNED | [#5](https://github.com/kylerobertschuster/mixmind/issues/5) | keeps AR-001 closed |
+| Audio-thread allocation guard | PLANNED | [#5](https://github.com/kylerobertschuster/mixmind/issues/5) | proves `processBlock` never allocates; keeps AR-001 closed |
+| Session trends beyond 60 s | PLANNED | [#2](https://github.com/kylerobertschuster/mixmind/issues/2) | v1.x nice-to-have (ADR-006); the 60 s history exists |
 | Diagnostic engine / Mix Doctor (`Finding`: observation, impact, severity, confidence, evidence, potential causes, actions) | PLANNED | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | rules with explicit, tested thresholds and a confidence rule each (ADR-007); no invented norms |
 | Reference intelligence (comparison report, several references, audition) | PARTIAL | [#4](https://github.com/kylerobertschuster/mixmind/issues/4) | analysis, caching and match EQ exist |
 | Congestion diagnostics (mix bus, v1.0) | PLANNED | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | low-end / midrange congestion, transient suppression, spectral crowding; potential sources with confidence, never named tracks (ADR-008) |

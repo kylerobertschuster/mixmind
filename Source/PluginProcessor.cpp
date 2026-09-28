@@ -415,6 +415,7 @@ void MixMindProcessor::setTrace (std::vector<TracePoint> points)
 void MixMindProcessor::timerCallback()
 {
     drainAi();   // first, so this tick's design already sees what the AI changed
+    history.drain (outputAnalyzer);
 
     DesignInputs in;
     in.manual       = parameters.getRawParameterValue ("shapeMode")->load() > 0.5f;
@@ -451,8 +452,10 @@ void MixMindProcessor::timerCallback()
     }
 
     float midOffset = 0.0f;
-    const bool ok = haveTarget && audioAnalyzer.hasLongTermSpectrum()
-                 && ShaperProcessor::buildCorrection (target.data(), audioAnalyzer.getLongTermBins(), n, in.rate,
+    // One consistent snapshot of the input analyzer for the whole design.
+    const auto& live = audioAnalyzer.getSpectra();
+    const bool ok = haveTarget && live.hasLongTerm()
+                 && ShaperProcessor::buildCorrection (target.data(), live.longTerm, n, in.rate,
                                                       in.amount, correctionDb, nullptr, &midOffset);
     if (! ok)
     {
@@ -467,7 +470,7 @@ void MixMindProcessor::timerCallback()
     // overall loudness stays put. A side with nothing to compare (a mono mix)
     // is left alone.
     const bool midSide = ! sideTarget.empty();
-    if (midSide && ! ShaperProcessor::buildCorrection (sideTarget.data(), audioAnalyzer.getLongTermSideBins(), n,
+    if (midSide && ! ShaperProcessor::buildCorrection (sideTarget.data(), live.longTermSide, n,
                                                        in.rate, in.amount, correctionSideDb, &midOffset))
         correctionSideDb.assign ((size_t) n, 0.0f);
     if (! midSide)

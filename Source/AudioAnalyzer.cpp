@@ -1,6 +1,25 @@
 #include "AudioAnalyzer.h"
 #include <cmath>
 
+namespace
+{
+    // [first, end) analyzer bins of each octave band: bins whose centre lies in
+    // [fc/√2, fc·√2). DC is never included. A band can be empty at high rates.
+    std::array<std::pair<int, int>, MeasurementFrame::kBands> bandRanges (double sampleRate)
+    {
+        std::array<std::pair<int, int>, MeasurementFrame::kBands> r {};
+        const double binHz = sampleRate / (double) AudioAnalyzer::fftSize;
+        for (int b = 0; b < MeasurementFrame::kBands; ++b)
+        {
+            const double fc = MeasurementFrame::bandCentreHz (b);
+            const int first = juce::jlimit (1, AudioAnalyzer::numBins, (int) std::ceil (fc / std::sqrt (2.0) / binHz));
+            const int end   = juce::jlimit (first, AudioAnalyzer::numBins, (int) std::ceil (fc * std::sqrt (2.0) / binHz));
+            r[(size_t) b] = { first, end };
+        }
+        return r;
+    }
+}
+
 AudioAnalyzer::AudioAnalyzer()
 {
     float ones[fftSize];
@@ -8,6 +27,7 @@ AudioAnalyzer::AudioAnalyzer()
     window.multiplyWithWindowingTable (ones, (size_t) fftSize);
     windowPower = 0.0f;
     for (float w : ones) windowPower += w * w;
+    bandBins = bandRanges (sampleRate);
 }
 
 void AudioAnalyzer::prepare (double sr, int blockSize)
@@ -23,11 +43,20 @@ void AudioAnalyzer::prepare (double sr, int blockSize)
     juce::zeromem (scopeR, sizeof (scopeR));
     fifoIdx = hopCount = 0;
     fifoFull = false;
-    longTermFrames.store (0);
+    longTermFrames = 0;
     scopeWrite.store (0);
     bassPow = midPow = highPow = 0.0f;
     sLR = sLL = sRR = sMid = sSide = 0.0;
     loudnessMeter.prepare (sr, blockSize);
+
+    // The host does not call prepare() and process() at once, so this thread
+    // is the only writer here; readers pick the reset up like any update.
+    publishSpectra();
+
+    bandBins = bandRanges (sr);
+    frame = {};
+    frameIndex = 0;
+    ++epoch;   // the history starts a new run; stale frames still queued carry the old epoch
 }
 
 void AudioAnalyzer::process (const juce::AudioBuffer<float>& buffer)
@@ -39,9 +68,31 @@ void AudioAnalyzer::process (const juce::AudioBuffer<float>& buffer)
     const float* L = buffer.getReadPointer (0);
     const float* R = stereo ? buffer.getReadPointer (1) : L;
 
-    loudnessMeter.process (L, stereo ? R : nullptr, n);
+    // A loudness reset restarts the meter's steps; the partial frame goes with it.
+    if (loudnessMeter.takeResetRequest())
+    {
+        loudnessMeter.reset();
+        frame = {};
+    }
 
-    // Stereo image: leaky sums (~300 ms) so the readout is stable.
+    // Cut the block at the meter's 100 ms step ends, so every frame covers
+    // exactly one step whatever the host block size.
+    for (int pos = 0; pos < n;)
+    {
+        const int len = juce::jmin (n - pos, loudnessMeter.samplesToStepEnd());
+        const auto steps = loudnessMeter.getStepCount();
+        loudnessMeter.process (L + pos, stereo ? R + pos : nullptr, len);
+        analyse (L + pos, R + pos, len);
+        if (loudnessMeter.getStepCount() != steps)
+            closeFrame();
+        pos += len;
+    }
+}
+
+void AudioAnalyzer::analyse (const float* L, const float* R, int n)
+{
+    // Stereo image: leaky sums (~300 ms) so the readout is stable; plain sums
+    // for the frame.
     double lr = 0, ll = 0, rr = 0, mm = 0, ss = 0;
     for (int i = 0; i < n; ++i)
     {
@@ -50,6 +101,8 @@ void AudioAnalyzer::process (const juce::AudioBuffer<float>& buffer)
         const double m = 0.5 * (l + r), s = 0.5 * (l - r);
         mm += m * m; ss += s * s;
     }
+    frame.ll += ll; frame.rr += rr; frame.lr += lr;
+
     const double decay = std::exp (-(double) n / (0.3 * sampleRate));
     sLR = sLR * decay + lr; sLL = sLL * decay + ll; sRR = sRR * decay + rr;
     sMid = sMid * decay + mm; sSide = sSide * decay + ss;
@@ -118,7 +171,7 @@ void AudioAnalyzer::performFFT()
     // exponential. Frames below −70 dBFS are skipped so pauses and transport
     // stops do not drag the match target toward silence.
     const bool  gateOpen = meanSquare > 1.0e-7;
-    const int   frames   = gateOpen ? juce::jmin (longTermFrames.load() + 1, 1 << 20) : 0;
+    const int   frames   = gateOpen ? juce::jmin (longTermFrames + 1, 1 << 20) : 0;
     const float tauAlpha = (float) (1.0 - std::exp (-(fftSize / 2) / (3.0 * sampleRate)));
     const float ltAlpha  = gateOpen ? juce::jmax (tauAlpha, 1.0f / (float) frames) : 0.0f;
 
@@ -131,6 +184,7 @@ void AudioAnalyzer::performFFT()
     {
         const float mag = fftData[i];
         const float v   = mag * norm;
+        midMag[i] = v;
 
         fftAvg[i] += (v - fftAvg[i]) * displayAvg;
         if (gateOpen) longTerm[i] += (v - longTerm[i]) * ltAlpha;
@@ -142,19 +196,40 @@ void AudioAnalyzer::performFFT()
         else                   h += p;
     }
 
+    // Side spectrum: for the frame's mono-compatibility bands, and the
+    // long-term side (gated by the mid, so a quiet-but-real side still counts).
+    for (int i = 0; i < fftSize; ++i)
+        fftData[i] = sideFifo[(fifoIdx + i) & (fftSize - 1)];
+    juce::zeromem (fftData + fftSize, sizeof (float) * fftSize);
+    window.multiplyWithWindowingTable (fftData, (size_t) fftSize);
+    forwardFFT.performFrequencyOnlyForwardTransform (fftData);
+    for (int i = 0; i < numBins; ++i)
+        fftData[i] *= norm;
+
     if (gateOpen)
     {
-        // Side long-term, gated by the mid so a quiet-but-real side still counts.
-        for (int i = 0; i < fftSize; ++i)
-            fftData[i] = sideFifo[(fifoIdx + i) & (fftSize - 1)];
-        juce::zeromem (fftData + fftSize, sizeof (float) * fftSize);
-        window.multiplyWithWindowingTable (fftData, (size_t) fftSize);
-        forwardFFT.performFrequencyOnlyForwardTransform (fftData);
         for (int i = 0; i < numBins; ++i)
-            longTermSide[i] += (fftData[i] * norm - longTermSide[i]) * ltAlpha;
-
-        longTermFrames.store (frames);
+            longTermSide[i] += (fftData[i] - longTermSide[i]) * ltAlpha;
+        longTermFrames = frames;
     }
+
+    for (int band = 0; band < MeasurementFrame::kBands; ++band)
+    {
+        const auto [first, end] = bandBins[(size_t) band];
+        if (end <= first) continue;
+        double mag = 0.0, midP = 0.0, sideP = 0.0;
+        for (int i = first; i < end; ++i)
+        {
+            mag   += midMag[i];
+            midP  += (double) midMag[i] * midMag[i];
+            sideP += (double) fftData[i] * fftData[i];
+        }
+        const double count = end - first;
+        frame.bandMag[(size_t) band]     += (float) (mag / count);
+        frame.bandMidPow[(size_t) band]  += (float) (midP / count);
+        frame.bandSidePow[(size_t) band] += (float) (sideP / count);
+    }
+    ++frame.fftFrames;
 
     // Band power → mean-square (Parseval with window-power correction).
     bassPow += (b * powNorm - bassPow) * bandSmooth;
@@ -168,4 +243,73 @@ void AudioAnalyzer::performFFT()
     bassDb = toDb (bassPow);
     midDb  = toDb (midPow);
     highDb = toDb (highPow);
+
+    publishSpectra();
+}
+
+void AudioAnalyzer::publishSpectra()
+{
+    auto& s = spectra.back();
+    std::copy (fftAvg, fftAvg + numBins, s.display);
+    std::copy (longTerm, longTerm + numBins, s.longTerm);
+    std::copy (longTermSide, longTermSide + numBins, s.longTermSide);
+    s.longTermFrames = longTermFrames;
+    spectra.publish();
+}
+
+void AudioAnalyzer::closeFrame()
+{
+    const auto& step = loudnessMeter.getLastStep();
+    frame.epoch      = epoch;
+    frame.index      = frameIndex++;
+    frame.sampleRate = sampleRate;
+    frame.samples    = step.samples;
+    frame.kEnergy    = step.kEnergy;
+    frame.energy     = step.energy;
+    frame.truePeak   = step.truePeak;
+    if (frame.fftFrames > 1)
+    {
+        const float k = 1.0f / (float) frame.fftFrames;
+        for (int b = 0; b < MeasurementFrame::kBands; ++b)
+        {
+            frame.bandMag[(size_t) b]     *= k;
+            frame.bandMidPow[(size_t) b]  *= k;
+            frame.bandSidePow[(size_t) b] *= k;
+        }
+    }
+
+    // Never wait: with nobody reading, the frame is dropped (its index is
+    // then missing from the history).
+    {
+        const auto scope = frameFifo.write (1);
+        if (scope.blockSize1 > 0)
+            frameSlots[(size_t) scope.startIndex1] = frame;
+    }
+    frame = {};
+}
+
+bool AudioAnalyzer::popFrame (MeasurementFrame& out)
+{
+    const auto scope = frameFifo.read (1);
+    if (scope.blockSize1 == 0) return false;
+    out = frameSlots[(size_t) scope.startIndex1];
+    return true;
+}
+
+int AudioAnalyzer::bandBinCount (int band, double sr)
+{
+    const auto r = bandRanges (sr)[(size_t) juce::jlimit (0, MeasurementFrame::kBands - 1, band)];
+    return r.second - r.first;
+}
+
+void AudioAnalyzer::bandMagnitudes (const float* bins, double sr, float* outBands)
+{
+    const auto ranges = bandRanges (sr);
+    for (int b = 0; b < MeasurementFrame::kBands; ++b)
+    {
+        const auto [first, end] = ranges[(size_t) b];
+        double sum = 0.0;
+        for (int i = first; i < end; ++i) sum += bins[i];
+        outBands[b] = end > first ? (float) (sum / (end - first)) : 0.0f;
+    }
 }
