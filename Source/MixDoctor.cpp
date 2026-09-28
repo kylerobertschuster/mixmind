@@ -12,6 +12,10 @@ namespace
     constexpr float kDenserMedium = -3.0f, kDenserHigh = -6.0f, kLooser = 6.0f;   // crest − reference crest, dB
     constexpr float kMonoLow = -1.0f, kMonoMedium = -3.0f, kMonoHigh = -6.0f;     // low-end fold-down loss, dB
     constexpr float kLoudnessNote = 3.0f;       // |LU| vs reference
+    // Out of phase below this correlation: balanced channels then lose more
+    // than 4 dB in mono, beyond the 3 dB of merely uncorrelated (very wide)
+    // material, which reads around 0 and is not a phase problem.
+    constexpr float kPhaseCorrelation = -0.2f;
 
     // Tonal regions, as octave bands of MeasurementFrame.
     struct Region
@@ -227,13 +231,13 @@ namespace
         const auto confidence = byDuration (s, kMinSeconds, 10.0);   // stabilises quickly
 
         // The whole mix: out of phase is its own problem.
-        if (s.correlation < 0.0f)
+        if (s.correlation < kPhaseCorrelation)
         {
             Finding f;
             f.id = "phase";
             f.severity = Severity::high;
             f.confidence = confidence;
-            f.title = "Mix is largely out of phase (correlation " + juce::String (s.correlation, 2) + ")";
+            f.title = "Mix is out of phase (correlation " + juce::String (s.correlation, 2) + ")";
             f.observation = "Left and right are negatively correlated overall (" + juce::String (s.correlation, 2) + ").";
             f.impact = "Large parts of the mix cancel when played in mono: phones, club systems, many speakers.";
             f.potentialCauses = { "one channel's polarity flipped", "extreme stereo widening", "a phase-inverted stereo sample" };
@@ -404,7 +408,7 @@ juce::String Report::toMarkdown() const
                << "**Observed:** " << f.observation << "\n\n"
                << "**Why it matters:** " << f.impact << "\n\n";
             if (! f.potentialCauses.isEmpty())
-                md << "**Likely causes:** " << f.potentialCauses.joinIntoString ("; ") << "\n\n";
+                md << "**Possible causes:** " << f.potentialCauses.joinIntoString ("; ") << "\n\n";
             md << "**Try first:** " << f.action << "\n";
         }
     };

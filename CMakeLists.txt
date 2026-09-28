@@ -63,6 +63,8 @@ set(MIXMIND_SOURCES
     Source/MeasurementHistory.h
     Source/MixDoctor.cpp
     Source/MixDoctor.h
+    Source/MixDoctorPanel.cpp
+    Source/MixDoctorPanel.h
     Source/SnapshotBuffer.h
     Source/LookAndFeel.h
     Source/LookAndFeel.cpp

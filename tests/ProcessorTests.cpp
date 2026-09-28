@@ -515,6 +515,78 @@ public:
             editor.reset();
             expect (h.p.getReference() != nullptr);   // closing the UI keeps the reference
         }
+
+        beginTest ("Mix Doctor panel: RUN shows a live report, STOP keeps it, reopening shows it");
+        {
+            Harness h;
+            h.play (whiteL, whiteR);   // before the run: not part of it
+
+            std::unique_ptr<juce::AudioProcessorEditor> editor (h.p.createEditor());
+            MixDoctorReportView* report = nullptr;
+            juce::Button* run = nullptr;
+            juce::Label* status = nullptr;
+            const auto findParts = [&]
+            {
+                auto* bar = editor->findChildWithID ("mixDoctorBar");
+                report = dynamic_cast<MixDoctorReportView*> (editor->findChildWithID ("mixDoctorReport"));
+                run    = bar != nullptr ? dynamic_cast<juce::Button*> (bar->findChildWithID ("mixDoctorRun")) : nullptr;
+                status = bar != nullptr ? dynamic_cast<juce::Label*>  (bar->findChildWithID ("mixDoctorStatus")) : nullptr;
+            };
+            findParts();
+            expect (report != nullptr && run != nullptr && status != nullptr);
+            if (report != nullptr && run != nullptr && status != nullptr)
+            {
+                const auto paintAll = [&editor] (const char* shot)
+                {
+                    juce::Image img (juce::Image::ARGB, editor->getWidth(), editor->getHeight(), true);
+                    {
+                        juce::Graphics g (img);
+                        editor->paintEntireComponent (g, true);
+                    }
+                    const auto dir = juce::SystemStats::getEnvironmentVariable ("MIXMIND_SNAPSHOT_DIR", {});
+                    if (dir.isEmpty()) return;
+                    const auto file = juce::File (dir).getChildFile (juce::String (shot) + ".png");
+                    file.deleteFile();
+                    juce::FileOutputStream out (file);
+                    juce::PNGImageFormat().writeImageToStream (img, out);
+                };
+
+                expect (! report->isVisible() && ! report->hasReport());
+                expect (run->getButtonText() == "RUN MIX DOCTOR");
+                expect (status->getText().contains ("Load a reference"), status->getText());
+
+                run->triggerClick();
+                expect (pumpUntil ([&] { return h.p.isMixDoctorRunning(); }, 2000));
+                expect (report->isVisible() && report->getWidth() >= 300 && run->getButtonText() == "STOP");
+                expect (pumpUntil ([&] { return status->getText().startsWith ("Listening: Play at least 3"); }, 2000),
+                        status->getText());
+
+                const auto l = pinkNoise (kFs, 6.0, 0.2, 51), r = pinkNoise (kFs, 6.0, 0.2, 52);
+                h.play (l, r);
+                expect (pumpUntil ([&] { return report->hasReport() && report->getReport().ready; }, 3000));
+                expectWithinAbsoluteError (report->getReport().observedSeconds, 6.0, 0.15);
+                expect (pumpUntil ([&] { return status->getText().startsWith ("Listening: 6."); }, 2000), status->getText());
+                paintAll ("mixmind-doctor-running");
+
+                run->triggerClick();
+                expect (pumpUntil ([&] { return ! h.p.isMixDoctorRunning(); }, 2000));
+                expect (pumpUntil ([&] { return status->getText().startsWith ("Finished"); }, 2000), status->getText());
+                const auto finished = report->getReport().toMarkdown();
+                h.play (l, r);   // after STOP: not part of the report
+                pumpUntil ([] { return false; }, 700);
+                expect (report->getReport().toMarkdown() == finished);
+                expect (h.p.getMixDoctorReport().toMarkdown() == finished);
+                expect (run->getButtonText() == "RUN MIX DOCTOR");
+
+                editor->setSize (960, 420);
+                paintAll ("mixmind-doctor-min-size");
+
+                // The run belongs to the processor: a reopened editor shows its report.
+                editor.reset (h.p.createEditor());
+                findParts();
+                expect (report != nullptr && report->isVisible() && report->getReport().toMarkdown() == finished);
+            }
+        }
     }
 };
 

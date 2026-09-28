@@ -1,4 +1,4 @@
-Version: 1.6
+Version: 1.7
 Last Reviewed: 2026-09-28
 Owner: Founder
 
@@ -119,8 +119,8 @@ Shared source across targets:
   compiling `AudioAnalyzer` must also compile `LoudnessMeter`.
 - `LookAndFeel.cpp/.h` — used by every target.
 - `ShaperProcessor`, `ParametricEq`, `ReferenceAnalyzer`, `TelemetryCanvas`,
-  `AiFirewall`, `AiWorker`, `MeasurementHistory`, `MixDoctor` — MixMind
-  (and `MixMindTests`) only.
+  `AiFirewall`, `AiWorker`, `MeasurementHistory`, `MixDoctor`,
+  `MixDoctorPanel` — MixMind (and `MixMindTests`) only.
 - `LicenseManager.cpp/.h` — used by Scope, Meter, EQT, Reflex,
   ThreeFX, Neat. Not used by MixMind.
 

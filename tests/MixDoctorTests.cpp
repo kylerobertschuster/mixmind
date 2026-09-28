@@ -81,7 +81,8 @@ namespace
     }
 
     // The reference as Mix Doctor sees it: analysed from a WAV, mapped onto the live grid.
-    MixDoctor::ReferenceProfile profileOf (const std::vector<float>& l, const std::vector<float>& r, double fs)
+    MixDoctor::ReferenceProfile profileOf (const std::vector<float>& l, const std::vector<float>& r, double fs,
+                                           std::vector<float>* gridOut = nullptr)
     {
         TempWav wav ("mixdoctor-ref");
         writeWav (wav.file, l, r, fs);
@@ -91,23 +92,60 @@ namespace
         analyzer.analyse (wav.file, res, err);
         std::vector<float> grid ((size_t) AudioAnalyzer::numBins);
         ReferenceAnalyzer::mapToGrid (res, fs, grid.data(), AudioAnalyzer::numBins);
+        if (gridOut != nullptr) *gridOut = grid;
         return MixDoctor::profileFromReference (res, grid.data(), fs);
     }
 
-    std::vector<float> lowShelf (std::vector<float> x, double fs, float gainDb)
+    ParametricEq::Band shelfBand (float gainDb)
+    {
+        ParametricEq::Band b;
+        b.on = true; b.type = ParametricEq::Type::lowShelf; b.freq = 120.0f; b.gainDb = gainDb; b.q = 0.7071f;
+        return b;
+    }
+
+    // What the tone rule should read for the low end after a low shelf: the
+    // shelf's own response applied to the reference's spectrum, then the
+    // rule's region means and level matching (22-177 Hz, 177-707 Hz,
+    // 0.7-2.8 kHz, 2.8-5.7 kHz, 5.7-22 kHz).
+    float predictedBassDeviation (const std::vector<float>& refGrid, double fs, float gainDb)
+    {
+        std::vector<float> shaped (refGrid.size());
+        for (size_t k = 0; k < refGrid.size(); ++k)
+            shaped[k] = refGrid[k] * (float) juce::Decibels::decibelsToGain (
+                            ParametricEq::responseDb (shelfBand (gainDb), (double) k * fs / AudioAnalyzer::fftSize, fs));
+        float ref[MeasurementFrame::kBands], mix[MeasurementFrame::kBands];
+        AudioAnalyzer::bandMagnitudes (refGrid.data(), fs, ref);
+        AudioAnalyzer::bandMagnitudes (shaped.data(), fs, mix);
+        const int regions[5][2] = { { 0, 2 }, { 3, 4 }, { 5, 6 }, { 7, 7 }, { 8, 9 } };
+        float dev[5], mean = 0.0f;
+        for (int r = 0; r < 5; ++r)
+        {
+            double m = 0.0, f = 0.0;
+            for (int b = regions[r][0]; b <= regions[r][1]; ++b) { m += mix[b]; f += ref[b]; }
+            dev[r] = (float) (20.0 * std::log10 (m / f));
+            mean += dev[r] / 5.0f;
+        }
+        return dev[0] - mean;
+    }
+
+    // x through one EQ band (the EQ runs stereo: the right side is discarded).
+    std::vector<float> filtered (std::vector<float> x, double fs, const ParametricEq::Band& band)
     {
         ParametricEq eq;
         eq.prepare (fs, 512);
-        ParametricEq::Band b;
-        b.on = true; b.type = ParametricEq::Type::lowShelf; b.freq = 120.0f; b.gainDb = gainDb; b.q = 0.7071f;
-        eq.setBand (0, b);
-        std::vector<float> right = x;   // the EQ runs stereo: feed the same signal to both sides
+        eq.setBand (0, band);
+        std::vector<float> right = x;
         for (size_t i = 0; i < x.size(); i += 512)
         {
             const int n = (int) juce::jmin ((size_t) 512, x.size() - i);
             eq.process (x.data() + i, right.data() + i, n);
         }
         return x;
+    }
+
+    std::vector<float> lowShelf (std::vector<float> x, double fs, float gainDb)
+    {
+        return filtered (std::move (x), fs, shelfBand (gainDb));
     }
 }
 
@@ -170,6 +208,9 @@ public:
             s.correlation = -0.3f;
             const auto f = findCopy (MixDoctor::diagnose (s, nullptr), "phase");
             expect (f.id.isNotEmpty() && f.severity == Severity::high && ! f.potentialCauses.isEmpty());
+            // Uncorrelated (very wide) material reads around 0: wide, not out of phase.
+            s.correlation = -0.05f;
+            expect (findCopy (MixDoctor::diagnose (s, nullptr), "phase").id.isEmpty());
         }
 
         beginTest ("Tone against the reference is level-matched and graded");
@@ -291,8 +332,26 @@ public:
 
         beginTest ("End to end: a bass-heavy mix against its own reference");
         {
-            const auto l = pinkNoise (kFs, 20.0, 0.3, 101), r = pinkNoise (kFs, 20.0, 0.3, 102);
-            const auto profile = profileOf (l, r, kFs);
+            // Peaks stay below full scale: the reference WAV is 24-bit and would clip them.
+            const auto l = pinkNoise (kFs, 20.0, 0.1, 101), r = pinkNoise (kFs, 20.0, 0.1, 102);
+            std::vector<float> refGrid;
+            const auto profile = profileOf (l, r, kFs, &refGrid);
+
+            // A known change reads as predicted: within 0.5 dB of the shelf's
+            // own response, level-matched as the rule does.
+            for (float gain : { 4.0f, 8.0f })
+            {
+                const auto rep = MixDoctor::diagnose (measure (lowShelf (l, kFs, gain), lowShelf (r, kFs, gain), kFs), &profile);
+                const auto* bass = find (rep, "tone_bass");
+                const float predicted = predictedBassDeviation (refGrid, kFs, gain);
+                expect (bass != nullptr, "+" + juce::String (gain) + " dB shelf flagged");
+                if (bass != nullptr)
+                {
+                    logMessage ("+" + juce::String (gain, 0) + " dB low shelf: low end reads " + juce::String (bass->evidence[0].value, 2)
+                                + " dB, predicted " + juce::String (predicted, 2) + " dB (" + MixDoctor::toString (bass->severity) + ")");
+                    expectWithinAbsoluteError (bass->evidence[0].value, predicted, 0.5f);
+                }
+            }
 
             // The same material with +8 dB of low shelf at 120 Hz.
             const auto bl = lowShelf (l, kFs, 8.0f), br = lowShelf (r, kFs, 8.0f);
@@ -325,11 +384,49 @@ public:
             report = MixDoctor::diagnose (measure (l, l, kFs), nullptr);
             const auto centred = findCopy (report, "mono_low_end");
             expect (centred.id.isNotEmpty() && centred.severity == Severity::healthy);
+
+            // Anti-phase low end: l's low end, polarity flipped on the right,
+            // under r's top end in both channels.
+            {
+                ParametricEq::Band lp;
+                lp.on = true; lp.type = ParametricEq::Type::highCut; lp.freq = 150.0f; lp.q = 0.7071f; lp.slope = 48;
+                auto hp = lp;
+                hp.type = ParametricEq::Type::lowCut;
+                const auto low = filtered (l, kFs, lp), top = filtered (r, kFs, hp);
+                std::vector<float> al (l.size()), ar (l.size());
+                for (size_t i = 0; i < l.size(); ++i)
+                {
+                    al[i] =  low[i] + top[i];
+                    ar[i] = -low[i] + top[i];
+                }
+                report = MixDoctor::diagnose (measure (al, ar, kFs), nullptr);
+                const auto flipped = findCopy (report, "mono_low_end");
+                expect (flipped.severity == Severity::high, flipped.title);
+                expect (flipped.evidence.size() == 1 && flipped.evidence[0].value < -20.0f, flipped.title);
+            }
+
+            // A clipped mix against its unclipped self: the crest factor falls
+            // and the density finding says so.
+            {
+                const auto clip = [] (std::vector<float> x, float ceiling)
+                {
+                    for (auto& v : x) v = juce::jlimit (-ceiling, ceiling, v);
+                    return x;
+                };
+                report = MixDoctor::diagnose (measure (clip (l, 0.2f), clip (r, 0.2f), kFs), &profile);
+                const auto dense = findCopy (report, "density");
+                logMessage ("clipped at 0.2: " + dense.title);
+                expect (dense.id.isNotEmpty() && (dense.severity == Severity::medium || dense.severity == Severity::high)
+                        && dense.title.contains ("denser"), dense.title);
+                // The unclipped mix reads the reference's own crest factor.
+                const auto same = findCopy (MixDoctor::diagnose (measure (l, r, kFs), &profile), "density");
+                expect (same.severity == Severity::healthy && std::abs (same.evidence[0].value) < 0.5f, same.title);
+            }
         }
 
         beginTest ("End to end through the processor: a run observes the output from its start");
         {
-            const auto l = pinkNoise (kFs, 12.0, 0.3, 111), r = pinkNoise (kFs, 12.0, 0.3, 112);
+            const auto l = pinkNoise (kFs, 12.0, 0.1, 111), r = pinkNoise (kFs, 12.0, 0.1, 112);
             TempWav wav ("mixdoctor-proc-ref");
             expect (writeWav (wav.file, l, r, kFs));
 

@@ -1,4 +1,4 @@
-Version: 1.5
+Version: 1.6
 Last Reviewed: 2026-09-28
 Owner: Founder
 
@@ -19,7 +19,9 @@ Status against the required list (details and issues in `docs/ROADMAP.md`):
   `MixDoctor::diagnose` turns a run's statistics (and the reference) into
   ranked findings with severity, confidence, evidence, potential causes and
   an action; six rules (true peak, tone against the reference, density, low
-  end in mono, phase, loudness); Markdown report. No report panel yet.
+  end in mono, phase, loudness). In the editor: RUN MIX DOCTOR, a live
+  report while it listens, kept when it stops, COPY as Markdown. Not yet:
+  width against the reference, a delivery loudness target.
 - **Analysis engine** (#2, #5) — done except the audio-thread allocation
   guard (#5): spectra published whole (AR-001 resolved), 100 ms measurement
   frames, and a 60 s `MeasurementHistory` of the output with BS.1770
@@ -105,15 +107,19 @@ commit message; Debug and Release).
   the processor's history is read while its audio thread runs.
 - **Diagnostics** — each rule's grades at its thresholds (true peak, tone,
   density, mono, phase, loudness); tone is level-matched (a mix 10 dB louder
-  than the reference has no tonal finding); confidence grows with the
-  seconds heard and drops when frames are lost; findings are ranked, carry
-  evidence, and the report is deterministic; nothing below 3 s. End to end:
-  pink noise with a +8 dB low shelf at 120 Hz against the unaltered file as
-  the reference flags the low end (+5.8 dB, Medium), no other region above
-  Low; the
-  same file 6 dB down gives only a loudness note (−6 LU); uncorrelated
-  channels lose 3 dB of low end in mono, identical ones none; through the
-  processor, a run observes only what played after it began.
+  than the reference has no tonal finding); uncorrelated material is not
+  called out of phase; confidence grows with the seconds heard and drops
+  when frames are lost; findings are ranked, carry evidence, and the report
+  is deterministic; nothing below 3 s. End to end with pink noise against
+  the unaltered file as the reference: a +4 / +8 dB low shelf at 120 Hz
+  reads within 0.5 dB of the value predicted from the shelf's response
+  (2.82 / 5.69 dB measured, 2.82 / 5.68 predicted; Low / Medium), no other
+  region above Low; the same file 6 dB down gives only a loudness note
+  (−6 LU); a clipped copy reads 6.9 dB denser (High), the unclipped one
+  matches the reference's crest; uncorrelated channels lose 3 dB of low
+  end in mono, identical ones none, an anti-phase low end over 20 dB
+  (High); through the processor, a run observes only what played after it
+  began.
 - **AI** — firewall: valid payloads map exactly onto parameters; NaN / ±inf
   (values and literals) reject; out-of-range quantities clamp; choices and
   switches must be exact; unknown IDs / fields, coefficients, prose, code
@@ -136,7 +142,9 @@ commit message; Debug and Release).
   failed load keeps the previous reference; AUTO, MANUAL and mid/side
   correction end to end; band parameters drive the EQ and the output
   analyzer; non-finite input contained; editor open / resize / paint / close,
-  GL context attached. Setting `MIXMIND_SNAPSHOT_DIR`
+  GL context attached; Mix Doctor panel: RUN starts a run and opens the
+  report, it updates while audio plays, STOP keeps it (later audio doesn't
+  change it), a reopened editor shows it. Setting `MIXMIND_SNAPSHOT_DIR`
   writes PNG snapshots of the editor for visual review.
 
 ## Code
@@ -195,7 +203,8 @@ commit message; Debug and Release).
   host gestures), post-processing YOU spectrum with the input drawn faintly,
   LUFS/dBTP readouts with YOU − REF loudness difference, 1/12-octave display
   smoothing, dB axis labels, trace editing. Screenshot layer gestures need
-  Shift.
+  Shift. Mix Doctor bar along the bottom (RUN / STOP, progress, headline,
+  COPY) and the report docked beside the plot (`MixDoctorPanel`).
 - **Siblings** — Meter shows real true peak / crest / band levels (it showed
   `LUFS + 3` and `LUFS × 0.2`); Scope's goniometer plots real samples (it
   plotted bass vs mid energy). LookAndFeel honours toggle colours and bold
@@ -221,9 +230,13 @@ test suite added. Tag `honest-dsp-v1` still pending.
 ## Open / next
 
 - Build order toward ADR-006: ~~snapshots / rolling window (#2)~~ done →
-  ~~first Mix Doctor rules (#1)~~ done → the report panel (#1) and the
-  comparison report (#4) → mix-bus congestion diagnostics (#3) → AI
-  explanations (#11); the allocation guard (#5) alongside.
+  ~~first Mix Doctor rules and report panel (#1)~~ done → the comparison
+  report (#4) → mix-bus congestion diagnostics (#3) → AI explanations
+  (#11); the allocation guard (#5) alongside.
+- Fonts: the UI names "Helvetica Neue", which only macOS ships. The report
+  falls back to a common sans elsewhere; the rest of the editor relies on
+  JUCE's fallback. Pick a face per platform (or bundle one) before a
+  Windows release.
 - AI: pick the v1.0 model provider (local Ollama / cloud API / the `proxy/`)
   in #11; its calls must be bounded and cancellable (AR-002).
 - Launch page (`site/mixmind.html`) rewritten for v1.0 on this branch; it

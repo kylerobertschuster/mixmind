@@ -107,10 +107,14 @@ public:
     // drained by the design loop (message thread; runs with the editor closed).
     const MeasurementHistory& getMeasurementHistory() const { return history; }
 
-    // ── Mix Doctor (message thread). A run observes the output from the
-    //    moment it begins; without a run the report covers the last 20 s. ──
+    // ── Mix Doctor (message thread; runs with the editor closed). A run
+    //    observes the output from the moment it begins until it ends; the
+    //    finished report is kept until the next run. Before any run the
+    //    report covers the last 20 s. ──
     void beginMixDoctorRun();
+    void endMixDoctorRun();
     bool isMixDoctorRunning() const { return mixDoctorRunning; }
+    bool hasFinishedMixDoctorRun() const { return mixDoctorFinished; }
     MixDoctor::Report getMixDoctorReport();
 
     // ── AI assistant (message thread). Requests run on the AI worker, never on
@@ -195,7 +199,8 @@ private:
     MeasurementHistory history;
     juce::uint32 mixDoctorStart { 0 };
     int  mixDoctorGeneration { -1 };
-    bool mixDoctorRunning { false };
+    bool mixDoctorRunning { false }, mixDoctorFinished { false };
+    MixDoctor::Report finishedMixDoctorReport;
 
     AiWorker ai { getParameters() };
     AiStatus aiStatus;

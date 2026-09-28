@@ -3,6 +3,7 @@
 namespace
 {
     constexpr int kControlH = 26;
+    constexpr int kDoctorBarH = 36;
 
     void styleHeaderButton (juce::Button& b)
     {
@@ -149,6 +150,22 @@ MixMindEditor::MixMindEditor (MixMindProcessor& p)
     telemetry.onBandChanged      = [this] (int b, const ParametricEq::Band& band) { writeBand (b, band); };
     addAndMakeVisible (telemetry);
 
+    // ── Mix Doctor ────────────────────────────────────────────────────────
+    doctorBar.onRunClicked    = [this] { toggleMixDoctorRun(); };
+    doctorBar.onReportClicked = [this] { setMixDoctorReportOpen (! doctorReportOpen); };
+    doctorBar.onCopyClicked   = [this]
+    {
+        if (doctorReport.hasReport())
+            juce::SystemClipboard::copyTextToClipboard (doctorReport.getReport().toMarkdown());
+    };
+    addAndMakeVisible (doctorBar);
+    addChildComponent (doctorReport);
+    // Reopening the editor shows a run that is still going, or its report.
+    doctorReportOpen = audioProcessor.isMixDoctorRunning() || audioProcessor.hasFinishedMixDoctorRun();
+    doctorBar.setReportOpen (doctorReportOpen);
+    doctorReport.setVisible (doctorReportOpen);
+    refreshMixDoctor();
+
     // Sync button labels with the restored parameter state.
     shapeButton.onStateChange();
     modeButton.onStateChange();
@@ -242,7 +259,71 @@ void MixMindEditor::resized()
     modeButton.setBounds   (takeRight (72));
     shapeButton.setBounds  (takeRight (84));
 
+    doctorBar.setBounds (b.removeFromBottom (kDoctorBarH));
+    if (doctorReportOpen)
+        doctorReport.setBounds (b.removeFromRight (juce::jlimit (300, 460, b.getWidth() * 34 / 100)));
     telemetry.setBounds (b);
+}
+
+// ── Mix Doctor ─────────────────────────────────────────────────────────────
+
+void MixMindEditor::toggleMixDoctorRun()
+{
+    if (audioProcessor.isMixDoctorRunning())
+    {
+        audioProcessor.endMixDoctorRun();
+    }
+    else
+    {
+        audioProcessor.beginMixDoctorRun();
+        setMixDoctorReportOpen (true);
+    }
+    refreshMixDoctor();
+}
+
+void MixMindEditor::setMixDoctorReportOpen (bool open)
+{
+    if (open == doctorReportOpen) return;
+    doctorReportOpen = open;
+    doctorBar.setReportOpen (open);
+    doctorReport.setVisible (open);
+    resized();
+}
+
+void MixMindEditor::refreshMixDoctor()
+{
+    const bool running  = audioProcessor.isMixDoctorRunning();
+    const bool finished = audioProcessor.hasFinishedMixDoctorRun();
+    doctorBar.setRunning (running);
+
+    if (! running && ! finished)
+    {
+        const bool hasRef = audioProcessor.getReference() != nullptr;
+        const juce::String hint = hasRef ? "" : " Load a reference to compare tone, density and loudness.";
+        doctorReport.clearReport ("Press RUN MIX DOCTOR, then play your mix: Mix Doctor listens to the output "
+                                  "(after the match and the EQ) and reports what it hears." + hint);
+        doctorBar.setStatus ("Press RUN, then play the mix." + hint, JP::textMuted);
+        doctorBar.setCanCopy (false);
+        return;
+    }
+
+    const auto report = audioProcessor.getMixDoctorReport();
+    doctorReport.setReport (report);
+    doctorBar.setCanCopy (report.ready);
+
+    const auto heard = juce::String (report.observedSeconds, 1) + " s of signal";
+    if (running && ! report.ready)
+        doctorBar.setStatus ("Listening: " + report.notReadyReason, JP::text);
+    else if (running)
+        doctorBar.setStatus ("Listening: " + heard + ". " + MixDoctorUi::summarise (report)
+                                 + (report.observedSeconds < MixDoctor::kHighSeconds ? ". Confidence grows as you keep playing."
+                                                                                     : juce::String (".")),
+                             JP::text);
+    else if (report.ready)
+        doctorBar.setStatus ("Finished: " + heard + ". " + MixDoctorUi::summarise (report) + ".", JP::text);
+    else
+        doctorBar.setStatus ("Stopped before enough signal was heard. Press RUN and play at least "
+                                 + juce::String ((int) MixDoctor::kMinSeconds) + " s of the mix.", JP::textMuted);
 }
 
 // ── Periodic sync with the processor ───────────────────────────────────────
@@ -286,6 +367,9 @@ void MixMindEditor::timerCallback()
     }
 
     telemetry.setCorrection (audioProcessor.getCorrectionDb(), audioProcessor.getCorrectionSideDb(), shapeOn);
+
+    if (++doctorTick % 15 == 0)   // twice a second is plenty for a report
+        refreshMixDoctor();
 
     repaint (getLocalBounds().removeFromTop (JP::headerH).removeFromRight (40));
 }

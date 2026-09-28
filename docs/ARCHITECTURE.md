@@ -1,4 +1,4 @@
-Version: 1.4
+Version: 1.5
 Last Reviewed: 2026-09-28
 Owner: Founder
 
@@ -181,13 +181,15 @@ signal it reports nothing.
 | Tone, 5 regions (22 Hz–22 kHz) | reference, level-matched (the mean difference across regions is removed) | \|dev\| ≥ 2 dB Low, ≥ 3.5 Medium, ≥ 6 High | by duration |
 | Density (crest factor) | reference | ≤ −3 dB Medium, ≤ −6 High; ≥ +6 Low | by duration, at most Medium (different stretches) |
 | Low end in mono (22–177 Hz) | the mix's own mono fold-down | loss ≤ −1 dB Low, ≤ −3 Medium, ≤ −6 High | Medium from 3 s, High from 10 s |
-| Phase | correlation below 0 | High | as mono |
+| Phase | correlation below −0.2 (balanced channels then lose over 4 dB in mono; uncorrelated material reads about 0 and loses 3) | High | as mono |
 | Loudness | reference | ≥ 3 LU Low | Medium |
 
 Confidence by duration is Medium from 8 s of signal and High from 20 s; more
 than 10 % of the window's frames lost lowers it one level (ADR-007).
 Inferred findings list potential causes, never tracks (ADR-008). A report
-renders as Markdown (Critical / Moderate / Healthy); it has no UI yet.
+renders as Markdown (Critical / Moderate / Healthy) and in the editor
+(below). A run that ends keeps its report in the processor until the next
+run, so closing the editor loses nothing.
 
 ## Real-time rules (enforced today by review and tests)
 
@@ -206,7 +208,10 @@ moved. Pending AI suggestions are not saved.
 ## Editor
 
 Renders through an attached `OpenGLContext`; repaints are event-driven at
-30 fps. The canvas caches its grid and curve paths.
+30 fps. The canvas caches its grid and curve paths. The Mix Doctor bar
+(RUN / STOP, progress, headline, COPY as Markdown) runs along the bottom and
+the report docks beside the plot; the editor copies the processor's report
+twice a second on its timer and lays it out then, so `paint()` only draws.
 
 ---
 
@@ -238,7 +243,7 @@ diagnostic engine, or change the audio without the user (ADR-002, ADR-003).
 |---|---|---|---|
 | Audio-thread allocation guard | PLANNED | [#5](https://github.com/kylerobertschuster/mixmind/issues/5) | proves `processBlock` never allocates; keeps AR-001 closed |
 | Session trends beyond 60 s | PLANNED | [#2](https://github.com/kylerobertschuster/mixmind/issues/2) | v1.x nice-to-have (ADR-006); the 60 s history exists |
-| Diagnostic engine / Mix Doctor (`Finding`: observation, impact, severity, confidence, evidence, potential causes, actions) | PARTIAL | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | the engine and six rules exist (Current State); the report panel doesn't; congestion rules come with #3; thresholds are explicit and tested but not calibrated against labelled mixes |
+| Diagnostic engine / Mix Doctor (`Finding`: observation, impact, severity, confidence, evidence, potential causes, actions) | PARTIAL | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | the engine, six rules and the report panel exist (Current State); not yet: width against the reference, a delivery loudness target; congestion rules come with #3; thresholds are explicit and tested but not calibrated against labelled mixes |
 | Reference intelligence (comparison report, several references, audition) | PARTIAL | [#4](https://github.com/kylerobertschuster/mixmind/issues/4) | analysis, caching and match EQ exist |
 | Congestion diagnostics (mix bus, v1.0) | PLANNED | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | low-end / midrange congestion, transient suppression, spectral crowding; potential sources with confidence, never named tracks (ADR-008) |
 | Track-aware masking (v1.1) | PLANNED | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | instance discovery, cross-instance spectral exchange, per-source masking (ADR-008) |

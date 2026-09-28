@@ -6,6 +6,7 @@
 #include "TelemetryCanvas.h"
 #include "FocusModel.h"
 #include "LookAndFeel.h"
+#include "MixDoctorPanel.h"
 
 // A TextButton whose secondary (right / ctrl) click runs onContextClick
 // instead of onClick.
@@ -61,6 +62,12 @@ private:
 
     TelemetryCanvas   telemetry;
 
+    // Mix Doctor: the run lives in the processor; these show it.
+    MixDoctorBar        doctorBar;
+    MixDoctorReportView doctorReport;
+    bool doctorReportOpen { false };
+    int  doctorTick { 0 };
+
     // Header
     juce::Label       titleLabel;
     ContextTextButton loadRefButton { "LOAD REF" };
@@ -88,6 +95,9 @@ private:
     void writeBand (int band, const ParametricEq::Band&);
     void bandGesture (int band, bool starting);
     void refreshReference();
+    void refreshMixDoctor();
+    void toggleMixDoctorRun();
+    void setMixDoctorReportOpen (bool);
     void timerCallback() override;
 
     std::unique_ptr<juce::FileChooser> chooser;

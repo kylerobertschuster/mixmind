@@ -705,10 +705,21 @@ void MixMindProcessor::beginMixDoctorRun()
     mixDoctorStart      = history.empty() ? 0 : history.latestIndex() + 1;
     mixDoctorGeneration = history.generation();
     mixDoctorRunning    = true;
+    mixDoctorFinished   = false;
+    finishedMixDoctorReport = {};
+}
+
+void MixMindProcessor::endMixDoctorRun()
+{
+    if (! mixDoctorRunning) return;
+    finishedMixDoctorReport = getMixDoctorReport();
+    mixDoctorRunning  = false;
+    mixDoctorFinished = true;
 }
 
 MixDoctor::Report MixMindProcessor::getMixDoctorReport()
 {
+    if (mixDoctorFinished) return finishedMixDoctorReport;
     history.drain (outputAnalyzer);
     if (mixDoctorRunning && mixDoctorGeneration != history.generation())
     {
