@@ -694,3 +694,38 @@ int MixMindProcessor::applyAiPayload (const AiPayload& p)
     }
     return applied;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Mix Doctor (message thread)
+// ─────────────────────────────────────────────────────────────────────────────
+
+void MixMindProcessor::beginMixDoctorRun()
+{
+    history.drain (outputAnalyzer);   // start from exactly now
+    mixDoctorStart      = history.empty() ? 0 : history.latestIndex() + 1;
+    mixDoctorGeneration = history.generation();
+    mixDoctorRunning    = true;
+}
+
+MixDoctor::Report MixMindProcessor::getMixDoctorReport()
+{
+    history.drain (outputAnalyzer);
+    if (mixDoctorRunning && mixDoctorGeneration != history.generation())
+    {
+        // The host re-prepared mid-run: the run continues from the new start.
+        mixDoctorStart      = 0;
+        mixDoctorGeneration = history.generation();
+    }
+    const auto stats = mixDoctorRunning ? history.statsSince (mixDoctorStart)
+                                        : history.statsForLast (MixDoctor::kHighSeconds);
+
+    std::unique_ptr<MixDoctor::ReferenceProfile> profile;
+    if (auto ref = getReference())
+    {
+        const auto& grid = getReferenceBins();
+        if (! grid.empty())
+            profile = std::make_unique<MixDoctor::ReferenceProfile> (
+                MixDoctor::profileFromReference (*ref, grid.data(), getCurrentSampleRate()));
+    }
+    return MixDoctor::diagnose (stats, profile.get());
+}

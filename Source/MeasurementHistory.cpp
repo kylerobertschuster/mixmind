@@ -11,6 +11,7 @@ void MeasurementHistory::clear()
 {
     head = count = 0;
     haveEpoch = false;
+    ++generationCount;
 }
 
 void MeasurementHistory::drain (AudioAnalyzer& analyzer)

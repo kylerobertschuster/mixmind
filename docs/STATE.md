@@ -1,5 +1,5 @@
-Version: 1.4
-Last Reviewed: 2026-09-27
+Version: 1.5
+Last Reviewed: 2026-09-28
 Owner: Founder
 
 # STATE — MixMind
@@ -15,7 +15,11 @@ carries severity and confidence) and ADR-008 (mix-bus masking in v1.0,
 track-aware in v1.1; offline file analysis is the first v1.x feature).
 Status against the required list (details and issues in `docs/ROADMAP.md`):
 
-- **Mix Doctor report + severity and confidence scoring** (#1) — not started.
+- **Mix Doctor report + severity and confidence scoring** (#1) — partial:
+  `MixDoctor::diagnose` turns a run's statistics (and the reference) into
+  ranked findings with severity, confidence, evidence, potential causes and
+  an action; six rules (true peak, tone against the reference, density, low
+  end in mono, phase, loudness); Markdown report. No report panel yet.
 - **Analysis engine** (#2, #5) — done except the audio-thread allocation
   guard (#5): spectra published whole (AR-001 resolved), 100 ms measurement
   frames, and a 60 s `MeasurementHistory` of the output with BS.1770
@@ -99,6 +103,17 @@ commit message; Debug and Release).
   the long-term spectrum's band means at 44.1 / 48 / 96 k; dropped frames are
   counted and never bridged; prepare() and loudness reset keep frames whole;
   the processor's history is read while its audio thread runs.
+- **Diagnostics** — each rule's grades at its thresholds (true peak, tone,
+  density, mono, phase, loudness); tone is level-matched (a mix 10 dB louder
+  than the reference has no tonal finding); confidence grows with the
+  seconds heard and drops when frames are lost; findings are ranked, carry
+  evidence, and the report is deterministic; nothing below 3 s. End to end:
+  pink noise with a +8 dB low shelf at 120 Hz against the unaltered file as
+  the reference flags the low end (+5.8 dB, Medium), no other region above
+  Low; the
+  same file 6 dB down gives only a loudness note (−6 LU); uncorrelated
+  channels lose 3 dB of low end in mono, identical ones none; through the
+  processor, a run observes only what played after it began.
 - **AI** — firewall: valid payloads map exactly onto parameters; NaN / ±inf
   (values and literals) reject; out-of-range quantities clamp; choices and
   switches must be exact; unknown IDs / fields, coefficients, prose, code
@@ -140,6 +155,12 @@ commit message; Debug and Release).
   design loop); window statistics per BS.1770-4 and EBU Tech 3342 plus true
   peak, RMS, crest, stereo, octave bands and mono fold-down; blocks never span
   a dropped frame.
+- **MixDoctor** — the diagnostic engine (message thread, on request): rules
+  with explicit thresholds over `MeasurementHistory` statistics and a
+  `ReferenceProfile` of the reference on the live grid; a run
+  (`beginMixDoctorRun()`) observes the output from its start, otherwise the
+  last 20 s. Thresholds are explicit and tested, not yet calibrated against
+  labelled mixes, so confidence stays High / Medium / Low (ADR-007).
 - **ReferenceAnalyzer** — streams the file (WAV/AIFF/FLAC/Ogg/MP3, plus
   CoreAudio formats on macOS), analyses at the file's own rate, maps onto
   the live grid (`mapToGrid`, no resampling). Runs on a background thread.
@@ -200,9 +221,9 @@ test suite added. Tag `honest-dsp-v1` still pending.
 ## Open / next
 
 - Build order toward ADR-006: ~~snapshots / rolling window (#2)~~ done →
-  Mix Doctor rules with severity and confidence (#1) and the comparison
-  report (#4) → mix-bus congestion diagnostics (#3) → AI explanations (#11);
-  the allocation guard (#5) alongside.
+  ~~first Mix Doctor rules (#1)~~ done → the report panel (#1) and the
+  comparison report (#4) → mix-bus congestion diagnostics (#3) → AI
+  explanations (#11); the allocation guard (#5) alongside.
 - AI: pick the v1.0 model provider (local Ollama / cloud API / the `proxy/`)
   in #11; its calls must be bounded and cancellable (AR-002).
 - Launch page (`site/mixmind.html`) rewritten for v1.0 on this branch; it

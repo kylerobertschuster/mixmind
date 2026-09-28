@@ -6,6 +6,7 @@
 #include "AiWorker.h"
 #include "AudioAnalyzer.h"
 #include "MeasurementHistory.h"
+#include "MixDoctor.h"
 #include "ParametricEq.h"
 #include "ReferenceAnalyzer.h"
 #include "ShaperProcessor.h"
@@ -106,6 +107,12 @@ public:
     // drained by the design loop (message thread; runs with the editor closed).
     const MeasurementHistory& getMeasurementHistory() const { return history; }
 
+    // ── Mix Doctor (message thread). A run observes the output from the
+    //    moment it begins; without a run the report covers the last 20 s. ──
+    void beginMixDoctorRun();
+    bool isMixDoctorRunning() const { return mixDoctorRunning; }
+    MixDoctor::Report getMixDoctorReport();
+
     // ── AI assistant (message thread). Requests run on the AI worker, never on
     //    the audio thread; validated results come back through its lock-free
     //    FIFO. An accepted result is only a suggestion (ADR-003): nothing
@@ -186,6 +193,9 @@ private:
     // Declared last so it is destroyed first: its thread stops before anything
     // else goes away.
     MeasurementHistory history;
+    juce::uint32 mixDoctorStart { 0 };
+    int  mixDoctorGeneration { -1 };
+    bool mixDoctorRunning { false };
 
     AiWorker ai { getParameters() };
     AiStatus aiStatus;

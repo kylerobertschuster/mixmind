@@ -1,5 +1,5 @@
-Version: 1.5
-Last Reviewed: 2026-09-27
+Version: 1.6
+Last Reviewed: 2026-09-28
 Owner: Founder
 
 # AGENTS.md
@@ -77,7 +77,7 @@ cmake --build build --target MixMind_Standalone
 Targets: `MixMind`, `Scope`, `Meter`, `EQT`, `Reflex`, `ThreeFX`, `Neat`, plus
 `MixMindTests` (JUCE `UnitTest` console app; `-DMIXMIND_BUILD_TESTS=OFF` skips
 it). `MixMindTests <category>` runs one category: `Metering`, `Shaper`,
-`Equalizer`, `Reference`, `Processor`, `AI`, `Analysis`. On Linux the processor tests paint the editor, so run
+`Equalizer`, `Reference`, `Processor`, `AI`, `Analysis`, `Diagnostics`. On Linux the processor tests paint the editor, so run
 them under `xvfb-run -a` when there is no display.
 AAX is deferred to V2. Do not add AAX to the CMake target lists.
 
@@ -119,8 +119,8 @@ Shared source across targets:
   compiling `AudioAnalyzer` must also compile `LoudnessMeter`.
 - `LookAndFeel.cpp/.h` — used by every target.
 - `ShaperProcessor`, `ParametricEq`, `ReferenceAnalyzer`, `TelemetryCanvas`,
-  `AiFirewall`, `AiWorker`, `MeasurementHistory` — MixMind (and
-  `MixMindTests`) only.
+  `AiFirewall`, `AiWorker`, `MeasurementHistory`, `MixDoctor` — MixMind
+  (and `MixMindTests`) only.
 - `LicenseManager.cpp/.h` — used by Scope, Meter, EQT, Reflex,
   ThreeFX, Neat. Not used by MixMind.
 

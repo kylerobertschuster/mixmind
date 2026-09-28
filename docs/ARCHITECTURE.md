@@ -1,5 +1,5 @@
-Version: 1.3
-Last Reviewed: 2026-09-27
+Version: 1.4
+Last Reviewed: 2026-09-28
 Owner: Founder
 
 # MixMind Architecture
@@ -112,7 +112,7 @@ input ─► non-finite → 0 ─► input AudioAnalyzer ─► ShaperProcessor 
 | Thread | Runs | Writes | Reads |
 |---|---|---|---|
 | **Audio** (host) | `processBlock` → `runChain` | analyzer spectra and readouts, FIR convolution state, EQ voices | parameters, FIR slot pool, band settings |
-| **Message** | design-loop timer (30 Hz): `drainAi`, drains the output analyzer's frames into `MeasurementHistory`, match design (`buildCorrection` → `designFromCurve` → `setFilter`); reference install; applying approved AI suggestions; editor timer (30 Hz) | trace, correction curves, AI status and pending suggestion, parameters (as host gestures) | long-term spectra, reference |
+| **Message** | design-loop timer (30 Hz): `drainAi`, drains the output analyzer's frames into `MeasurementHistory`, match design (`buildCorrection` → `designFromCurve` → `setFilter`); reference install; applying approved AI suggestions; Mix Doctor diagnosis on request; editor timer (30 Hz) | trace, correction curves, AI status and pending suggestion, parameters (as host gestures) | long-term spectra, reference |
 | **GL** | editor and canvas `paint()` with the message manager locked | — | what the message thread reads |
 | **Reference loader** (`ThreadPool`, 1 thread) | `ReferenceAnalyzer::analyse` on a file at its own rate | result, handed to the message thread with `callAsync` | the audio file |
 | **AI worker** (`AiWorker`, started on first request) | model call → strict JSON check → `AiFirewall` → FIFO | its FIFO slots | request list |
@@ -165,6 +165,30 @@ crest, correlation, width, octave-band levels and mono fold-down loss. Blocks
 never span a missing frame; a new `prepare()` starts a new history. Cost:
 0.7 % of one core per analyzer (Release, 48 kHz stereo).
 
+## Diagnostic engine (Mix Doctor rules)
+
+`MixDoctor::diagnose` (message thread, on request) turns the statistics of a
+stretch of the output's history, and a `ReferenceProfile` of the loaded
+reference on the live grid, into findings. It never measures and is
+deterministic: the same statistics give the same report. A run
+(`beginMixDoctorRun()`) observes the output from the moment it starts, up to
+the 60 s history; without a run the report covers the last 20 s. Below 3 s of
+signal it reports nothing.
+
+| Rule | Compared with | Severity | Confidence |
+|---|---|---|---|
+| True peak | −1 dBTP (EBU R 128) | above 0 dBTP High, above −1 Medium | High when over (a measured maximum), else by duration |
+| Tone, 5 regions (22 Hz–22 kHz) | reference, level-matched (the mean difference across regions is removed) | \|dev\| ≥ 2 dB Low, ≥ 3.5 Medium, ≥ 6 High | by duration |
+| Density (crest factor) | reference | ≤ −3 dB Medium, ≤ −6 High; ≥ +6 Low | by duration, at most Medium (different stretches) |
+| Low end in mono (22–177 Hz) | the mix's own mono fold-down | loss ≤ −1 dB Low, ≤ −3 Medium, ≤ −6 High | Medium from 3 s, High from 10 s |
+| Phase | correlation below 0 | High | as mono |
+| Loudness | reference | ≥ 3 LU Low | Medium |
+
+Confidence by duration is Medium from 8 s of signal and High from 20 s; more
+than 10 % of the window's frames lost lowers it one level (ADR-007).
+Inferred findings list potential causes, never tracks (ADR-008). A report
+renders as Markdown (Critical / Moderate / Healthy); it has no UI yet.
+
 ## Real-time rules (enforced today by review and tests)
 
 The audio thread may read and analyse audio, run the DSP chain, update
@@ -214,7 +238,7 @@ diagnostic engine, or change the audio without the user (ADR-002, ADR-003).
 |---|---|---|---|
 | Audio-thread allocation guard | PLANNED | [#5](https://github.com/kylerobertschuster/mixmind/issues/5) | proves `processBlock` never allocates; keeps AR-001 closed |
 | Session trends beyond 60 s | PLANNED | [#2](https://github.com/kylerobertschuster/mixmind/issues/2) | v1.x nice-to-have (ADR-006); the 60 s history exists |
-| Diagnostic engine / Mix Doctor (`Finding`: observation, impact, severity, confidence, evidence, potential causes, actions) | PLANNED | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | rules with explicit, tested thresholds and a confidence rule each (ADR-007); no invented norms |
+| Diagnostic engine / Mix Doctor (`Finding`: observation, impact, severity, confidence, evidence, potential causes, actions) | PARTIAL | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | the engine and six rules exist (Current State); the report panel doesn't; congestion rules come with #3; thresholds are explicit and tested but not calibrated against labelled mixes |
 | Reference intelligence (comparison report, several references, audition) | PARTIAL | [#4](https://github.com/kylerobertschuster/mixmind/issues/4) | analysis, caching and match EQ exist |
 | Congestion diagnostics (mix bus, v1.0) | PLANNED | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | low-end / midrange congestion, transient suppression, spectral crowding; potential sources with confidence, never named tracks (ADR-008) |
 | Track-aware masking (v1.1) | PLANNED | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | instance discovery, cross-instance spectral exchange, per-source masking (ADR-008) |

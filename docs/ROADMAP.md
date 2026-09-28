@@ -1,5 +1,5 @@
-Version: 1.3
-Last Reviewed: 2026-09-27
+Version: 1.4
+Last Reviewed: 2026-09-28
 Owner: Founder
 
 # MixMind Roadmap
@@ -16,8 +16,8 @@ Progress lives in the issues and `docs/STATE.md`, not here.
 
 | Item | Issue | Status |
 |---|---|---|
-| Mix Doctor report | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | not started |
-| Severity and confidence scoring (ADR-007) | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | not started |
+| Mix Doctor report | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | partial — the report is built (findings ranked, Markdown); no panel in the editor yet |
+| Severity and confidence scoring (ADR-007) | [#1](https://github.com/kylerobertschuster/mixmind/issues/1) | partial — six rules with explicit, tested thresholds: true peak, tone against the reference (level-matched), density, low end in mono, phase, loudness; congestion rules come with #3 |
 | Analysis engine: measurement snapshots, the window Mix Doctor observes, audio-thread allocation guard | [#2](https://github.com/kylerobertschuster/mixmind/issues/2), [#5](https://github.com/kylerobertschuster/mixmind/issues/5) | done except the allocation guard (#5) — snapshots (AR-001 resolved), 100 ms frames, 60 s history with BS.1770 / EBU 3342 statistics |
 | Frequency masking — mix-bus congestion diagnostics with confidence (ADR-008) | [#3](https://github.com/kylerobertschuster/mixmind/issues/3) | not started |
 | Reference track intelligence | [#4](https://github.com/kylerobertschuster/mixmind/issues/4) | partial — analysis, caching and match EQ exist; comparison report doesn't |

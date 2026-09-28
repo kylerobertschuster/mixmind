@@ -38,6 +38,7 @@ public:
     void clear();
 
     bool   empty() const { return count == 0; }
+    int    generation() const { return generationCount; }   // bumps whenever the history restarts
     juce::uint32 latestIndex() const;   // index of the newest frame (0 if empty)
     double secondsAvailable() const;
 
@@ -79,6 +80,7 @@ private:
     std::vector<MeasurementFrame> ring;
     int head { 0 }, count { 0 };
     bool haveEpoch { false };
+    int  generationCount { 0 };
     juce::uint32 epoch { 0 };
     double sampleRate { 0.0 };
 };
