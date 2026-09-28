@@ -1,5 +1,7 @@
 #include "ReferenceAnalyzer.h"
 #include "TestSignals.h"
+#include <algorithm>
+#include <limits>
 
 using namespace TestSignals;
 
@@ -143,6 +145,31 @@ public:
             expect (analyzer.analyse (wav.file, res, err), err);
             expect (res.isValid());
             expectEquals (res.lufs, LoudnessMeter::kSilenceDb);
+        }
+
+        beginTest ("mapToGrid never reads outside the spectrum, whatever the Result claims");
+        {
+            // A Result can come from a session file someone else wrote: its
+            // numbers are not to be trusted. A subnormal rate makes the bin
+            // width 0 (p = 0/0), a negative one walks backwards, NaN poisons
+            // everything; none may index outside `spectrum` or emit NaN.
+            for (double rate : { 1.0e-322, -48000.0, std::numeric_limits<double>::quiet_NaN(),
+                                 std::numeric_limits<double>::infinity(), 1.0e300, 0.0 })
+            {
+                ReferenceAnalyzer::Result r;
+                r.sampleRate = rate;
+                r.fftSize    = 64;
+                r.spectrum.assign (32, 1.0f);
+                r.sideSpectrum.assign (32, 1.0f);
+                std::vector<float> out ((size_t) kBins, -1.0f);
+                for (bool side : { false, true })
+                {
+                    ReferenceAnalyzer::mapToGrid (r, 48000.0, out.data(), kBins, side);
+                    expect (std::all_of (out.begin(), out.end(), [] (float v) { return juce::exactlyEqual (v, 0.0f); }),
+                            "rate " + juce::String (rate));
+                }
+                expect (! r.isValid(), "an implausible rate is not a valid analysis: " + juce::String (rate));
+            }
         }
 
         beginTest ("Failures are reported, not thrown or crashed");

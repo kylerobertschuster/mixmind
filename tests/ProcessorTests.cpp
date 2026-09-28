@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "TestSignals.h"
+#include <algorithm>
 #include <limits>
 
 using namespace TestSignals;
@@ -168,6 +169,68 @@ public:
             expectWithinAbsoluteError (h.p.parameters.getRawParameterValue ("shapeAmount")->load(), 0.4f, 1.0e-6f);
             expectEquals (h.p.parameters.getRawParameterValue ("shapeMode")->load(), 1.0f);
             expectEquals (h.p.parameters.getRawParameterValue ("shapeEnable")->load(), 1.0f);
+        }
+
+        beginTest ("A tampered session cannot install an implausible reference");
+        {
+            // Session state comes from project files other people can write.
+            TempWav wav ("proc-tamper");
+            expect (writeWav (wav.file, whiteL, whiteR, kFs));
+            juce::MemoryBlock good;
+            {
+                Harness h;
+                h.p.loadReference (wav.file);
+                expect (pumpUntil ([&] { return h.p.getReferenceStatus() == MixMindProcessor::RefStatus::ready; }, 20000));
+                h.p.getStateInformation (good);
+            }
+            wav.file.deleteFile();   // no fallback: only the cached analysis is left
+
+            const auto tampered = [&] (const std::function<void (juce::XmlElement&)>& edit)
+            {
+                auto xml = juce::AudioProcessor::getXmlFromBinary (good.getData(), (int) good.getSize());
+                juce::MemoryBlock out;
+                if (xml == nullptr) return out;
+                if (auto* ref = xml->getChildByName ("Reference")) edit (*ref);
+                juce::AudioProcessor::copyXmlToBinary (*xml, out);
+                return out;
+            };
+            const auto floats = [] (std::vector<float> v)
+            {
+                juce::MemoryBlock b (v.data(), v.size() * sizeof (float));
+                return b.toBase64Encoding();
+            };
+
+            const std::vector<std::pair<const char*, std::function<void (juce::XmlElement&)>>> cases {
+                // Subnormal: passes "> 0", but rate / fftSize underflows to 0.
+                { "subnormal rate", [] (juce::XmlElement& r) { r.setAttribute ("sampleRate", "0.00000000000001e-308"); } },
+                { "negative rate",  [] (juce::XmlElement& r) { r.setAttribute ("sampleRate", "-48000"); } },
+                { "fftSize that does not match the rate",
+                  [&] (juce::XmlElement& r) { r.setAttribute ("fftSize", 64);
+                                              r.setAttribute ("spectrum", floats (std::vector<float> (32, 1.0f)));
+                                              r.removeAttribute ("sideSpectrum"); } },
+                { "non-finite spectrum",
+                  [&] (juce::XmlElement& r) { std::vector<float> v (1024, 1.0f); v[3] = std::numeric_limits<float>::quiet_NaN();
+                                              r.setAttribute ("spectrum", floats (v)); } },
+                { "negative magnitudes",
+                  [&] (juce::XmlElement& r) { std::vector<float> v (1024, 1.0f); v[7] = -1.0f;
+                                              r.setAttribute ("spectrum", floats (v)); } },
+            };
+            for (const auto& c : cases)
+            {
+                const auto state = tampered (c.second);
+                expect (state.getSize() > 0);
+                Harness h;
+                h.p.setStateInformation (state.getData(), (int) state.getSize());
+                expect (h.p.getReference() == nullptr, c.first);
+                pumpUntil ([] { return false; }, 150);   // design-loop ticks run the reference mapping
+                const auto& bins = h.p.getReferenceBins();
+                expect (std::all_of (bins.begin(), bins.end(), [] (float v) { return std::isfinite (v); }), c.first);
+            }
+
+            // The untouched state still restores.
+            Harness ok;
+            ok.p.setStateInformation (good.getData(), (int) good.getSize());
+            expect (ok.p.getReference() != nullptr);
         }
 
         beginTest ("Sessions saved before v2 (bare parameter tree) still restore");

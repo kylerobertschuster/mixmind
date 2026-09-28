@@ -43,7 +43,16 @@ public:
         float stereoWidth { 0.0f };
         float phaseCorr   { 1.0f };
 
-        bool  isValid() const { return fftSize > 0 && (int) spectrum.size() == fftSize / 2; }
+        // A Result can come from a session file someone else wrote, so this
+        // checks rather than trusts: a plausible rate, the FFT size analyse()
+        // uses for it, one magnitude per bin. (A subnormal rate used to pass
+        // and make mapToGrid index with (int) NaN.)
+        bool  isValid() const
+        {
+            return sampleRate >= kMinSampleRate && sampleRate <= kMaxSampleRate
+                && fftSize == fftSizeForRate (sampleRate)
+                && (int) spectrum.size() == fftSize / 2;
+        }
         bool  hasSide() const { return isValid() && sideSpectrum.size() == spectrum.size(); }
         float getCrestFactor() const
         {
@@ -65,6 +74,9 @@ public:
 
     // Native FFT size used for a given file sample rate.
     static int fftSizeForRate (double sampleRate);
+
+    // File sample rates analyse() accepts.
+    static constexpr double kMinSampleRate = 1000.0, kMaxSampleRate = 768000.0;
 
     // Resamples `ref.spectrum` (or `sideSpectrum`) onto the live grid:
     // `numBins` bins spaced liveSampleRate / AudioAnalyzer::fftSize. Bins

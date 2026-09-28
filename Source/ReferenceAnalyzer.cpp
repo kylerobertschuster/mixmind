@@ -47,6 +47,12 @@ bool ReferenceAnalyzer::analyse (const juce::File& file, Result& out, juce::Stri
         error = "\"" + file.getFileName() + "\" has no audio.";
         return false;
     }
+    if (fs < kMinSampleRate || fs > kMaxSampleRate)
+    {
+        error = "\"" + file.getFileName() + "\" has an unsupported sample rate ("
+              + juce::String (fs, 0) + " Hz).";
+        return false;
+    }
 
     const bool stereo = reader->numChannels >= 2;
     const juce::int64 total = juce::jmin (reader->lengthInSamples, (juce::int64) (fs * kMaxSeconds));
@@ -185,13 +191,14 @@ void ReferenceAnalyzer::mapToGrid (const Result& ref, double liveSampleRate, flo
 
     const double liveBinHz = liveSampleRate / (double) AudioAnalyzer::fftSize;
     const double refBinHz  = ref.sampleRate / (double) ref.fftSize;
+    if (! (refBinHz > 0.0) || ! std::isfinite (refBinHz) || ! (liveBinHz > 0.0)) return;
     const float  gain      = (float) std::sqrt (liveBinHz / refBinHz);
     const int    last      = (int) ref.spectrum.size() - 1;
 
     for (int i = 0; i < numBins; ++i)
     {
         const double p = (double) i * liveBinHz / refBinHz;
-        if (p > (double) last) break;   // above the reference's Nyquist: no data
+        if (! (p <= (double) last)) break;   // above the reference's Nyquist (or NaN): no data
 
         const int    k0 = (int) p;
         const int    k1 = juce::jmin (k0 + 1, last);

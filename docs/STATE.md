@@ -1,4 +1,4 @@
-Version: 1.2
+Version: 1.3
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -83,7 +83,9 @@ commit message; Debug and Release).
   click-free on/off / type / placement / frequency jumps.
 - **Reference** — loudness/peak/spectrum agree with the live analyzer;
   44.1 k / 96 k files land on the 48 k grid at the same level; mono = dual-mono;
-  sub-400 ms files; missing / silent / non-audio files; cancellation; formats.
+  sub-400 ms files; missing / silent / non-audio files; cancellation; formats;
+  an implausible Result (subnormal, negative, NaN or infinite rate) never
+  indexes outside its spectrum.
 - **AI** — firewall: valid payloads map exactly onto parameters; NaN / ±inf
   (values and literals) reject; out-of-range quantities clamp; choices and
   switches must be exact; unknown IDs / fields, coefficients, prose, code
@@ -101,6 +103,8 @@ commit message; Debug and Release).
 - **Processor** — constant latency + latency-matched host bypass; async
   reference load; session round-trip (reference restored from the cached
   analysis with the audio file deleted, trace, parameters); pre-v2 sessions;
+  tampered sessions (subnormal or negative rate, FFT size that doesn't match
+  the rate, NaN or negative spectrum) are refused instead of installed;
   failed load keeps the previous reference; AUTO, MANUAL and mid/side
   correction end to end; band parameters drive the EQ and the output
   analyzer; non-finite input contained; editor open / resize / paint / close,

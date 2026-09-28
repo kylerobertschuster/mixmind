@@ -1,4 +1,4 @@
-Version: 1.3
+Version: 1.4
 Last Reviewed: 2026-09-27
 Owner: Founder
 
@@ -132,6 +132,9 @@ When editing shared files, check every consuming target still builds.
 - Comment why, not what.
 - JUCE hygiene: `ScopedNoDenormals` in `processBlock`, `Atomic<float>`
   for cross-thread readouts, `SpinLock` for coefficient swaps.
+- Session state, presets and dropped files are untrusted input (projects get
+  shared): validate every size, rate and value from them before it is used
+  to index or divide — checks, not trust (`ReferenceAnalyzer::Result::isValid`).
 - The MixMind editor renders through an attached `OpenGLContext`, so
   `paint()` runs on the GL thread with the message manager locked: no
   blocking work, no message-thread-only calls, no waiting on the message

@@ -594,6 +594,9 @@ void MixMindProcessor::setStateInformation (const void* data, int sizeInBytes)
     cached->stereoWidth     = r.getProperty ("width");
     cached->phaseCorr       = r.getProperty ("phase");
 
+    // The state may come from a project file someone else wrote: a spectrum
+    // must be finite, non-negative magnitudes or it is not used (the file is
+    // re-read instead, if it exists). isValid() checks rate and sizes.
     const auto decode = [&r] (const char* key, std::vector<float>& out)
     {
         juce::MemoryBlock block;
@@ -601,12 +604,14 @@ void MixMindProcessor::setStateInformation (const void* data, int sizeInBytes)
         {
             const auto* f = static_cast<const float*> (block.getData());
             out.assign (f, f + block.getSize() / sizeof (float));
+            if (! std::all_of (out.begin(), out.end(), [] (float v) { return std::isfinite (v) && v >= 0.0f; }))
+                out.clear();
         }
     };
     decode ("spectrum", cached->spectrum);
     decode ("sideSpectrum", cached->sideSpectrum);
 
-    if (cached->isValid() && cached->sampleRate > 0.0)
+    if (cached->isValid())
     {
         // Analyses cached before mid/side matching have no side spectrum:
         // use the cache now and refresh it from the file if it is still there.
