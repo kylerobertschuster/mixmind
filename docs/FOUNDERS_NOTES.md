@@ -1,5 +1,5 @@
-Version: 1.0
-Last Reviewed: 2026-09-27
+Version: 1.1
+Last Reviewed: 2026-09-30
 Owner: Founder
 
 # Founder's Notes
@@ -128,3 +128,36 @@ FabFilter: "Here's an EQ."
 MixMind: "Here's why this EQ move helps."
 
 That's a position worth keeping.
+
+---
+
+## 2026-09-30 — MixMind is a decision engine
+
+Reading about Jev (an API for typed decisions: state → decision → confidence
+→ action) made the shape clear. MixMind works the same way:
+
+Audio state → diagnostic decision → confidence → suggested action.
+
+Every feature is a bounded decision with measurable evidence, a confidence
+and a recommended action. "Does low-end masking exist?" "Will this mix
+translate poorly to small speakers?" "How far is this mix from the
+reference?"
+
+Copilot drafted this as a separate Build Doctrine. Most of it was already
+decided (VISION, ADR-002 to ADR-005, AGENTS.md), so the new parts went into
+the documents we have instead of a second rulebook:
+
+- VISION: the decision pipeline, the sharper success line.
+- AGENTS: define the decision and its evidence first; build measurement →
+  finding → confidence → explanation; work must improve Mix Doctor.
+- Accepted ADRs now rank between ARCHITECTURE and AGENTS.
+- ADRs are for contracts (principles, threading, the AI's powers, what users
+  are promised), not for every threshold.
+
+Kept ADR-007 over the draft's "8/10, 91 %" examples: until a rule is checked
+against labelled mixes, confidence is High / Medium / Low. A number nobody
+has checked is invented.
+
+Jev itself is a framing, not a component: a cloud service that reads text
+can't sit in a diagnostic path that has to work offline from measurements
+(ADR-002, ADR-005).

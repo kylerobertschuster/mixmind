@@ -1,11 +1,16 @@
-Version: 1.2
-Last Reviewed: 2026-09-27
+Version: 1.3
+Last Reviewed: 2026-09-30
 Owner: Founder
 
 # Architecture Decision Records
 
 One decision per file, `ADR-NNN-short-title.md`, numbered in order.
+Accepted ADRs rank below `ARCHITECTURE.md` and above `AGENTS.md` (AGENTS.md,
+"Documents and authority").
 
+- **When.** A principle, a threading or real-time contract, the AI's powers
+  or what users are promised changes. Not for rule thresholds: those live in
+  the code, its tests and `ARCHITECTURE.md`.
 - **Append-only.** Never edit an accepted decision. To change it, write a new
   ADR that supersedes it and set the old one's status to
   `Superseded by ADR-NNN` (the only edit an old ADR ever gets).

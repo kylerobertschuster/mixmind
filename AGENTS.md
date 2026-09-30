@@ -1,5 +1,5 @@
-Version: 1.7
-Last Reviewed: 2026-09-28
+Version: 1.8
+Last Reviewed: 2026-09-30
 Owner: Founder
 
 # AGENTS.md
@@ -24,7 +24,7 @@ act on findings, the producer always in control.
 ## Documents and authority
 
 Authority, highest first: `docs/VISION.md` → `docs/ARCHITECTURE.md` →
-`AGENTS.md` → `docs/STATE.md`. `docs/ADR/` records the decisions behind them;
+Accepted ADRs (`docs/ADR/`) → `AGENTS.md` → `docs/STATE.md`.
 `docs/ROADMAP.md` orders the work; `docs/FOUNDERS_NOTES.md` keeps the
 reasoning.
 
@@ -42,6 +42,10 @@ reasoning.
 - `FOUNDERS_NOTES.md` and ADRs are append-only: add dated entries; supersede
   an ADR with a new one rather than editing its decision. A change that
   contradicts an Accepted ADR needs a new ADR first.
+- Write an ADR when a principle, a threading or real-time contract, the AI's
+  powers or what users are promised changes. Rule thresholds are not ADRs:
+  they stay explicit in the code, its tests and the rule table in
+  `ARCHITECTURE.md`.
 - Known architectural risks are listed at the top of `ARCHITECTURE.md`
   (AR-NNN). A change that touches an open risk says so and updates it; a
   risk is marked Resolved, never deleted.
@@ -51,6 +55,15 @@ reasoning.
 
 ## Diagnostics (Mix Doctor)
 
+- Start from the decision, then the evidence: write down the bounded
+  question a rule answers ("is the low end louder than the reference's?",
+  not "analyse the low end") and the measurements it rests on before writing
+  code. A finding without evidence is not a finding.
+- Build in order: measurement → finding → confidence → explanation. No AI
+  explanation for anything the diagnostic engine doesn't produce yet.
+- Work should improve Mix Doctor's detection, accuracy, confidence,
+  education or actionability. Ask before building something that improves
+  none of them.
 - Only the analysis engine measures and only the diagnostic engine creates
   findings (ADR-002). Every finding carries observation, impact, severity,
   confidence, the evidence behind it and recommended actions.

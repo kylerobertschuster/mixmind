@@ -1,5 +1,5 @@
-Version: 1.1
-Last Reviewed: 2026-09-27
+Version: 1.2
+Last Reviewed: 2026-09-30
 Owner: Founder
 
 # MixMind Vision
@@ -73,6 +73,19 @@ Measurements are the source of truth; the AI layer never is. Every
 recommendation must be directly supported by measurable observations, and no
 comparison is made against a norm that has not been measured.
 
+## How MixMind decides
+
+Every capability is a bounded decision ("is the low end louder than the
+reference's?", not "analyse the low end"), made in one order:
+
+```
+Audio → Measurements → Diagnostic decision (with its evidence) → Confidence
+      → Recommended action → Producer's approval → Optional processing
+```
+
+Never reverse it: no finding without a measurement behind it, no
+explanation without a finding, no change to the audio without the producer.
+
 ## Flagship: Mix Doctor
 
 Mix Doctor is the center of the product; everything else should strengthen
@@ -110,14 +123,20 @@ Before building a feature, ask:
 2. Does this help explain a problem?
 3. Does this help solve a problem?
 4. Does this help users learn?
+5. Does this make a finding more accurate, or its confidence better founded?
 
 If not, challenge whether it should exist.
 
 ## Success
 
-Not the number of AI messages, insights or visualizations. Success is:
+Not AI usage, chat messages, the number of insights or visualizations,
+recommendations made or EQ moves applied. Success is:
 
-> Did MixMind identify the problem the producer was struggling to describe?
+> Did MixMind correctly identify the problem the producer was struggling to describe?
+
+The product wins when a producer says "it found exactly what was wrong",
+not "it gave me an AI response". Understanding is the moat; diagnosis is the
+product; AI is the interface; the producer stays in control.
 
 ## Long-term goal
 
